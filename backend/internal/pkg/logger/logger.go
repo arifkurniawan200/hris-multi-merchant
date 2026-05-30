@@ -4,16 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/contextkeys"
 	"github.com/sirupsen/logrus"
-)
-
-// Keys for context values.
-type contextKey string
-
-const (
-	requestIDKey contextKey = "request_id"
-	tenantIDKey  contextKey = "tenant_id"
-	userIDKey    contextKey = "user_id"
 )
 
 // L is the global logger instance.
@@ -40,19 +32,25 @@ func Init(env string) {
 	L.AddHook(&contextHook{})
 }
 
-// contextHook automatically adds request_id and tenant_id from context.
+// contextHook automatically enriches log entries with contextual fields
+// (request_id, tenant_id, user_id) extracted from the shared contextkeys package.
+// This ensures middleware and logger use the SAME typed keys — no mismatch.
 type contextHook struct{}
 
 func (h *contextHook) Levels() []logrus.Level { return logrus.AllLevels }
+
 func (h *contextHook) Fire(entry *logrus.Entry) error {
 	if entry.Context == nil {
 		return nil
 	}
-	if v, ok := entry.Context.Value(requestIDKey).(string); ok && v != "" {
+	if v, ok := entry.Context.Value(contextkeys.RequestID).(string); ok && v != "" {
 		entry.Data["request_id"] = v
 	}
-	if v, ok := entry.Context.Value(tenantIDKey).(string); ok && v != "" {
+	if v, ok := entry.Context.Value(contextkeys.TenantID).(string); ok && v != "" {
 		entry.Data["tenant_id"] = v
+	}
+	if v, ok := entry.Context.Value(contextkeys.UserID).(string); ok && v != "" {
+		entry.Data["user_id"] = v
 	}
 	return nil
 }

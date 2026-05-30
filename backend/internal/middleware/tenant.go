@@ -3,6 +3,8 @@ package middleware
 import (
 	"context"
 	"net/http"
+
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/contextkeys"
 )
 
 // TenantCtx reads tenant_id from JWT claims in context,
@@ -12,9 +14,9 @@ func TenantCtx(setFn func(ctx context.Context, key string, value string) error) 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			role, _ := ctx.Value(CtxRole).(string)
-			tenantID, _ := ctx.Value(CtxTenantID).(string)
-			userID, _ := ctx.Value(CtxUserID).(string)
+			role, _ := ctx.Value(contextkeys.UserRole).(string)
+			tenantID, _ := ctx.Value(contextkeys.TenantID).(string)
+			userID, _ := ctx.Value(contextkeys.UserID).(string)
 
 			if err := setFn(ctx, "app.current_tenant", tenantID); err != nil {
 				writeErr(w, http.StatusForbidden, "tenant_context_error")

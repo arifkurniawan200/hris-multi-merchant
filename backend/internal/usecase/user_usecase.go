@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/google/uuid"
@@ -12,8 +13,10 @@ import (
 )
 
 type UserUC struct {
-	userRepo domain.UserRepository
-	jwt      JWTComposer
+	userRepo       domain.UserRepository
+	userTenantRepo domain.UserTenantRepository
+	jwt            JWTComposer
+	txManager      *adapter.TxManager
 }
 
 type JWTComposer interface {
@@ -23,11 +26,15 @@ type JWTComposer interface {
 
 func NewUserUC(
 	userRepo domain.UserRepository,
+	userTenantRepo domain.UserTenantRepository,
 	jwt JWTComposer,
+	txManager *adapter.TxManager,
 ) domain.UserUseCase {
 	return &UserUC{
-		userRepo: userRepo,
-		jwt:      jwt,
+		userRepo:       userRepo,
+		userTenantRepo: userTenantRepo,
+		jwt:            jwt,
+		txManager:      txManager,
 	}
 }
 
@@ -41,7 +48,7 @@ func (uc *UserUC) RegisterUser(ctx context.Context, req *domain.RegisterRequest)
 		return nil, domain.NewConflict("email already registered")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12) // cost 12
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if err != nil {
 		logger.Error(ctx, "hash password failed", "error", err)
 		return nil, domain.NewInternal(fmt.Sprintf("hash password: %v", err))
@@ -55,9 +62,17 @@ func (uc *UserUC) RegisterUser(ctx context.Context, req *domain.RegisterRequest)
 		IsActive:     true,
 	}
 
-	if err := uc.userRepo.Create(ctx, user); err != nil {
-		logger.Error(ctx, "create user failed", "email", req.Email, "error", err)
-		return nil, domain.NewInternal(fmt.Sprintf("create user: %v", err))
+	// Transaction ensures atomicity when multi-table writes are involved.
+	// Currently single-table (users), but pattern is established for when
+	// we add user_tenant creation on registration (tenant assignment flow).
+	if err := uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
+		if err := uc.userRepo.Create(txCtx, user); err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+		return nil
+	}); err != nil {
+		logger.Error(ctx, "register user failed", "email", req.Email, "error", err)
+		return nil, domain.NewInternal(fmt.Sprintf("register user: %v", err))
 	}
 
 	logger.Info(ctx, "user registered", "user_id", user.ID, "email", user.Email)

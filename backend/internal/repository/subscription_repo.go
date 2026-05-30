@@ -4,22 +4,31 @@ import (
 	"context"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
-	"github.com/jackc/pgx/v5/pgxpool"
+
 )
 
 // SubscriptionRepo handles tenant plan/subscription management.
 type SubscriptionRepo struct {
-	db *pgxpool.Pool
+	db adapter.DBTX
+}
+// dbQuerier returns the active transaction from context if available.
+func (r *SubscriptionRepo) dbQuerier(ctx context.Context) adapter.DBTX {
+	if tx := adapter.GetTxDB(ctx); tx != nil {
+		return tx
+	}
+	return r.db
 }
 
-func NewSubscriptionRepo(db *pgxpool.Pool) *SubscriptionRepo {
+
+func NewSubscriptionRepo(db adapter.DBTX) *SubscriptionRepo {
 	return &SubscriptionRepo{db: db}
 }
 
 // Activate enables a tenant (sets is_active=true).
 func (r *SubscriptionRepo) Activate(ctx context.Context, tenantID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE tenants SET is_active=true, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
@@ -27,7 +36,7 @@ func (r *SubscriptionRepo) Activate(ctx context.Context, tenantID string) error 
 
 // Deactivate disables a tenant (sets is_active=false).
 func (r *SubscriptionRepo) Deactivate(ctx context.Context, tenantID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE tenants SET is_active=false, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
@@ -35,7 +44,7 @@ func (r *SubscriptionRepo) Deactivate(ctx context.Context, tenantID string) erro
 
 // Extend extends subscription_expire_at by the given duration.
 func (r *SubscriptionRepo) Extend(ctx context.Context, tenantID string, duration time.Duration) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE tenants SET subscription_expire_at = COALESCE(subscription_expire_at, NOW()) + $2::interval, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID, duration)
 	return err
@@ -43,7 +52,7 @@ func (r *SubscriptionRepo) Extend(ctx context.Context, tenantID string, duration
 
 // ChangePlan updates the plan and price.
 func (r *SubscriptionRepo) ChangePlan(ctx context.Context, tenantID, plan string, pricePerEmployee int64) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE tenants SET plan=$2, plan_price_per_employee=$3, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID, plan, pricePerEmployee)
 	return err
@@ -51,7 +60,7 @@ func (r *SubscriptionRepo) ChangePlan(ctx context.Context, tenantID, plan string
 
 // SoftDelete sets deleted_at (soft delete).
 func (r *SubscriptionRepo) SoftDelete(ctx context.Context, tenantID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE tenants SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
@@ -59,14 +68,14 @@ func (r *SubscriptionRepo) SoftDelete(ctx context.Context, tenantID string) erro
 
 // HardDelete permanently removes.
 func (r *SubscriptionRepo) HardDelete(ctx context.Context, tenantID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`DELETE FROM tenants WHERE id=$1`, tenantID)
 	return err
 }
 
 // GetUserTenantsWithExpiry returns tenants for user with expiry info.
 func (r *SubscriptionRepo) GetUserTenantsWithExpiry(ctx context.Context, userID string) ([]domain.Tenant, error) {
-	rows, err := r.db.Query(ctx, `
+	rows, err := r.dbQuerier(ctx).Query(ctx, `
 		SELECT t.id, t.name, t.slug, t.plan, t.plan_price_per_employee, t.max_employees, t.settings, t.logo_url, t.is_active, t.subscription_expires_at, t.created_at, t.updated_at
 		FROM tenants t
 		JOIN user_tenants ut ON ut.tenant_id = t.id

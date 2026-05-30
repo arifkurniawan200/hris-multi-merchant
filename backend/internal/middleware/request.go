@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/contextkeys"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/google/uuid"
 )
 
-type contextKey string
-
+// Re-export context keys for backward compatibility.
 const (
-	CtxUserID   contextKey = "user_id"
-	CtxTenantID contextKey = "tenant_id"
-	CtxRole     contextKey = "role"
-	CtxReqID    contextKey = "request_id"
+	CtxUserID   = contextkeys.UserID
+	CtxTenantID = contextkeys.TenantID
+	CtxRole     = contextkeys.UserRole
+	CtxReqID    = contextkeys.RequestID
 )
 
 func RequestID(next http.Handler) http.Handler {
@@ -26,7 +26,7 @@ func RequestID(next http.Handler) http.Handler {
 			reqID = uuid.New().String()
 		}
 		w.Header().Set("X-Request-ID", reqID)
-		ctx := context.WithValue(r.Context(), CtxReqID, reqID)
+		ctx := context.WithValue(r.Context(), contextkeys.RequestID, reqID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -72,7 +72,7 @@ func Recovery(next http.Handler) http.Handler {
 }
 
 func GetReqID(ctx context.Context) string {
-	if v, ok := ctx.Value(CtxReqID).(string); ok {
+	if v, ok := ctx.Value(contextkeys.RequestID).(string); ok {
 		return v
 	}
 	return ""

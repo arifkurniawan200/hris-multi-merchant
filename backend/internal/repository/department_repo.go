@@ -7,14 +7,23 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
+
 )
 
 type DepartmentRepo struct {
-	db *pgxpool.Pool
+	db adapter.DBTX
+}
+// dbQuerier returns the active transaction from context if available.
+func (r *DepartmentRepo) dbQuerier(ctx context.Context) adapter.DBTX {
+	if tx := adapter.GetTxDB(ctx); tx != nil {
+		return tx
+	}
+	return r.db
 }
 
-func NewDepartmentRepo(db *pgxpool.Pool) domain.DepartmentRepository {
+
+func NewDepartmentRepo(db adapter.DBTX) domain.DepartmentRepository {
 	return &DepartmentRepo{db: db}
 }
 
@@ -43,7 +52,7 @@ func (r *DepartmentRepo) Create(ctx context.Context, d *domain.Department) error
 		INSERT INTO departments (id, tenant_id, parent_id, name, code, description, manager_id, level, is_active, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW(), NOW())
 	`
-	_, err := r.db.Exec(ctx, query,
+	_, err := r.dbQuerier(ctx).Exec(ctx, query,
 		d.ID, d.TenantID, d.ParentID, d.Name, d.Code,
 		d.Description, d.ManagerID, d.Level, d.IsActive,
 	)
@@ -52,12 +61,12 @@ func (r *DepartmentRepo) Create(ctx context.Context, d *domain.Department) error
 
 func (r *DepartmentRepo) GetByID(ctx context.Context, id string) (*domain.Department, error) {
 	query := `SELECT ` + deptColumns + ` FROM departments WHERE id=$1 AND deleted_at IS NULL`
-	return scanDepartment(r.db.QueryRow(ctx, query, id))
+	return scanDepartment(r.dbQuerier(ctx).QueryRow(ctx, query, id))
 }
 
 func (r *DepartmentRepo) GetByCode(ctx context.Context, tenantID, code string) (*domain.Department, error) {
 	query := `SELECT ` + deptColumns + ` FROM departments WHERE tenant_id=$1 AND code=$2 AND deleted_at IS NULL`
-	return scanDepartment(r.db.QueryRow(ctx, query, tenantID, code))
+	return scanDepartment(r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, code))
 }
 
 func (r *DepartmentRepo) Update(ctx context.Context, d *domain.Department) error {
@@ -66,7 +75,7 @@ func (r *DepartmentRepo) Update(ctx context.Context, d *domain.Department) error
 		SET name=$2, code=$3, description=$4, manager_id=$5, parent_id=$6, is_active=$7, updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
-	_, err := r.db.Exec(ctx, query,
+	_, err := r.dbQuerier(ctx).Exec(ctx, query,
 		d.ID, d.Name, d.Code, d.Description, d.ManagerID, d.ParentID, d.IsActive,
 	)
 	return err
@@ -84,7 +93,7 @@ func (r *DepartmentRepo) List(ctx context.Context, tenantID string, parentID *st
 	}
 	query += ` ORDER BY level ASC, name ASC`
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +117,7 @@ func (r *DepartmentRepo) List(ctx context.Context, tenantID string, parentID *st
 }
 
 func (r *DepartmentRepo) SoftDelete(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE departments SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err

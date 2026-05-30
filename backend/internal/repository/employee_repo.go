@@ -8,14 +8,31 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
+
 )
 
 type EmployeeRepo struct {
-	db *pgxpool.Pool
+	db adapter.DBTX
+}
+// dbQuerier returns the active transaction from context if available.
+func (r *EmployeeRepo) dbQuerier(ctx context.Context) adapter.DBTX {
+	if tx := adapter.GetTxDB(ctx); tx != nil {
+		return tx
+	}
+	return r.db
 }
 
-func NewEmployeeRepo(db *pgxpool.Pool) domain.EmployeeRepository {
+// dbQuerier returns the active transaction from context if available.
+func (r *EmployeeRepo) dbQuerier(ctx context.Context) adapter.DBTX {
+	if tx := adapter.GetTxDB(ctx); tx != nil {
+		return tx
+	}
+	return r.db
+}
+
+
+func NewEmployeeRepo(db adapter.DBTX) domain.EmployeeRepository {
 	return &EmployeeRepo{db: db}
 }
 
@@ -115,7 +132,7 @@ func (r *EmployeeRepo) Create(ctx context.Context, e *domain.Employee) error {
 			NOW(), NOW()
 		)
 	`
-	_, err := r.db.Exec(ctx, query,
+	_, err := r.dbQuerier(ctx).Exec(ctx, query,
 		e.ID, e.TenantID, e.UserID, e.EmployeeCode, e.FirstName, e.LastName,
 		e.Gender, e.BirthDate, e.BirthPlace, e.Email, e.Phone, e.Address,
 		e.DepartmentID, e.PositionID, e.ManagerID,
@@ -130,12 +147,12 @@ func (r *EmployeeRepo) Create(ctx context.Context, e *domain.Employee) error {
 
 func (r *EmployeeRepo) GetByID(ctx context.Context, id string) (*domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.id=$1 AND e.deleted_at IS NULL`
-	return scanEmployee(r.db.QueryRow(ctx, query, id))
+	return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, id))
 }
 
 func (r *EmployeeRepo) GetByCode(ctx context.Context, tenantID, code string) (*domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.tenant_id=$1 AND e.employee_code=$2 AND e.deleted_at IS NULL`
-	return scanEmployee(r.db.QueryRow(ctx, query, tenantID, code))
+	return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, code))
 }
 
 func (r *EmployeeRepo) Update(ctx context.Context, e *domain.Employee) error {
@@ -156,7 +173,7 @@ func (r *EmployeeRepo) Update(ctx context.Context, e *domain.Employee) error {
 			updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
-	_, err := r.db.Exec(ctx, query,
+	_, err := r.dbQuerier(ctx).Exec(ctx, query,
 		e.ID, e.FirstName, e.LastName, e.Gender,
 		e.BirthDate, e.BirthPlace,
 		e.Email, e.Phone, e.Address,
@@ -207,7 +224,7 @@ func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.
 	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -286,19 +303,19 @@ func (r *EmployeeRepo) Count(ctx context.Context, tenantID string, filter domain
 	query += ` WHERE ` + strings.Join(conditions, ` AND `)
 
 	var count int
-	err := r.db.QueryRow(ctx, query, args...).Scan(&count)
+	err := r.dbQuerier(ctx).QueryRow(ctx, query, args...).Scan(&count)
 	return count, err
 }
 
 func (r *EmployeeRepo) SoftDelete(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE employees SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err
 }
 
 func (r *EmployeeRepo) UpdateStatus(ctx context.Context, id, status string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.dbQuerier(ctx).Exec(ctx,
 		`UPDATE employees SET employment_status=$2, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id, status)
 	return err

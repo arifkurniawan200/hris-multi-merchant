@@ -42,6 +42,9 @@ func main() {
 		cfg.ParseDuration(cfg.JWT.RefreshExpiry),
 	)
 
+	// ── Tx Manager ──────────────────────────
+	txMgr := adapter.NewTxManager(dbpool)
+
 	// ── Repos ───────────────────────────────
 	tenantRepo := repository.NewTenantRepo(dbpool)
 	userRepo := repository.NewUserRepo(dbpool)
@@ -52,7 +55,7 @@ func main() {
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
-	userUC := usecase.NewUserUC(userRepo, jwtMgr)
+	userUC := usecase.NewUserUC(userRepo, userTenantRepo, jwtMgr, txMgr)
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
