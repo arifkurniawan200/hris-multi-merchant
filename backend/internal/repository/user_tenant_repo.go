@@ -6,7 +6,6 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
-
 )
 
 type UserTenantRepo struct {
