@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/config"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/handler"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
@@ -20,10 +21,12 @@ import (
 )
 
 func main() {
-	log, err := logger.New(getEnv("APP_ENV", "development"))
+	log, err := logger.New(newGetEnv("APP_ENV", "development"))
 	if err != nil {
 		panic("init logger: " + err.Error())
 	}
+
+	cfg := config.Load()
 
 	// ── DB ──────────────────────────────────
 	dbpool, err := adapter.NewPgxPool()
@@ -36,20 +39,26 @@ func main() {
 
 	// ── JWT ─────────────────────────────────
 	jwtMgr := middleware.NewJWTManager(
-		getEnv("JWT_ACCESS_SECRET", "change-me-access-secret"),
-		getEnv("JWT_REFRESH_SECRET", "change-me-refresh-secret"),
-		15*time.Minute,
-		7*24*time.Hour,
+		cfg.JWT.AccessSecret,
+		cfg.JWT.RefreshSecret,
+		cfg.ParseDuration(cfg.JWT.AccessExpiry),
+		cfg.ParseDuration(cfg.JWT.RefreshExpiry),
 	)
 
 	// ── Repos ───────────────────────────────
 	tenantRepo := repository.NewTenantRepo(dbpool)
 	userRepo := repository.NewUserRepo(dbpool)
 	userTenantRepo := repository.NewUserTenantRepo(dbpool)
+	deptRepo := repository.NewDepartmentRepo(dbpool)
+	posRepo := repository.NewPositionRepo(dbpool)
+	empRepo := repository.NewEmployeeRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
-	tenantUC := usecase.NewTenantUC(tenantRepo)
+	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
 	userUC := usecase.NewUserUC(userRepo, jwtMgr)
+	deptUC := usecase.NewDepartmentUC(deptRepo)
+	posUC := usecase.NewPositionUC(posRepo)
+	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -61,6 +70,9 @@ func main() {
 	authH := handler.NewAuthHandler(userUC, jwtMgr, refreshStore)
 	tenantH := handler.NewTenantHandler(tenantUC)
 	adminH := handler.NewAdminHandler(tenantUC, log)
+	deptH := handler.NewDepartmentHandler(deptUC)
+	posH := handler.NewPositionHandler(posUC)
+	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -71,6 +83,8 @@ func main() {
 	tenantMw := middleware.TenantCtx(setCfg)
 	rbAdmin := middleware.RequireRole("super_admin")
 	rbTenantAdmin := middleware.RequireRole("tenant_admin")
+	rbManager := middleware.RequireRole("manager")
+	rbEmployee := middleware.RequireRole("employee")
 
 	// ── Router ──────────────────────────────
 	r := chi.NewRouter()
@@ -114,6 +128,37 @@ func main() {
 				r.Get("/api/v1/tenants/me", tenantH.MyTenant)
 				r.Put("/api/v1/tenants/me", tenantH.UpdateMyTenant)
 			})
+
+			// Manager+ — Department CRUD
+			r.Group(func(r chi.Router) {
+				r.Use(rbManager)
+				r.Post("/api/v1/departments", deptH.Create)
+				r.Get("/api/v1/departments", deptH.List)
+				r.Get("/api/v1/departments/{id}", deptH.Get)
+				r.Put("/api/v1/departments/{id}", deptH.Update)
+				r.Delete("/api/v1/departments/{id}", deptH.Delete)
+
+				// Position CRUD
+				r.Post("/api/v1/positions", posH.Create)
+				r.Get("/api/v1/positions", posH.List)
+				r.Get("/api/v1/positions/{id}", posH.Get)
+				r.Put("/api/v1/positions/{id}", posH.Update)
+				r.Delete("/api/v1/positions/{id}", posH.Delete)
+
+				// Employee write
+				r.Post("/api/v1/employees", empH.Create)
+				r.Put("/api/v1/employees/{id}", empH.Update)
+				r.Delete("/api/v1/employees/{id}", empH.Delete)
+				r.Put("/api/v1/employees/{id}/status", empH.ChangeStatus)
+			})
+
+			// Employee+ — Employee read + org chart
+			r.Group(func(r chi.Router) {
+				r.Use(rbEmployee)
+				r.Get("/api/v1/employees", empH.List)
+				r.Get("/api/v1/employees/{id}", empH.Get)
+				r.Get("/api/v1/org-chart", empH.OrgChart)
+			})
 		})
 
 		// Super admin only
@@ -130,12 +175,12 @@ func main() {
 	})
 
 	// ── Server ──────────────────────────────
-	port := getEnv("APP_PORT", "3000")
+	port := strconv.Itoa(cfg.Server.Port)
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      r,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  cfg.ParseDuration(cfg.Server.ReadTimeout),
+		WriteTimeout: cfg.ParseDuration(cfg.Server.WriteTimeout),
 	}
 
 	go func() {
@@ -151,7 +196,7 @@ func main() {
 	<-quit
 	log.Info("server_shutting_down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ParseDuration(cfg.Server.ShutdownTimeout))
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error("shutdown_error", logger.ErrField(err))
@@ -159,7 +204,7 @@ func main() {
 	log.Info("server_stopped")
 }
 
-func getEnv(key, def string) string {
+func newGetEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}

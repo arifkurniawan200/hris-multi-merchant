@@ -3,16 +3,18 @@ package usecase
 import (
 	"fmt"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/config"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/google/uuid"
 )
 
 type TenantUC struct {
 	tenantRepo domain.TenantRepository
+	plans      *config.PlansConfig
 }
 
-func NewTenantUC(repo domain.TenantRepository) domain.TenantUseCase {
-	return &TenantUC{tenantRepo: repo}
+func NewTenantUC(repo domain.TenantRepository, plans *config.PlansConfig) domain.TenantUseCase {
+	return &TenantUC{tenantRepo: repo, plans: plans}
 }
 
 // CreateTenant validates the request and creates a new tenant.
@@ -26,14 +28,6 @@ func (uc *TenantUC) CreateTenant(req *domain.CreateTenantRequest) (*domain.Tenan
 		return nil, domain.NewConflict("slug already exists")
 	}
 
-	maxEmp := 5
-	switch req.Plan {
-	case "pro":
-		maxEmp = 50
-	case "enterprise":
-		maxEmp = 10000
-	}
-
 	t := &domain.Tenant{
 		ID:                   uuid.New().String(),
 		Name:                 req.Name,
@@ -41,7 +35,7 @@ func (uc *TenantUC) CreateTenant(req *domain.CreateTenantRequest) (*domain.Tenan
 		Plan:                 req.Plan,
 		PlanPricePerEmployee: req.PricePerEmployee,
 		IsActive:             true,
-		MaxEmployees:         maxEmp,
+		MaxEmployees:         uc.plans.MaxEmployeesForPlan(req.Plan),
 		Settings:             domain.JSONB{},
 	}
 
