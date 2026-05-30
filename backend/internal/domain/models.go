@@ -242,6 +242,88 @@ type AttendanceReport struct {
 	Offset int          `json:"offset"`
 }
 
+// ── Shift ───────────────────────────────────────
+
+type Shift struct {
+	ID                  string     `json:"id" validate:"required,uuid"`
+	TenantID            string     `json:"tenant_id" validate:"required,uuid"`
+	Name                string     `json:"name" validate:"required,min=2"`
+	Code                string     `json:"code" validate:"required,min=2"`
+	StartTime           string     `json:"start_time"`                         // "07:00"
+	EndTime             string     `json:"end_time"`                           // "15:00"
+	GraceMinutes        int        `json:"grace_minutes"`
+	ClockinWindowBefore int        `json:"clockin_window_before_minutes"`
+	ClockoutWindowAfter int        `json:"clockout_window_after_minutes"`
+	IsFlexible          bool       `json:"is_flexible"`
+	Color               string     `json:"color,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	DeletedAt           *time.Time `json:"deleted_at,omitempty"`
+}
+
+type ShiftRepository interface {
+	Create(ctx context.Context, s *Shift) error
+	GetByID(ctx context.Context, id string) (*Shift, error)
+	GetByCode(ctx context.Context, tenantID, code string) (*Shift, error)
+	Update(ctx context.Context, s *Shift) error
+	List(ctx context.Context, tenantID string) ([]Shift, error)
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type ShiftUseCase interface {
+	Create(ctx context.Context, req *CreateShiftRequest) (*Shift, error)
+	Get(ctx context.Context, id string) (*Shift, error)
+	Update(ctx context.Context, s *Shift) error
+	List(ctx context.Context, tenantID string) ([]Shift, error)
+	SoftDelete(ctx context.Context, id string) error
+}
+
+// ── EmployeeShift (assignment) ──────────────────
+
+type EmployeeShift struct {
+	ID            string     `json:"id"`
+	TenantID      string     `json:"tenant_id"`
+	EmployeeID    string     `json:"employee_id"`
+	ShiftID       string     `json:"shift_id"`
+	EffectiveFrom string     `json:"effective_from"` // "2006-01-02"
+	EffectiveTo   *string    `json:"effective_to,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+
+	// Joined
+	ShiftName            string `json:"shift_name,omitempty"`
+	ShiftCode            string `json:"shift_code,omitempty"`
+	StartTime            string `json:"start_time,omitempty"`
+	EndTime              string `json:"end_time,omitempty"`
+	GraceMinutes         int    `json:"grace_minutes,omitempty"`
+	ClockinWindowBefore  int    `json:"clockin_window_before_minutes,omitempty"`
+	ClockoutWindowAfter  int    `json:"clockout_window_after_minutes,omitempty"`
+	IsFlexible           bool   `json:"is_flexible,omitempty"`
+}
+
+type EmployeeShiftRepository interface {
+	Create(ctx context.Context, es *EmployeeShift) error
+	GetByID(ctx context.Context, id string) (*EmployeeShift, error)
+	GetActive(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	GetActiveByEmployee(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
+	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	Update(ctx context.Context, es *EmployeeShift) error
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type EmployeeShiftUseCase interface {
+	Assign(ctx context.Context, req *AssignShiftRequest) (*EmployeeShift, error)
+	Get(ctx context.Context, id string) (*EmployeeShift, error)
+	GetActive(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	Update(ctx context.Context, es *EmployeeShift) error
+	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
+	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	RemoveAssignment(ctx context.Context, id string) error
+	BulkAssign(ctx context.Context, req *BulkAssignShiftRequest) ([]EmployeeShift, error)
+}
+
 // ── Employee ────────────────────────────────────
 
 type Employee struct {

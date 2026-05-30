@@ -9,10 +9,11 @@ import (
 
 // Config holds all application configuration.
 type Config struct {
-	Database DatabaseConfig `yaml:"database"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	Server   ServerConfig   `yaml:"server"`
-	Plans    PlansConfig    `yaml:"plans"`
+	Database   DatabaseConfig   `yaml:"database"`
+	JWT        JWTConfig        `yaml:"jwt"`
+	Server     ServerConfig     `yaml:"server"`
+	Plans      PlansConfig      `yaml:"plans"`
+	Attendance AttendanceConfig `yaml:"attendance"`
 }
 
 type DatabaseConfig struct {
@@ -58,6 +59,15 @@ func (p PlansConfig) MaxEmployeesForPlan(plan string) int {
 	}
 }
 
+// ── Attendance defaults ──────────────────────────
+
+type AttendanceConfig struct {
+	DefaultCutoff               string `yaml:"default_cutoff"`                // "08:00"
+	DefaultGraceMinutes         int    `yaml:"default_grace_minutes"`         // 15
+	DefaultClockinWindowBefore  int    `yaml:"default_clockin_window_before"` // 60
+	DefaultClockoutWindowAfter  int    `yaml:"default_clockout_window_after"` // 60
+}
+
 // ── Defaults with env overrides ──────────────────
 
 func Load() *Config {
@@ -85,6 +95,12 @@ func Load() *Config {
 			Free:       PlanConfig{MaxEmployees: 5},
 			Pro:        PlanConfig{MaxEmployees: 50},
 			Enterprise: PlanConfig{MaxEmployees: 10000},
+		},
+		Attendance: AttendanceConfig{
+			DefaultCutoff:              "08:00",
+			DefaultGraceMinutes:        15,
+			DefaultClockinWindowBefore: 60,
+			DefaultClockoutWindowAfter: 60,
 		},
 	}
 

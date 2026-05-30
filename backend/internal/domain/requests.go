@@ -117,3 +117,34 @@ type ClockOutRequest struct {
 type ChangeEmployeeStatusRequest struct {
 	Status string `json:"status" validate:"required,oneof=active probation resigned terminated suspended"`
 }
+
+// ── Shift request DTOs ──────────────────────────
+
+type CreateShiftRequest struct {
+	TenantID            string `json:"tenant_id" validate:"required,uuid"`
+	Name                string `json:"name" validate:"required,min=2"`
+	Code                string `json:"code" validate:"required,min=2"`
+	StartTime           string `json:"start_time" validate:"required"`           // "07:00"
+	EndTime             string `json:"end_time" validate:"required"`             // "15:00"
+	GraceMinutes        int    `json:"grace_minutes"`
+	ClockinWindowBefore int    `json:"clockin_window_before_minutes"`
+	ClockoutWindowAfter int    `json:"clockout_window_after_minutes"`
+	IsFlexible          bool   `json:"is_flexible"`
+	Color               string `json:"color,omitempty"`
+}
+
+// ── EmployeeShift request DTOs ──────────────────
+
+type AssignShiftRequest struct {
+	EmployeeID    string  `json:"employee_id" validate:"required,uuid"`
+	ShiftID       string  `json:"shift_id" validate:"required,uuid"`
+	EffectiveFrom string  `json:"effective_from" validate:"required"` // "2006-01-02"
+	EffectiveTo   *string `json:"effective_to,omitempty"`
+}
+
+type BulkAssignShiftRequest struct {
+	ShiftID       string   `json:"shift_id" validate:"required,uuid"`
+	EmployeeIDs   []string `json:"employee_ids" validate:"required,min=1,dive,uuid"`
+	EffectiveFrom string   `json:"effective_from" validate:"required"`
+	EffectiveTo   *string  `json:"effective_to,omitempty"`
+}
