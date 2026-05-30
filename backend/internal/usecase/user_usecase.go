@@ -10,8 +10,8 @@ import (
 )
 
 type UserUC struct {
-	userRepo    domain.UserRepository
-	jwt         JWTComposer
+	userRepo domain.UserRepository
+	jwt      JWTComposer
 }
 
 type JWTComposer interface {
@@ -24,56 +24,57 @@ func NewUserUC(
 	jwt JWTComposer,
 ) domain.UserUseCase {
 	return &UserUC{
-		userRepo:    userRepo,
-		jwt:         jwt,
+		userRepo: userRepo,
+		jwt:      jwt,
 	}
 }
 
-func (uc *UserUC) RegisterUser(email, password, fullName string) (*domain.User, error) {
-	if email == "" || password == "" {
-		return nil, fmt.Errorf("email and password required")
-	}
-	if len(password) < 8 {
-		return nil, fmt.Errorf("password must be at least 8 characters")
+func (uc *UserUC) RegisterUser(req *domain.RegisterRequest) (*domain.User, error) {
+	if err := Validate().Struct(req); err != nil {
+		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
 
-	existing, _ := uc.userRepo.GetByEmail(email)
+	existing, _ := uc.userRepo.GetByEmail(req.Email)
 	if existing != nil {
-		return nil, fmt.Errorf("email already registered")
+		return nil, domain.NewConflict("email already registered")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost+2)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12) // cost 12
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, domain.NewInternal(fmt.Sprintf("hash password: %v", err))
 	}
 
 	user := &domain.User{
 		ID:           uuid.New().String(),
-		Email:        email,
+		Email:        req.Email,
 		PasswordHash: string(hash),
-		FullName:     fullName,
+		FullName:     req.FullName,
 		IsActive:     true,
 	}
 
 	if err := uc.userRepo.Create(user); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		return nil, domain.NewInternal(fmt.Sprintf("create user: %v", err))
 	}
 	user.PasswordHash = ""
 	return user, nil
 }
 
-func (uc *UserUC) LoginUser(email, password string) (*domain.User, error) {
-	user, err := uc.userRepo.GetByEmail(email)
-	if err != nil {
-		return nil, fmt.Errorf("invalid_credentials")
+func (uc *UserUC) LoginUser(req *domain.LoginRequest) (*domain.User, error) {
+	if err := Validate().Struct(req); err != nil {
+		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid_credentials")
+	user, err := uc.userRepo.GetByEmail(req.Email)
+	if err != nil {
+		return nil, domain.NewUnauthorized("invalid credentials")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		return nil, domain.NewUnauthorized("invalid credentials")
 	}
 
 	if !user.IsActive {
-		return nil, fmt.Errorf("account_disabled")
+		return nil, domain.NewForbidden("account disabled")
 	}
 
 	user.PasswordHash = ""
@@ -83,7 +84,7 @@ func (uc *UserUC) LoginUser(email, password string) (*domain.User, error) {
 func (uc *UserUC) GetUser(id string) (*domain.User, error) {
 	user, err := uc.userRepo.GetByID(id)
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, domain.NewNotFound("user not found")
 	}
 	user.PasswordHash = ""
 	return user, nil
@@ -99,12 +100,12 @@ func (uc *UserUC) IssueTokens(userID string, email string, tenantID string, role
 
 	accessToken, err := uc.jwt.GenerateAccessToken(claims)
 	if err != nil {
-		return nil, fmt.Errorf("generate access token: %w", err)
+		return nil, domain.NewInternal(fmt.Sprintf("generate access token: %v", err))
 	}
 
 	refreshToken, err := uc.jwt.GenerateRefreshToken(userID)
 	if err != nil {
-		return nil, fmt.Errorf("generate refresh token: %w", err)
+		return nil, domain.NewInternal(fmt.Sprintf("generate refresh token: %v", err))
 	}
 
 	return &domain.TokenPair{

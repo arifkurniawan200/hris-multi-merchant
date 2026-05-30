@@ -17,16 +17,10 @@ func NewTenantHandler(tenantUC domain.TenantUseCase) *TenantHandler {
 	return &TenantHandler{tenantUC: tenantUC}
 }
 
-type createTenantReq struct {
-	Name string `json:"name"`
-	Slug string `json:"slug"`
-	Plan string `json:"plan"`
-}
-
 type updateTenantReq struct {
-	Name         string      `json:"name"`
-	LogoURL      string      `json:"logo_url"`
-	Settings     domain.JSONB `json:"settings"`
+	Name     string       `json:"name"`
+	LogoURL  string       `json:"logo_url"`
+	Settings domain.JSONB `json:"settings"`
 }
 
 func (h *TenantHandler) MyTenant(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +32,7 @@ func (h *TenantHandler) MyTenant(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantUC.GetTenant(tenantID)
 	if err != nil {
-		response.Err(w, http.StatusNotFound, "tenant_not_found", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
@@ -58,15 +52,9 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatable, ok := h.tenantUC.(interface{ UpdateTenant(t *domain.Tenant) error })
-	if !ok {
-		response.Err(w, http.StatusInternalServerError, "service_error", middleware.GetReqID(r.Context()))
-		return
-	}
-
 	tenant, err := h.tenantUC.GetTenant(tenantID)
 	if err != nil {
-		response.Err(w, http.StatusNotFound, "tenant_not_found", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
@@ -74,7 +62,7 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 	tenant.LogoURL = req.LogoURL
 	tenant.Settings = req.Settings
 
-	if err := updatable.UpdateTenant(tenant); err != nil {
+	if err := h.tenantUC.UpdateTenant(tenant); err != nil {
 		response.Err(w, http.StatusInternalServerError, "update_failed", middleware.GetReqID(r.Context()))
 		return
 	}
@@ -93,15 +81,15 @@ func (h *TenantHandler) ListAllTenants(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TenantHandler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
-	var req createTenantReq
+	var req domain.CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
 		return
 	}
 
-	tenant, err := h.tenantUC.CreateTenant(req.Name, req.Slug, req.Plan)
+	tenant, err := h.tenantUC.CreateTenant(&req)
 	if err != nil {
-		response.Err(w, http.StatusBadRequest, err.Error(), middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 

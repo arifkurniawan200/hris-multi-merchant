@@ -50,30 +50,11 @@ services:
     environment:
       - APP_ENV=development
       - APP_PORT=3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=hris
-      - DB_PASSWORD=hris_secret
-      - DB_NAME=hris_db
-      - DB_SSLMODE=disable
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - JWT_SECRET=change-me-in-production-use-256-bit-key
-      - JWT_EXPIRY_MINUTES=15
-      - JWT_REFRESH_DAYS=7
-      - LOG_LEVEL=info
-      - LOG_FORMAT=json
+      - DB_DSN=${DB_DSN}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-change-me-access-secret}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change-me-refresh-secret}
     expose:
       - "3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - hris-net
     labels:
@@ -103,66 +84,6 @@ services:
       - "traefik.http.routers.web.rule=Host(`app.hris.local`)"
       - "traefik.http.routers.web.entrypoints=web"
       - "traefik.http.services.web.loadbalancer.server.port=3001"
-
-  # ── PostgreSQL ─────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: hris-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=hris
-      - POSTGRES_PASSWORD=hris_secret
-      - POSTGRES_DB=hris_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hris"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - hris-net
-
-  # ── Redis ──────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: hris-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - hris-net
-
-  # ── RabbitMQ ───────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: hris-rabbitmq
-    restart: unless-stopped
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitdata:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - hris-net
 
   # ── Prometheus ─────────────────────────────
   prometheus:
@@ -209,9 +130,6 @@ services:
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
 volumes:
-  pgdata:
-  redisdata:
-  rabbitdata:
   promdata:
   grafanadata:
 

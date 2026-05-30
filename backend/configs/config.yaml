@@ -1,33 +1,5 @@
-app:
-  name: hris-api
-  env: development          # development | staging | production
-  port: 8080
-  read_timeout: 10s
-  write_timeout: 15s
-
 database:
-  host: localhost
-  port: 5432
-  user: hris_user
-  password: changeme_in_vault
-  dbname: hris
-  sslmode: disable
-  max_conns: 25
-  min_conns: 5
-  max_conn_lifetime: 30m
-
-redis:
-  host: localhost
-  port: 6379
-  password: ""
-  db: 0
+  dsn: "${DB_DSN}"
 
 jwt:
-  access_secret: ${JWT_ACCESS_SECRET}
-  refresh_secret: ${JWT_REFRESH_SECRET}
-  access_ttl: 15m
-  refresh_ttl: 168h
-
-logging:
-  level: info
-  format: json
+  secret: "${JWT_SECRET}"
