@@ -52,6 +52,7 @@ func main() {
 	deptRepo := repository.NewDepartmentRepo(dbpool)
 	posRepo := repository.NewPositionRepo(dbpool)
 	empRepo := repository.NewEmployeeRepo(dbpool)
+	attendanceRepo := repository.NewAttendanceRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -59,6 +60,7 @@ func main() {
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
+	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, txMgr)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -73,6 +75,7 @@ func main() {
 	deptH := handler.NewDepartmentHandler(deptUC)
 	posH := handler.NewPositionHandler(posUC)
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
+	attendanceH := handler.NewAttendanceHandler(attendanceUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -158,7 +161,18 @@ func main() {
 				r.Get("/api/v1/employees", empH.List)
 				r.Get("/api/v1/employees/{id}", empH.Get)
 				r.Get("/api/v1/org-chart", empH.OrgChart)
-			})
+
+				// Attendance routes
+				r.Post("/api/attendance/clock-in", attendanceH.ClockIn)
+				r.Post("/api/attendance/clock-out", attendanceH.ClockOut)
+				r.Get("/api/attendance/history", attendanceH.History)
+				})
+
+				// Manager+ — Attendance report
+				r.Group(func(r chi.Router) {
+				r.Use(rbManager)
+				r.Get("/api/attendance/report", attendanceH.Report)
+				})
 		})
 
 		// Super admin only

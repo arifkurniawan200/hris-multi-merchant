@@ -155,6 +155,12 @@ func (r *EmployeeRepo) GetByCode(ctx context.Context, tenantID, code string) (*d
 	return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, code))
 }
 
+// GetByUserID looks up an employee by their linked user account within a tenant.
+func (r *EmployeeRepo) GetByUserID(ctx context.Context, tenantID, userID string) (*domain.Employee, error) {
+	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.tenant_id=$1 AND e.user_id=$2 AND e.deleted_at IS NULL`
+	return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, userID))
+}
+
 func (r *EmployeeRepo) Update(ctx context.Context, e *domain.Employee) error {
 	query := `
 		UPDATE employees SET

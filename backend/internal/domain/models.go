@@ -184,6 +184,64 @@ type PositionUseCase interface {
 	SoftDelete(ctx context.Context, id string) error
 }
 
+// ── Attendance ──────────────────────────────────
+
+type AttendanceStatus string
+
+const (
+	AttendancePresent AttendanceStatus = "present"
+	AttendanceLate    AttendanceStatus = "late"
+	AttendanceHalfDay AttendanceStatus = "half_day"
+	AttendanceAbsent  AttendanceStatus = "absent"
+)
+
+type Attendance struct {
+	ID         string           `json:"id"`
+	EmployeeID string           `json:"employee_id" validate:"required,uuid"`
+	TenantID   string           `json:"tenant_id" validate:"required,uuid"`
+	ClockIn    time.Time        `json:"clock_in"`
+	ClockOut   *time.Time       `json:"clock_out,omitempty"`
+	ClockDate  string           `json:"clock_date" validate:"required"`
+	Status     AttendanceStatus `json:"status" validate:"required,oneof=present late half_day absent"`
+	Notes      string           `json:"notes,omitempty"`
+	Latitude   *float64         `json:"latitude,omitempty"`
+	Longitude  *float64         `json:"longitude,omitempty"`
+	SelfieURL  string           `json:"selfie_url,omitempty"`
+	CreatedAt  time.Time        `json:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at"`
+	DeletedAt  *time.Time       `json:"deleted_at,omitempty"`
+
+	// Joined
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
+}
+
+type AttendanceRepository interface {
+	Create(ctx context.Context, a *Attendance) error
+	GetToday(ctx context.Context, employeeID string) (*Attendance, error)
+	GetTodayForUpdate(ctx context.Context, employeeID string) (*Attendance, error)
+	GetByID(ctx context.Context, id string) (*Attendance, error)
+	UpdateClockOut(ctx context.Context, id string, clockOut time.Time, notes string) error
+	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
+	ListByTenant(ctx context.Context, tenantID string, clockDate string, limit, offset int) ([]Attendance, error)
+	CountByTenant(ctx context.Context, tenantID string, clockDate string) (int, error)
+}
+
+type AttendanceUseCase interface {
+	ClockIn(ctx context.Context, req *ClockInRequest) (*Attendance, error)
+	ClockOut(ctx context.Context, req *ClockOutRequest) (*Attendance, error)
+	GetHistory(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
+	GetReport(ctx context.Context, tenantID string, clockDate string, limit, offset int) (*AttendanceReport, error)
+}
+
+type AttendanceReport struct {
+	Date   string       `json:"date"`
+	Total  int          `json:"total"`
+	Data   []Attendance `json:"data"`
+	Limit  int          `json:"limit"`
+	Offset int          `json:"offset"`
+}
+
 // ── Employee ────────────────────────────────────
 
 type Employee struct {
@@ -246,6 +304,7 @@ type EmployeeListResult struct {
 type EmployeeRepository interface {
 	Create(ctx context.Context, e *Employee) error
 	GetByID(ctx context.Context, id string) (*Employee, error)
+	GetByUserID(ctx context.Context, tenantID, userID string) (*Employee, error)
 	GetByCode(ctx context.Context, tenantID, code string) (*Employee, error)
 	Update(ctx context.Context, e *Employee) error
 	List(ctx context.Context, tenantID string, filter EmployeeFilter) ([]Employee, error)

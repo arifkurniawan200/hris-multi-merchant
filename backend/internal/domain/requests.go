@@ -93,6 +93,25 @@ type CreateEmployeeRequest struct {
 	Notes            string  `json:"notes"`
 }
 
+// ── Attendance request DTOs ─────────────────────
+
+type ClockInRequest struct {
+	EmployeeID string   `json:"employee_id,omitempty"` // optional — resolved from JWT
+	UserID     string   `json:"-"`                      // set by handler from JWT context
+	TenantID   string   `json:"tenant_id" validate:"required,uuid"`
+	Latitude   *float64 `json:"latitude,omitempty"`
+	Longitude  *float64 `json:"longitude,omitempty"`
+	SelfieURL  string   `json:"selfie_url,omitempty"`
+	Notes      string   `json:"notes,omitempty"`
+}
+
+type ClockOutRequest struct {
+	EmployeeID string `json:"employee_id,omitempty"` // optional — resolved from JWT
+	UserID     string `json:"-"`                      // set by handler from JWT context
+	TenantID   string `json:"tenant_id" validate:"required,uuid"`
+	Notes      string `json:"notes,omitempty"`
+}
+
 // ── Employee change status ───────────────────────
 
 type ChangeEmployeeStatusRequest struct {
