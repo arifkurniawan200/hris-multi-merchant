@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/handler"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chicors "github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -26,16 +26,18 @@ func main() {
 	}
 
 	// ── DB ──────────────────────────────────
-	dbpool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	dbpool, err := adapter.NewPgxPool()
 	if err != nil {
 		log.Fatal("connect db", logger.ErrField(err))
 	}
 	defer dbpool.Close()
 
+	log.Info("database connected")
+
 	// ── JWT ─────────────────────────────────
 	jwtMgr := middleware.NewJWTManager(
-		os.Getenv("JWT_ACCESS_SECRET"),
-		os.Getenv("JWT_REFRESH_SECRET"),
+		getEnv("JWT_ACCESS_SECRET", "change-me-access-secret"),
+		getEnv("JWT_REFRESH_SECRET", "change-me-refresh-secret"),
 		15*time.Minute,
 		7*24*time.Hour,
 	)
@@ -43,14 +45,22 @@ func main() {
 	// ── Repos ───────────────────────────────
 	tenantRepo := repository.NewTenantRepo(dbpool)
 	userRepo := repository.NewUserRepo(dbpool)
+	userTenantRepo := repository.NewUserTenantRepo(dbpool)
 
-	// ── Usecases (manual DI) ────────────────
+	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo)
 	userUC := usecase.NewUserUC(userRepo, jwtMgr)
 
+	// ── Refresh token store (Redis) ─────────
+	// TODO: replace with Redis implementation
+	refreshStore := &inMemoryRefreshStore{
+		tokens: make(map[string]string),
+	}
+
 	// ── Handlers ────────────────────────────
-	authH := handler.NewAuthHandler(userUC, jwtMgr, nil)
+	authH := handler.NewAuthHandler(userUC, jwtMgr, refreshStore)
 	tenantH := handler.NewTenantHandler(tenantUC)
+	adminH := handler.NewAdminHandler(tenantUC, log)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -76,12 +86,13 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// ── Public ──────────────────────────────
-	r.Get("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	// ── Health ──────────────────────────────
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"success":true,"data":{"status":"ok"}}`))
 	})
 
+	// ── Public ──────────────────────────────
 	r.Post("/api/v1/auth/register", authH.Register)
 	r.Post("/api/v1/auth/login", authH.Login)
 	r.Post("/api/v1/auth/refresh", authH.Refresh)
@@ -108,13 +119,18 @@ func main() {
 		// Super admin only
 		r.Group(func(r chi.Router) {
 			r.Use(rbAdmin)
-			r.Get("/api/v1/admin/tenants", tenantH.ListAllTenants)
+			r.Get("/api/v1/admin/tenants", adminH.ListTenants)
 			r.Post("/api/v1/admin/tenants", tenantH.CreateByAdmin)
+			r.Put("/api/v1/admin/tenants/{id}/activate", adminH.ActivateTenant)
+			r.Put("/api/v1/admin/tenants/{id}/deactivate", adminH.DeactivateTenant)
+			r.Put("/api/v1/admin/tenants/{id}/extend", adminH.ExtendTenant)
+			r.Put("/api/v1/admin/tenants/{id}/plan", adminH.ChangePlan)
+			r.Delete("/api/v1/admin/tenants/{id}", adminH.SoftDeleteTenant)
 		})
 	})
 
 	// ── Server ──────────────────────────────
-	port := getEnv("APP_PORT", "8080")
+	port := getEnv("APP_PORT", "3000")
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      r,
@@ -148,4 +164,28 @@ func getEnv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// ── In-memory refresh token store (temporary) ──
+
+type inMemoryRefreshStore struct {
+	tokens map[string]string
+}
+
+func (s *inMemoryRefreshStore) Save(userID, token string, ttlSeconds int) error {
+	s.tokens[userID] = token
+	return nil
+}
+
+func (s *inMemoryRefreshStore) Get(userID string) (string, error) {
+	t, ok := s.tokens[userID]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return t, nil
+}
+
+func (s *inMemoryRefreshStore) Delete(userID string) error {
+	delete(s.tokens, userID)
+	return nil
 }

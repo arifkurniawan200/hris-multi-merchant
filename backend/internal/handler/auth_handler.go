@@ -33,39 +33,16 @@ func NewAuthHandler(userUC domain.UserUseCase, parser RefreshParser, refreshRepo
 	}
 }
 
-type registerReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"full_name"`
-}
-
-type loginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type refreshReq struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req registerReq
+	var req domain.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
 		return
 	}
 
-	userUC, ok := h.userUC.(interface {
-		RegisterUser(email, password, fullName string) (*domain.User, error)
-	})
-	if !ok {
-		response.Err(w, http.StatusInternalServerError, "service_error", middleware.GetReqID(r.Context()))
-		return
-	}
-
-	user, err := userUC.RegisterUser(req.Email, req.Password, req.FullName)
+	user, err := h.userUC.RegisterUser(&req)
 	if err != nil {
-		response.Err(w, http.StatusBadRequest, err.Error(), middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
@@ -73,30 +50,21 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginReq
+	var req domain.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
 		return
 	}
 
-	userUC, ok := h.userUC.(interface {
-		LoginUser(email, password string) (*domain.User, error)
-		IssueTokens(userID string, email string, tenantID string, role domain.UserTenantRole) (*domain.TokenPair, error)
-	})
-	if !ok {
-		response.Err(w, http.StatusInternalServerError, "service_error", middleware.GetReqID(r.Context()))
+	user, err := h.userUC.LoginUser(&req)
+	if err != nil {
+		handleDomainErr(w, r, err)
 		return
 	}
 
-	user, err := userUC.LoginUser(req.Email, req.Password)
+	tokens, err := h.userUC.IssueTokens(user.ID, user.Email, "", "")
 	if err != nil {
-		response.Err(w, http.StatusUnauthorized, err.Error(), middleware.GetReqID(r.Context()))
-		return
-	}
-
-	tokens, err := userUC.IssueTokens(user.ID, user.Email, "", "")
-	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "token_error", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
@@ -109,7 +77,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req refreshReq
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
 		return
@@ -127,24 +97,15 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userUC, ok := h.userUC.(interface {
-		GetUser(id string) (*domain.User, error)
-		IssueTokens(userID string, email string, tenantID string, role domain.UserTenantRole) (*domain.TokenPair, error)
-	})
-	if !ok {
-		response.Err(w, http.StatusInternalServerError, "service_error", middleware.GetReqID(r.Context()))
+	user, err := h.userUC.GetUser(userID)
+	if err != nil {
+		handleDomainErr(w, r, err)
 		return
 	}
 
-	user, err := userUC.GetUser(userID)
+	tokens, err := h.userUC.IssueTokens(user.ID, user.Email, "", "")
 	if err != nil {
-		response.Err(w, http.StatusNotFound, "user_not_found", middleware.GetReqID(r.Context()))
-		return
-	}
-
-	tokens, err := userUC.IssueTokens(user.ID, user.Email, "", "")
-	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "token_error", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
@@ -163,19 +124,20 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userUC, ok := h.userUC.(interface {
-		GetUser(id string) (*domain.User, error)
-	})
-	if !ok {
-		response.Err(w, http.StatusInternalServerError, "service_error", middleware.GetReqID(r.Context()))
-		return
-	}
-
-	user, err := userUC.GetUser(userID)
+	user, err := h.userUC.GetUser(userID)
 	if err != nil {
-		response.Err(w, http.StatusNotFound, "user_not_found", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, user, middleware.GetReqID(r.Context()))
+}
+
+// handleDomainErr maps domain.AppError to HTTP response.
+func handleDomainErr(w http.ResponseWriter, r *http.Request, err error) {
+	if appErr, ok := err.(*domain.AppError); ok {
+		response.Err(w, appErr.Code, appErr.Message, middleware.GetReqID(r.Context()))
+		return
+	}
+	response.Err(w, http.StatusInternalServerError, err.Error(), middleware.GetReqID(r.Context()))
 }

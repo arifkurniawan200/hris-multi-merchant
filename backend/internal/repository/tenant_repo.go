@@ -18,6 +18,8 @@ func NewTenantRepo(db *pgxpool.Pool) domain.TenantRepository {
 	return &TenantRepo{db: db}
 }
 
+// ── CRUD ────────────────────────────────────────
+
 func (r *TenantRepo) Create(tenant *domain.Tenant) error {
 	query := `
 		INSERT INTO tenants (id, name, slug, plan, plan_price_per_employee, subscription_expires_at, is_active, max_employees, settings, logo_url, created_at, updated_at)
@@ -32,20 +34,33 @@ func (r *TenantRepo) Create(tenant *domain.Tenant) error {
 }
 
 func (r *TenantRepo) GetByID(id string) (*domain.Tenant, error) {
-	query := `SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at, is_active, max_employees, settings, logo_url, created_at, updated_at FROM tenants WHERE id = $1 AND deleted_at IS NULL`
+	query := `
+		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
+		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
+		FROM tenants
+		WHERE id = $1 AND deleted_at IS NULL
+	`
 	row := r.db.QueryRow(context.Background(), query, id)
 	return scanTenant(row)
 }
 
 func (r *TenantRepo) GetBySlug(slug string) (*domain.Tenant, error) {
-	query := `SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at, is_active, max_employees, settings, logo_url, created_at, updated_at FROM tenants WHERE slug = $1 AND deleted_at IS NULL`
+	query := `
+		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
+		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
+		FROM tenants
+		WHERE slug = $1 AND deleted_at IS NULL
+	`
 	row := r.db.QueryRow(context.Background(), query, slug)
 	return scanTenant(row)
 }
 
 func (r *TenantRepo) Update(tenant *domain.Tenant) error {
 	query := `
-		UPDATE tenants SET name=$2, slug=$3, plan=$4, plan_price_per_employee=$5, subscription_expires_at=$6, is_active=$7, max_employees=$8, settings=$9, logo_url=$10, updated_at=NOW()
+		UPDATE tenants
+		SET name=$2, slug=$3, plan=$4, plan_price_per_employee=$5,
+		    subscription_expires_at=$6, is_active=$7, max_employees=$8,
+		    settings=$9, logo_url=$10, updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
 	_, err := r.db.Exec(context.Background(), query,
@@ -57,7 +72,14 @@ func (r *TenantRepo) Update(tenant *domain.Tenant) error {
 }
 
 func (r *TenantRepo) List(limit, offset int) ([]domain.Tenant, error) {
-	query := `SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at, is_active, max_employees, settings, logo_url, created_at, updated_at FROM tenants WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `
+		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
+		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
+		FROM tenants
+		WHERE deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
 	rows, err := r.db.Query(context.Background(), query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -75,13 +97,53 @@ func (r *TenantRepo) List(limit, offset int) ([]domain.Tenant, error) {
 	return tenants, rows.Err()
 }
 
+// ── Subscription / lifecycle ────────────────────
+
+func (r *TenantRepo) Activate(id string) error {
+	_, err := r.db.Exec(context.Background(),
+		`UPDATE tenants SET is_active=true, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
+		id)
+	return err
+}
+
+func (r *TenantRepo) Deactivate(id string) error {
+	_, err := r.db.Exec(context.Background(),
+		`UPDATE tenants SET is_active=false, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
+		id)
+	return err
+}
+
+func (r *TenantRepo) Extend(id string, months int) error {
+	_, err := r.db.Exec(context.Background(),
+		`UPDATE tenants SET subscription_expires_at = COALESCE(subscription_expires_at, NOW()) + ($2::int * INTERVAL '1 month'), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
+		id, months)
+	return err
+}
+
+func (r *TenantRepo) ChangePlan(id, plan string, pricePerEmployee int64) error {
+	_, err := r.db.Exec(context.Background(),
+		`UPDATE tenants SET plan=$2, plan_price_per_employee=$3, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
+		id, plan, pricePerEmployee)
+	return err
+}
+
+func (r *TenantRepo) SoftDelete(id string) error {
+	_, err := r.db.Exec(context.Background(),
+		`UPDATE tenants SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
+		id)
+	return err
+}
+
+// ── Scanner ─────────────────────────────────────
+
 func scanTenant(scanner pgx.Row) (*domain.Tenant, error) {
 	var t domain.Tenant
 	var expiresAt *time.Time
+	var deletedAt *time.Time
 	err := scanner.Scan(
 		&t.ID, &t.Name, &t.Slug, &t.Plan, &t.PlanPricePerEmployee,
 		&expiresAt, &t.IsActive, &t.MaxEmployees, &t.Settings,
-		&t.LogoURL, &t.CreatedAt, &t.UpdatedAt,
+		&t.LogoURL, &t.CreatedAt, &deletedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -90,5 +152,6 @@ func scanTenant(scanner pgx.Row) (*domain.Tenant, error) {
 		return nil, err
 	}
 	t.SubscriptionExpiresAt = expiresAt
+	t.DeletedAt = deletedAt
 	return &t, nil
 }

@@ -4,19 +4,19 @@ import "time"
 
 // ── Tenant ──────────────────────────────────────
 type Tenant struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	Slug           string    `json:"slug"`
-	Plan           string    `json:"plan"` // free, pro, enterprise
-	PlanPricePerEmployee int64 `json:"plan_price_per_employee"`
-	SubscriptionExpiresAt *time.Time `json:"subscription_expires_at,omitempty"`
-	IsActive       bool      `json:"is_active"`
-	MaxEmployees   int       `json:"max_employees"`
-	Settings       JSONB     `json:"settings"`
-	LogoURL        string    `json:"logo_url"`
-	CreatedAt      time.Time `json:"created_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                     string     `json:"id" validate:"required,uuid"`
+	Name                   string     `json:"name" validate:"required,min=2"`
+	Slug                   string     `json:"slug" validate:"required,slug"`
+	Plan                   string     `json:"plan" validate:"required,oneof=free pro enterprise"`
+	PlanPricePerEmployee   int64      `json:"plan_price_per_employee"`
+	SubscriptionExpiresAt  *time.Time `json:"subscription_expires_at,omitempty"`
+	IsActive               bool       `json:"is_active"`
+	MaxEmployees           int        `json:"max_employees"`
+	Settings               JSONB      `json:"settings"`
+	LogoURL                string     `json:"logo_url"`
+	CreatedAt              time.Time  `json:"created_at"`
+	DeletedAt              *time.Time `json:"deleted_at,omitempty"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type TenantRepository interface {
@@ -25,27 +25,37 @@ type TenantRepository interface {
 	GetBySlug(slug string) (*Tenant, error)
 	Update(tenant *Tenant) error
 	List(limit, offset int) ([]Tenant, error)
+	Activate(id string) error
+	Deactivate(id string) error
+	Extend(id string, months int) error
+	ChangePlan(id, plan string, pricePerEmployee int64) error
+	SoftDelete(id string) error
 }
 
 type TenantUseCase interface {
-	CreateTenant(name, slug, plan string) (*Tenant, error)
+	CreateTenant(req *CreateTenantRequest) (*Tenant, error)
 	GetTenant(id string) (*Tenant, error)
 	UpdateTenant(t *Tenant) error
 	ListTenants() ([]Tenant, error)
+	ActivateTenant(id string) error
+	DeactivateTenant(id string) error
+	ExtendTenant(id string, months int) error
+	ChangePlan(id string, req *ChangePlanRequest) error
+	SoftDeleteTenant(id string) error
 }
 
 // ── User ────────────────────────────────────────
 type User struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	FullName     string    `json:"full_name"`
-	Phone        string    `json:"phone"`
-	AvatarURL    string    `json:"avatar_url"`
-	IsActive     bool      `json:"is_active"`
-	CreatedAt    time.Time `json:"created_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           string     `json:"id" validate:"required,uuid"`
+	Email        string     `json:"email" validate:"required,email"`
+	PasswordHash string     `json:"-" validate:"required"`
+	FullName     string     `json:"full_name" validate:"required,min=2"`
+	Phone        string     `json:"phone"`
+	AvatarURL    string     `json:"avatar_url"`
+	IsActive     bool       `json:"is_active"`
+	CreatedAt    time.Time  `json:"created_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type UserRepository interface {
@@ -56,9 +66,10 @@ type UserRepository interface {
 }
 
 type UserUseCase interface {
-	RegisterUser(email, password, fullName string) (*User, error)
-	LoginUser(email, password string) (*User, error)
+	RegisterUser(req *RegisterRequest) (*User, error)
+	LoginUser(req *LoginRequest) (*User, error)
 	GetUser(id string) (*User, error)
+	IssueTokens(userID string, email string, tenantID string, role UserTenantRole) (*TokenPair, error)
 }
 
 // ── UserTenant (membership) ─────────────────────
@@ -72,12 +83,12 @@ const (
 )
 
 type UserTenant struct {
-	UserID   string         `json:"user_id"`
-	TenantID string         `json:"tenant_id"`
-	Role     UserTenantRole `json:"role"`
-	IsActive bool           `json:"is_active"`
-	JoinedAt time.Time      `json:"joined_at"`
-	DeletedAt *time.Time      `json:"deleted_at,omitempty"`
+	UserID    string         `json:"user_id" validate:"required,uuid"`
+	TenantID  string         `json:"tenant_id" validate:"required,uuid"`
+	Role      UserTenantRole `json:"role" validate:"required,oneof=super_admin tenant_admin manager employee"`
+	IsActive  bool           `json:"is_active"`
+	JoinedAt  time.Time      `json:"joined_at"`
+	DeletedAt *time.Time     `json:"deleted_at,omitempty"`
 }
 
 type UserTenantRepository interface {

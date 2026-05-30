@@ -24,3 +24,13 @@ func New(env string) (*zap.Logger, error) {
 func WithRequestID(log *zap.Logger, requestID string) *zap.Logger {
 	return log.With(zap.String("request_id", requestID))
 }
+
+// ErrField returns a zap.Field for error logging.
+func ErrField(err error) zap.Field {
+	return zap.Error(err)
+}
+
+// Str returns a zap.Field for string logging.
+func Str(key, value string) zap.Field {
+	return zap.String(key, value)
+}
