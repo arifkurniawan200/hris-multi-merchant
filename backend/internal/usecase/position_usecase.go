@@ -5,14 +5,16 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type PositionUC struct {
 	repo domain.PositionRepository
+	log  *zap.Logger
 }
 
-func NewPositionUC(repo domain.PositionRepository) domain.PositionUseCase {
-	return &PositionUC{repo: repo}
+func NewPositionUC(repo domain.PositionRepository, log *zap.Logger) domain.PositionUseCase {
+	return &PositionUC{repo: repo, log: log}
 }
 
 func (uc *PositionUC) Create(req *domain.CreatePositionRequest) (*domain.Position, error) {
@@ -38,8 +40,11 @@ func (uc *PositionUC) Create(req *domain.CreatePositionRequest) (*domain.Positio
 	}
 
 	if err := uc.repo.Create(p); err != nil {
+		uc.log.Error("create position failed", zap.String("tenant_id", req.TenantID), zap.String("code", req.Code), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("create position: %v", err))
 	}
+
+	uc.log.Info("position created", zap.String("pos_id", p.ID), zap.String("code", p.Code), zap.String("tenant_id", p.TenantID))
 	return p, nil
 }
 
@@ -52,13 +57,28 @@ func (uc *PositionUC) Get(id string) (*domain.Position, error) {
 }
 
 func (uc *PositionUC) Update(p *domain.Position) error {
-	return uc.repo.Update(p)
+	if err := uc.repo.Update(p); err != nil {
+		uc.log.Error("update position failed", zap.String("pos_id", p.ID), zap.Error(err))
+		return domain.NewInternal(fmt.Sprintf("update position: %v", err))
+	}
+	uc.log.Info("position updated", zap.String("pos_id", p.ID))
+	return nil
 }
 
 func (uc *PositionUC) List(tenantID string) ([]domain.Position, error) {
-	return uc.repo.List(tenantID)
+	positions, err := uc.repo.List(tenantID)
+	if err != nil {
+		uc.log.Error("list positions failed", zap.String("tenant_id", tenantID), zap.Error(err))
+		return nil, domain.NewInternal(fmt.Sprintf("list positions: %v", err))
+	}
+	return positions, nil
 }
 
 func (uc *PositionUC) SoftDelete(id string) error {
-	return uc.repo.SoftDelete(id)
+	if err := uc.repo.SoftDelete(id); err != nil {
+		uc.log.Error("soft delete position failed", zap.String("pos_id", id), zap.Error(err))
+		return domain.NewInternal("failed to delete position")
+	}
+	uc.log.Info("position soft deleted", zap.String("pos_id", id))
+	return nil
 }

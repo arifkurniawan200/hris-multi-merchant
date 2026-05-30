@@ -5,23 +5,27 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type EmployeeUC struct {
 	empRepo  domain.EmployeeRepository
 	deptRepo domain.DepartmentRepository
 	posRepo  domain.PositionRepository
+	log      *zap.Logger
 }
 
 func NewEmployeeUC(
 	empRepo domain.EmployeeRepository,
 	deptRepo domain.DepartmentRepository,
 	posRepo domain.PositionRepository,
+	log *zap.Logger,
 ) domain.EmployeeUseCase {
 	return &EmployeeUC{
 		empRepo:  empRepo,
 		deptRepo: deptRepo,
 		posRepo:  posRepo,
+		log:      log,
 	}
 }
 
@@ -30,24 +34,19 @@ func (uc *EmployeeUC) Create(req *domain.CreateEmployeeRequest) (*domain.Employe
 		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
 
-	// Check unique code within tenant
 	existing, _ := uc.empRepo.GetByCode(req.TenantID, req.EmployeeCode)
 	if existing != nil {
 		return nil, domain.NewConflict("employee code already exists in this tenant")
 	}
 
-	// Validate department exists
 	if req.DepartmentID != nil && *req.DepartmentID != "" {
-		_, err := uc.deptRepo.GetByID(*req.DepartmentID)
-		if err != nil {
+		if _, err := uc.deptRepo.GetByID(*req.DepartmentID); err != nil {
 			return nil, domain.NewValidation("department not found")
 		}
 	}
 
-	// Validate position exists
 	if req.PositionID != nil && *req.PositionID != "" {
-		_, err := uc.posRepo.GetByID(*req.PositionID)
-		if err != nil {
+		if _, err := uc.posRepo.GetByID(*req.PositionID); err != nil {
 			return nil, domain.NewValidation("position not found")
 		}
 	}
@@ -88,10 +87,20 @@ func (uc *EmployeeUC) Create(req *domain.CreateEmployeeRequest) (*domain.Employe
 	}
 
 	if err := uc.empRepo.Create(e); err != nil {
+		uc.log.Error("create employee failed",
+			zap.String("tenant_id", req.TenantID),
+			zap.String("code", req.EmployeeCode),
+			zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("create employee: %v", err))
 	}
 
-	// Fetch back with joined fields
+	uc.log.Info("employee created",
+		zap.String("emp_id", e.ID),
+		zap.String("code", e.EmployeeCode),
+		zap.String("tenant_id", e.TenantID),
+		zap.String("status", e.EmploymentStatus))
+
+	// Return with joined fields
 	return uc.empRepo.GetByID(e.ID)
 }
 
@@ -104,11 +113,15 @@ func (uc *EmployeeUC) Get(id string) (*domain.Employee, error) {
 }
 
 func (uc *EmployeeUC) Update(e *domain.Employee) error {
-	return uc.empRepo.Update(e)
+	if err := uc.empRepo.Update(e); err != nil {
+		uc.log.Error("update employee failed", zap.String("emp_id", e.ID), zap.Error(err))
+		return domain.NewInternal(fmt.Sprintf("update employee: %v", err))
+	}
+	uc.log.Info("employee updated", zap.String("emp_id", e.ID))
+	return nil
 }
 
 func (uc *EmployeeUC) List(tenantID string, filter domain.EmployeeFilter) (*domain.EmployeeListResult, error) {
-	// Defaults
 	if filter.Limit <= 0 || filter.Limit > 100 {
 		filter.Limit = 20
 	}
@@ -118,11 +131,13 @@ func (uc *EmployeeUC) List(tenantID string, filter domain.EmployeeFilter) (*doma
 
 	total, err := uc.empRepo.Count(tenantID, filter)
 	if err != nil {
+		uc.log.Error("count employees failed", zap.String("tenant_id", tenantID), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("count employees: %v", err))
 	}
 
 	employees, err := uc.empRepo.List(tenantID, filter)
 	if err != nil {
+		uc.log.Error("list employees failed", zap.String("tenant_id", tenantID), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("list employees: %v", err))
 	}
 
@@ -135,15 +150,15 @@ func (uc *EmployeeUC) List(tenantID string, filter domain.EmployeeFilter) (*doma
 }
 
 func (uc *EmployeeUC) SoftDelete(id string) error {
-	return uc.empRepo.SoftDelete(id)
+	if err := uc.empRepo.SoftDelete(id); err != nil {
+		uc.log.Error("soft delete employee failed", zap.String("emp_id", id), zap.Error(err))
+		return domain.NewInternal("failed to delete employee")
+	}
+	uc.log.Info("employee soft deleted", zap.String("emp_id", id))
+	return nil
 }
 
 func (uc *EmployeeUC) ChangeStatus(id, status string) error {
-	e, err := uc.empRepo.GetByID(id)
-	if err != nil {
-		return domain.NewNotFound("employee not found")
-	}
-
 	validStatuses := map[string]bool{
 		"active": true, "probation": true, "resigned": true,
 		"terminated": true, "suspended": true,
@@ -152,6 +167,13 @@ func (uc *EmployeeUC) ChangeStatus(id, status string) error {
 		return domain.NewValidation("invalid employment status")
 	}
 
-	_ = e
-	return uc.empRepo.UpdateStatus(id, status)
+	if err := uc.empRepo.UpdateStatus(id, status); err != nil {
+		uc.log.Error("change employee status failed",
+			zap.String("emp_id", id), zap.String("status", status), zap.Error(err))
+		return domain.NewInternal("failed to change status")
+	}
+
+	uc.log.Info("employee status changed",
+		zap.String("emp_id", id), zap.String("status", status))
+	return nil
 }

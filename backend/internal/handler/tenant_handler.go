@@ -24,9 +24,11 @@ type updateTenantReq struct {
 }
 
 func (h *TenantHandler) MyTenant(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
@@ -36,19 +38,21 @@ func (h *TenantHandler) MyTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tenant, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", tenant, reqID)
 }
 
 func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
 	var req updateTenantReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -63,27 +67,31 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 	tenant.Settings = req.Settings
 
 	if err := h.tenantUC.UpdateTenant(tenant); err != nil {
-		response.Err(w, http.StatusInternalServerError, "update_failed", middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tenant, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Tenant updated", tenant, reqID)
 }
 
 func (h *TenantHandler) ListAllTenants(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenants, err := h.tenantUC.ListTenants()
 	if err != nil {
-		response.Err(w, http.StatusInternalServerError, err.Error(), middleware.GetReqID(r.Context()))
+		handleDomainErr(w, r, err)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tenants, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", tenants, reqID)
 }
 
 func (h *TenantHandler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	var req domain.CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -93,5 +101,5 @@ func (h *TenantHandler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, tenant, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusCreated, "Tenant created", tenant, reqID)
 }

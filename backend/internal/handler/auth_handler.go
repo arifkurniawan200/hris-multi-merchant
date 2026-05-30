@@ -34,9 +34,11 @@ func NewAuthHandler(userUC domain.UserUseCase, parser RefreshParser, refreshRepo
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	var req domain.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -46,13 +48,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, user, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusCreated, "User registered successfully", user, reqID)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	var req domain.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -69,31 +73,33 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.refreshRepo.Save(user.ID, tokens.RefreshToken, 7*24*3600); err != nil {
-		response.Err(w, http.StatusInternalServerError, "store_refresh_error", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to store refresh token", reqID)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tokens, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Login successful", tokens, reqID)
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
 	userID, err := h.jwtParser.ParseRefreshToken(req.RefreshToken)
 	if err != nil {
-		response.Err(w, http.StatusUnauthorized, "invalid_refresh_token", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "Invalid refresh token", reqID)
 		return
 	}
 
 	stored, err := h.refreshRepo.Get(userID)
 	if err != nil || stored != req.RefreshToken {
-		response.Err(w, http.StatusUnauthorized, "refresh_token_mismatch", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "Refresh token mismatch", reqID)
 		return
 	}
 
@@ -110,17 +116,19 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.refreshRepo.Save(user.ID, tokens.RefreshToken, 7*24*3600); err != nil {
-		response.Err(w, http.StatusInternalServerError, "store_refresh_error", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to store refresh token", reqID)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tokens, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Token refreshed", tokens, reqID)
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 	if userID == "" {
-		response.Err(w, http.StatusUnauthorized, "unauthorized", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "Unauthorized", reqID)
 		return
 	}
 
@@ -130,14 +138,5 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, user, middleware.GetReqID(r.Context()))
-}
-
-// handleDomainErr maps domain.AppError to HTTP response.
-func handleDomainErr(w http.ResponseWriter, r *http.Request, err error) {
-	if appErr, ok := err.(*domain.AppError); ok {
-		response.Err(w, appErr.Code, appErr.Message, middleware.GetReqID(r.Context()))
-		return
-	}
-	response.Err(w, http.StatusInternalServerError, err.Error(), middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", user, reqID)
 }

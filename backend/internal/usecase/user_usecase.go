@@ -6,12 +6,14 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUC struct {
 	userRepo domain.UserRepository
 	jwt      JWTComposer
+	log      *zap.Logger
 }
 
 type JWTComposer interface {
@@ -22,10 +24,12 @@ type JWTComposer interface {
 func NewUserUC(
 	userRepo domain.UserRepository,
 	jwt JWTComposer,
+	log *zap.Logger,
 ) domain.UserUseCase {
 	return &UserUC{
 		userRepo: userRepo,
 		jwt:      jwt,
+		log:      log,
 	}
 }
 
@@ -41,6 +45,7 @@ func (uc *UserUC) RegisterUser(req *domain.RegisterRequest) (*domain.User, error
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12) // cost 12
 	if err != nil {
+		uc.log.Error("hash password failed", zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("hash password: %v", err))
 	}
 
@@ -53,8 +58,11 @@ func (uc *UserUC) RegisterUser(req *domain.RegisterRequest) (*domain.User, error
 	}
 
 	if err := uc.userRepo.Create(user); err != nil {
+		uc.log.Error("create user failed", zap.String("email", req.Email), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("create user: %v", err))
 	}
+
+	uc.log.Info("user registered", zap.String("user_id", user.ID), zap.String("email", user.Email))
 	user.PasswordHash = ""
 	return user, nil
 }
@@ -77,6 +85,7 @@ func (uc *UserUC) LoginUser(req *domain.LoginRequest) (*domain.User, error) {
 		return nil, domain.NewForbidden("account disabled")
 	}
 
+	uc.log.Info("user login", zap.String("user_id", user.ID), zap.String("email", user.Email))
 	user.PasswordHash = ""
 	return user, nil
 }
@@ -100,11 +109,13 @@ func (uc *UserUC) IssueTokens(userID string, email string, tenantID string, role
 
 	accessToken, err := uc.jwt.GenerateAccessToken(claims)
 	if err != nil {
+		uc.log.Error("generate access token failed", zap.String("user_id", userID), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("generate access token: %v", err))
 	}
 
 	refreshToken, err := uc.jwt.GenerateRefreshToken(userID)
 	if err != nil {
+		uc.log.Error("generate refresh token failed", zap.String("user_id", userID), zap.Error(err))
 		return nil, domain.NewInternal(fmt.Sprintf("generate refresh token: %v", err))
 	}
 

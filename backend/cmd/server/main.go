@@ -54,11 +54,11 @@ func main() {
 	empRepo := repository.NewEmployeeRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
-	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
-	userUC := usecase.NewUserUC(userRepo, jwtMgr)
-	deptUC := usecase.NewDepartmentUC(deptRepo)
-	posUC := usecase.NewPositionUC(posRepo)
-	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
+	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans, log)
+	userUC := usecase.NewUserUC(userRepo, jwtMgr, log)
+	deptUC := usecase.NewDepartmentUC(deptRepo, log)
+	posUC := usecase.NewPositionUC(posRepo, log)
+	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo, log)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation

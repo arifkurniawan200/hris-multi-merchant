@@ -30,18 +30,20 @@ type updateDeptReq struct {
 }
 
 func (h *DepartmentHandler) Create(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
 	var req domain.CreateDepartmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
-	req.TenantID = tenantID // force tenant from context
+	req.TenantID = tenantID
 
 	dept, err := h.uc.Create(&req)
 	if err != nil {
@@ -49,13 +51,15 @@ func (h *DepartmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, dept, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusCreated, "Department created", dept, reqID)
 }
 
 func (h *DepartmentHandler) Get(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing department ID", reqID)
 		return
 	}
 
@@ -65,22 +69,21 @@ func (h *DepartmentHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, dept, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", dept, reqID)
 }
 
 func (h *DepartmentHandler) List(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
-	// Optional parent_id filter
 	var parentID *string
 	if pid := r.URL.Query().Get("parent_id"); pid != "" {
 		parentID = &pid
-	} else {
-		parentID = nil // nil = top-level only
 	}
 
 	depts, err := h.uc.List(tenantID, parentID)
@@ -89,13 +92,15 @@ func (h *DepartmentHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, depts, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", depts, reqID)
 }
 
 func (h *DepartmentHandler) Update(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing department ID", reqID)
 		return
 	}
 
@@ -107,7 +112,7 @@ func (h *DepartmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req updateDeptReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -129,13 +134,15 @@ func (h *DepartmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, dept, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Department updated", dept, reqID)
 }
 
 func (h *DepartmentHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing department ID", reqID)
 		return
 	}
 
@@ -144,7 +151,7 @@ func (h *DepartmentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"status": "deleted"}, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Department deleted", map[string]string{"status": "deleted"}, reqID)
 }
 
 // ── Position Handler ────────────────────────────
@@ -168,15 +175,17 @@ type updatePosReq struct {
 }
 
 func (h *PositionHandler) Create(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
 	var req domain.CreatePositionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 	req.TenantID = tenantID
@@ -187,13 +196,15 @@ func (h *PositionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, pos, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusCreated, "Position created", pos, reqID)
 }
 
 func (h *PositionHandler) Get(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing position ID", reqID)
 		return
 	}
 
@@ -203,13 +214,15 @@ func (h *PositionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, pos, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", pos, reqID)
 }
 
 func (h *PositionHandler) List(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
@@ -219,13 +232,15 @@ func (h *PositionHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, positions, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", positions, reqID)
 }
 
 func (h *PositionHandler) Update(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing position ID", reqID)
 		return
 	}
 
@@ -237,7 +252,7 @@ func (h *PositionHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req updatePosReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -266,13 +281,15 @@ func (h *PositionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, pos, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Position updated", pos, reqID)
 }
 
 func (h *PositionHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing position ID", reqID)
 		return
 	}
 
@@ -281,15 +298,15 @@ func (h *PositionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"status": "deleted"}, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Position deleted", map[string]string{"status": "deleted"}, reqID)
 }
 
 // ── Employee Handler ────────────────────────────
 
 type EmployeeHandler struct {
-	uc       domain.EmployeeUseCase
-	deptUC   domain.DepartmentUseCase
-	posUC    domain.PositionUseCase
+	uc     domain.EmployeeUseCase
+	deptUC domain.DepartmentUseCase
+	posUC  domain.PositionUseCase
 }
 
 func NewEmployeeHandler(
@@ -301,44 +318,46 @@ func NewEmployeeHandler(
 }
 
 type updateEmpReq struct {
-	FirstName        string  `json:"first_name"`
-	LastName         string  `json:"last_name"`
-	Gender           *string `json:"gender"`
-	BirthDate        *string `json:"birth_date"`
-	BirthPlace       *string `json:"birth_place"`
-	Email            *string `json:"email"`
-	Phone            *string `json:"phone"`
-	Address          *string `json:"address"`
-	DepartmentID     *string `json:"department_id"`
-	PositionID       *string `json:"position_id"`
-	ManagerID        *string `json:"manager_id"`
-	EmploymentStatus *string `json:"employment_status"`
-	EmploymentType   *string `json:"employment_type"`
-	JoinDate         *string `json:"join_date"`
-	ResignDate       *string `json:"resign_date"`
-	ContractStart    *string `json:"contract_start"`
-	ContractEnd      *string `json:"contract_end"`
-	NationalID       *string `json:"national_id"`
-	TaxID            *string `json:"tax_id"`
-	BPJSHealth       *string `json:"bpjs_health"`
-	BPJSLabor        *string `json:"bpjs_labor"`
-	BaseSalary       *int64  `json:"base_salary"`
-	BankName         *string `json:"bank_name"`
-	BankAccount      *string `json:"bank_account"`
+	FirstName        string       `json:"first_name"`
+	LastName         string       `json:"last_name"`
+	Gender           *string      `json:"gender"`
+	BirthDate        *string      `json:"birth_date"`
+	BirthPlace       *string      `json:"birth_place"`
+	Email            *string      `json:"email"`
+	Phone            *string      `json:"phone"`
+	Address          *string      `json:"address"`
+	DepartmentID     *string      `json:"department_id"`
+	PositionID       *string      `json:"position_id"`
+	ManagerID        *string      `json:"manager_id"`
+	EmploymentStatus *string      `json:"employment_status"`
+	EmploymentType   *string      `json:"employment_type"`
+	JoinDate         *string      `json:"join_date"`
+	ResignDate       *string      `json:"resign_date"`
+	ContractStart    *string      `json:"contract_start"`
+	ContractEnd      *string      `json:"contract_end"`
+	NationalID       *string      `json:"national_id"`
+	TaxID            *string      `json:"tax_id"`
+	BPJSHealth       *string      `json:"bpjs_health"`
+	BPJSLabor        *string      `json:"bpjs_labor"`
+	BaseSalary       *int64       `json:"base_salary"`
+	BankName         *string      `json:"bank_name"`
+	BankAccount      *string      `json:"bank_account"`
 	CustomFields     domain.JSONB `json:"custom_fields"`
-	Notes            *string `json:"notes"`
+	Notes            *string      `json:"notes"`
 }
 
 func (h *EmployeeHandler) Create(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
 	var req domain.CreateEmployeeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 	req.TenantID = tenantID
@@ -349,13 +368,15 @@ func (h *EmployeeHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, emp, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusCreated, "Employee created", emp, reqID)
 }
 
 func (h *EmployeeHandler) Get(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing employee ID", reqID)
 		return
 	}
 
@@ -365,18 +386,19 @@ func (h *EmployeeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, emp, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", emp, reqID)
 }
 
 func (h *EmployeeHandler) List(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
 	q := r.URL.Query()
-
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
 
@@ -395,13 +417,15 @@ func (h *EmployeeHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, result, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Success", result, reqID)
 }
 
 func (h *EmployeeHandler) Update(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing employee ID", reqID)
 		return
 	}
 
@@ -413,7 +437,7 @@ func (h *EmployeeHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req updateEmpReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -502,13 +526,15 @@ func (h *EmployeeHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Refetch for joined fields
 	updated, _ := h.uc.Get(id)
-	response.JSON(w, http.StatusOK, updated, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Employee updated", updated, reqID)
 }
 
 func (h *EmployeeHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing employee ID", reqID)
 		return
 	}
 
@@ -517,19 +543,21 @@ func (h *EmployeeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"status": "deleted"}, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Employee deleted", map[string]string{"status": "deleted"}, reqID)
 }
 
 func (h *EmployeeHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	id := r.PathValue("id")
 	if id == "" {
-		response.Err(w, http.StatusBadRequest, "missing_id", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing employee ID", reqID)
 		return
 	}
 
 	var req domain.ChangeEmployeeStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Err(w, http.StatusBadRequest, "invalid_body", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
@@ -538,26 +566,26 @@ func (h *EmployeeHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"status": "updated"}, middleware.GetReqID(r.Context()))
+	response.JSON(w, http.StatusOK, "Status updated", map[string]string{"status": "updated"}, reqID)
 }
 
 // ── Org Chart ───────────────────────────────────
 
 func (h *EmployeeHandler) OrgChart(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, "no_tenant_in_context", middleware.GetReqID(r.Context()))
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
 
-	// Load departments tree
 	departments, err := h.deptUC.List(tenantID, nil)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
-	// Load all active employees
 	empResult, err := h.uc.List(tenantID, domain.EmployeeFilter{
 		Status: "active",
 		Limit:  1000,
@@ -573,7 +601,6 @@ func (h *EmployeeHandler) OrgChart(w http.ResponseWriter, r *http.Request) {
 		Employees  []domain.Employee  `json:"employees"`
 	}
 
-	// Build map: department_id → []Employee
 	empByDept := make(map[string][]domain.Employee)
 	for _, e := range empResult.Data {
 		if e.DepartmentID != nil {
@@ -590,8 +617,8 @@ func (h *EmployeeHandler) OrgChart(w http.ResponseWriter, r *http.Request) {
 		nodes = append(nodes, orgNode{Department: &d, Employees: emps})
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"departments": nodes,
+	response.JSON(w, http.StatusOK, "Success", map[string]interface{}{
+		"departments":    nodes,
 		"total_employees": empResult.Total,
-	}, middleware.GetReqID(r.Context()))
+	}, reqID)
 }
