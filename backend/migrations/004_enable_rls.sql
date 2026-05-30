@@ -1,20 +1,23 @@
--- Enable RLS on tenants and users tables
+-- RLS policies for tenants, users, user_tenants
+
+-- Enable RLS on tables
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_tenants ENABLE ROW LEVEL SECURITY;
 
--- Policies for tenants table
-CREATE POLICY tenant_owner_access ON tenants
-FOR ALL TO public USING (id = current_setting('app.current_tenant', true)::uuid);
+-- Policy: tenants can only access own rows unless super_admin
+CREATE POLICY tenant_isolation ON tenants
+    USING (id = current_setting('app.current_tenant', true)::uuid);
 
--- Policies for users table
-CREATE POLICY user_tenant_access ON users
-FOR ALL TO public USING (id = ANY(
-  SELECT tenant_id FROM user_tenants WHERE user_id = current_setting('app.current_user_id', true)::uuid
-));
+-- Policy: user_tenants rows scoped to current tenant
+CREATE POLICY user_tenant_isolation ON user_tenants
+    USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
 
--- Policies for user_tenants table
-CREATE POLICY user_tenant_select ON user_tenants
-FOR ALL TO public USING (user_id = current_setting('app.current_user_id', true)::uuid);
-CREATE POLICY user_tenant_insert ON user_tenants
-FOR ALL TO public WITH CHECK (user_id = current_setting('app.current_user_id', true)::uuid);
+-- Policy: users table via user_tenants
+CREATE POLICY user_isolation ON users
+    USING (
+        id IN (
+            SELECT user_id FROM user_tenants
+            WHERE tenant_id = current_setting('app.current_tenant', true)::uuid
+        )
+    );
