@@ -8,10 +8,14 @@ type Tenant struct {
 	Name           string    `json:"name"`
 	Slug           string    `json:"slug"`
 	Plan           string    `json:"plan"` // free, pro, enterprise
+	PlanPricePerEmployee int64 `json:"plan_price_per_employee"`
+	SubscriptionExpiresAt *time.Time `json:"subscription_expires_at,omitempty"`
+	IsActive       bool      `json:"is_active"`
 	MaxEmployees   int       `json:"max_employees"`
 	Settings       JSONB     `json:"settings"`
 	LogoURL        string    `json:"logo_url"`
 	CreatedAt      time.Time `json:"created_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
@@ -40,6 +44,7 @@ type User struct {
 	AvatarURL    string    `json:"avatar_url"`
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
@@ -72,6 +77,7 @@ type UserTenant struct {
 	Role     UserTenantRole `json:"role"`
 	IsActive bool           `json:"is_active"`
 	JoinedAt time.Time      `json:"joined_at"`
+	DeletedAt *time.Time      `json:"deleted_at,omitempty"`
 }
 
 type UserTenantRepository interface {
