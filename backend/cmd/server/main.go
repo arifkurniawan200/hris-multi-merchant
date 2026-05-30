@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/config"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/handler"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
@@ -20,36 +21,44 @@ import (
 )
 
 func main() {
-	log, err := logger.New(getEnv("APP_ENV", "development"))
-	if err != nil {
-		panic("init logger: " + err.Error())
-	}
+	logger.Init(newGetEnv("APP_ENV", "development"))
+
+	cfg := config.Load()
 
 	// ── DB ──────────────────────────────────
 	dbpool, err := adapter.NewPgxPool()
 	if err != nil {
-		log.Fatal("connect db", logger.ErrField(err))
+		logger.Fatal("connect db", "error", err)
 	}
 	defer dbpool.Close()
 
-	log.Info("database connected")
+	logger.L.WithField("event", "db_connected").Info("database connected")
 
 	// ── JWT ─────────────────────────────────
 	jwtMgr := middleware.NewJWTManager(
-		getEnv("JWT_ACCESS_SECRET", "change-me-access-secret"),
-		getEnv("JWT_REFRESH_SECRET", "change-me-refresh-secret"),
-		15*time.Minute,
-		7*24*time.Hour,
+		cfg.JWT.AccessSecret,
+		cfg.JWT.RefreshSecret,
+		cfg.ParseDuration(cfg.JWT.AccessExpiry),
+		cfg.ParseDuration(cfg.JWT.RefreshExpiry),
 	)
+
+	// ── Tx Manager ──────────────────────────
+	txMgr := adapter.NewTxManager(dbpool)
 
 	// ── Repos ───────────────────────────────
 	tenantRepo := repository.NewTenantRepo(dbpool)
 	userRepo := repository.NewUserRepo(dbpool)
 	userTenantRepo := repository.NewUserTenantRepo(dbpool)
+	deptRepo := repository.NewDepartmentRepo(dbpool)
+	posRepo := repository.NewPositionRepo(dbpool)
+	empRepo := repository.NewEmployeeRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
-	tenantUC := usecase.NewTenantUC(tenantRepo)
-	userUC := usecase.NewUserUC(userRepo, jwtMgr)
+	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
+	userUC := usecase.NewUserUC(userRepo, userTenantRepo, jwtMgr, txMgr)
+	deptUC := usecase.NewDepartmentUC(deptRepo)
+	posUC := usecase.NewPositionUC(posRepo)
+	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -60,7 +69,10 @@ func main() {
 	// ── Handlers ────────────────────────────
 	authH := handler.NewAuthHandler(userUC, jwtMgr, refreshStore)
 	tenantH := handler.NewTenantHandler(tenantUC)
-	adminH := handler.NewAdminHandler(tenantUC, log)
+	adminH := handler.NewAdminHandler(tenantUC)
+	deptH := handler.NewDepartmentHandler(deptUC)
+	posH := handler.NewPositionHandler(posUC)
+	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -71,13 +83,15 @@ func main() {
 	tenantMw := middleware.TenantCtx(setCfg)
 	rbAdmin := middleware.RequireRole("super_admin")
 	rbTenantAdmin := middleware.RequireRole("tenant_admin")
+	rbManager := middleware.RequireRole("manager")
+	rbEmployee := middleware.RequireRole("employee")
 
 	// ── Router ──────────────────────────────
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger(log))
-	r.Use(middleware.Recovery(log))
+	r.Use(middleware.Logging)
+	r.Use(middleware.Recovery)
 	r.Use(chicors.Handler(chicors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -114,6 +128,37 @@ func main() {
 				r.Get("/api/v1/tenants/me", tenantH.MyTenant)
 				r.Put("/api/v1/tenants/me", tenantH.UpdateMyTenant)
 			})
+
+			// Manager+ — Department CRUD
+			r.Group(func(r chi.Router) {
+				r.Use(rbManager)
+				r.Post("/api/v1/departments", deptH.Create)
+				r.Get("/api/v1/departments", deptH.List)
+				r.Get("/api/v1/departments/{id}", deptH.Get)
+				r.Put("/api/v1/departments/{id}", deptH.Update)
+				r.Delete("/api/v1/departments/{id}", deptH.Delete)
+
+				// Position CRUD
+				r.Post("/api/v1/positions", posH.Create)
+				r.Get("/api/v1/positions", posH.List)
+				r.Get("/api/v1/positions/{id}", posH.Get)
+				r.Put("/api/v1/positions/{id}", posH.Update)
+				r.Delete("/api/v1/positions/{id}", posH.Delete)
+
+				// Employee write
+				r.Post("/api/v1/employees", empH.Create)
+				r.Put("/api/v1/employees/{id}", empH.Update)
+				r.Delete("/api/v1/employees/{id}", empH.Delete)
+				r.Put("/api/v1/employees/{id}/status", empH.ChangeStatus)
+			})
+
+			// Employee+ — Employee read + org chart
+			r.Group(func(r chi.Router) {
+				r.Use(rbEmployee)
+				r.Get("/api/v1/employees", empH.List)
+				r.Get("/api/v1/employees/{id}", empH.Get)
+				r.Get("/api/v1/org-chart", empH.OrgChart)
+			})
 		})
 
 		// Super admin only
@@ -130,18 +175,18 @@ func main() {
 	})
 
 	// ── Server ──────────────────────────────
-	port := getEnv("APP_PORT", "3000")
+	port := strconv.Itoa(cfg.Server.Port)
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      r,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  cfg.ParseDuration(cfg.Server.ReadTimeout),
+		WriteTimeout: cfg.ParseDuration(cfg.Server.WriteTimeout),
 	}
 
 	go func() {
-		log.Info("server_starting", logger.Str("port", port))
+		logger.L.WithField("port", port).Info("server starting")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("server_failed", logger.ErrField(err))
+			logger.Fatal("server failed", "error", err)
 		}
 	}()
 
@@ -149,17 +194,17 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info("server_shutting_down")
+	logger.L.Info("server shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ParseDuration(cfg.Server.ShutdownTimeout))
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Error("shutdown_error", logger.ErrField(err))
+		logger.L.WithField("error", err).Error("shutdown error")
 	}
-	log.Info("server_stopped")
+	logger.L.Info("server stopped")
 }
 
-func getEnv(key, def string) string {
+func newGetEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
