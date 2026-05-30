@@ -45,7 +45,7 @@ func (h *DepartmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	req.TenantID = tenantID
 
-	dept, err := h.uc.Create(&req)
+	dept, err := h.uc.Create(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -63,7 +63,7 @@ func (h *DepartmentHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dept, err := h.uc.Get(id)
+	dept, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -86,7 +86,7 @@ func (h *DepartmentHandler) List(w http.ResponseWriter, r *http.Request) {
 		parentID = &pid
 	}
 
-	depts, err := h.uc.List(tenantID, parentID)
+	depts, err := h.uc.List(r.Context(), tenantID, parentID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -104,7 +104,7 @@ func (h *DepartmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dept, err := h.uc.Get(id)
+	dept, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -129,7 +129,7 @@ func (h *DepartmentHandler) Update(w http.ResponseWriter, r *http.Request) {
 		dept.IsActive = *req.IsActive
 	}
 
-	if err := h.uc.Update(dept); err != nil {
+	if err := h.uc.Update(r.Context(), dept); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -146,7 +146,7 @@ func (h *DepartmentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.SoftDelete(id); err != nil {
+	if err := h.uc.SoftDelete(r.Context(), id); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -190,7 +190,7 @@ func (h *PositionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	req.TenantID = tenantID
 
-	pos, err := h.uc.Create(&req)
+	pos, err := h.uc.Create(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -208,7 +208,7 @@ func (h *PositionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pos, err := h.uc.Get(id)
+	pos, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -226,7 +226,7 @@ func (h *PositionHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	positions, err := h.uc.List(tenantID)
+	positions, err := h.uc.List(r.Context(), tenantID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -244,7 +244,7 @@ func (h *PositionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pos, err := h.uc.Get(id)
+	pos, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -276,7 +276,7 @@ func (h *PositionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		pos.IsActive = *req.IsActive
 	}
 
-	if err := h.uc.Update(pos); err != nil {
+	if err := h.uc.Update(r.Context(), pos); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -293,7 +293,7 @@ func (h *PositionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.SoftDelete(id); err != nil {
+	if err := h.uc.SoftDelete(r.Context(), id); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -362,7 +362,7 @@ func (h *EmployeeHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	req.TenantID = tenantID
 
-	emp, err := h.uc.Create(&req)
+	emp, err := h.uc.Create(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -380,7 +380,7 @@ func (h *EmployeeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	emp, err := h.uc.Get(id)
+	emp, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -411,7 +411,7 @@ func (h *EmployeeHandler) List(w http.ResponseWriter, r *http.Request) {
 		Offset:       offset,
 	}
 
-	result, err := h.uc.List(tenantID, filter)
+	result, err := h.uc.List(r.Context(), tenantID, filter)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -429,7 +429,7 @@ func (h *EmployeeHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	emp, err := h.uc.Get(id)
+	emp, err := h.uc.Get(r.Context(), id)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -519,13 +519,13 @@ func (h *EmployeeHandler) Update(w http.ResponseWriter, r *http.Request) {
 		emp.Notes = *req.Notes
 	}
 
-	if err := h.uc.Update(emp); err != nil {
+	if err := h.uc.Update(r.Context(), emp); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
 	// Refetch for joined fields
-	updated, _ := h.uc.Get(id)
+	updated, _ := h.uc.Get(r.Context(), id)
 	response.JSON(w, http.StatusOK, "Employee updated", updated, reqID)
 }
 
@@ -538,7 +538,7 @@ func (h *EmployeeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.SoftDelete(id); err != nil {
+	if err := h.uc.SoftDelete(r.Context(), id); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -561,7 +561,7 @@ func (h *EmployeeHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.ChangeStatus(id, req.Status); err != nil {
+	if err := h.uc.ChangeStatus(r.Context(), id, req.Status); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -580,13 +580,13 @@ func (h *EmployeeHandler) OrgChart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	departments, err := h.deptUC.List(tenantID, nil)
+	departments, err := h.deptUC.List(r.Context(), tenantID, nil)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
-	empResult, err := h.uc.List(tenantID, domain.EmployeeFilter{
+	empResult, err := h.uc.List(r.Context(), tenantID, domain.EmployeeFilter{
 		Status: "active",
 		Limit:  1000,
 		Offset: 0,

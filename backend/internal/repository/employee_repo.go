@@ -91,7 +91,7 @@ func infoPtr(s string) *string {
 
 // ── CRUD ────────────────────────────────────────
 
-func (r *EmployeeRepo) Create(e *domain.Employee) error {
+func (r *EmployeeRepo) Create(ctx context.Context, e *domain.Employee) error {
 	query := `
 		INSERT INTO employees (
 			id, tenant_id, user_id, employee_code, first_name, last_name,
@@ -115,7 +115,7 @@ func (r *EmployeeRepo) Create(e *domain.Employee) error {
 			NOW(), NOW()
 		)
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		e.ID, e.TenantID, e.UserID, e.EmployeeCode, e.FirstName, e.LastName,
 		e.Gender, e.BirthDate, e.BirthPlace, e.Email, e.Phone, e.Address,
 		e.DepartmentID, e.PositionID, e.ManagerID,
@@ -128,17 +128,17 @@ func (r *EmployeeRepo) Create(e *domain.Employee) error {
 	return err
 }
 
-func (r *EmployeeRepo) GetByID(id string) (*domain.Employee, error) {
+func (r *EmployeeRepo) GetByID(ctx context.Context, id string) (*domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.id=$1 AND e.deleted_at IS NULL`
-	return scanEmployee(r.db.QueryRow(context.Background(), query, id))
+	return scanEmployee(r.db.QueryRow(ctx, query, id))
 }
 
-func (r *EmployeeRepo) GetByCode(tenantID, code string) (*domain.Employee, error) {
+func (r *EmployeeRepo) GetByCode(ctx context.Context, tenantID, code string) (*domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.tenant_id=$1 AND e.employee_code=$2 AND e.deleted_at IS NULL`
-	return scanEmployee(r.db.QueryRow(context.Background(), query, tenantID, code))
+	return scanEmployee(r.db.QueryRow(ctx, query, tenantID, code))
 }
 
-func (r *EmployeeRepo) Update(e *domain.Employee) error {
+func (r *EmployeeRepo) Update(ctx context.Context, e *domain.Employee) error {
 	query := `
 		UPDATE employees SET
 			first_name=$2, last_name=$3, gender=NULLIF($4,''),
@@ -156,7 +156,7 @@ func (r *EmployeeRepo) Update(e *domain.Employee) error {
 			updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		e.ID, e.FirstName, e.LastName, e.Gender,
 		e.BirthDate, e.BirthPlace,
 		e.Email, e.Phone, e.Address,
@@ -170,7 +170,7 @@ func (r *EmployeeRepo) Update(e *domain.Employee) error {
 	return err
 }
 
-func (r *EmployeeRepo) List(tenantID string, filter domain.EmployeeFilter) ([]domain.Employee, error) {
+func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.EmployeeFilter) ([]domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins
 	var conditions []string
 	args := []interface{}{tenantID}
@@ -207,7 +207,7 @@ func (r *EmployeeRepo) List(tenantID string, filter domain.EmployeeFilter) ([]do
 	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	rows, err := r.db.Query(context.Background(), query, args...)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (r *EmployeeRepo) List(tenantID string, filter domain.EmployeeFilter) ([]do
 	return employees, rows.Err()
 }
 
-func (r *EmployeeRepo) Count(tenantID string, filter domain.EmployeeFilter) (int, error) {
+func (r *EmployeeRepo) Count(ctx context.Context, tenantID string, filter domain.EmployeeFilter) (int, error) {
 	query := `SELECT COUNT(*) FROM employees e`
 	var conditions []string
 	args := []interface{}{tenantID}
@@ -281,24 +281,24 @@ func (r *EmployeeRepo) Count(tenantID string, filter domain.EmployeeFilter) (int
 			`(e.first_name ILIKE $%d OR e.last_name ILIKE $%d OR e.employee_code ILIKE $%d OR e.email ILIKE $%d)`,
 			argIdx, argIdx, argIdx, argIdx))
 		args = append(args, "%"+filter.Search+"%")
-		}
+	}
 
 	query += ` WHERE ` + strings.Join(conditions, ` AND `)
 
 	var count int
-	err := r.db.QueryRow(context.Background(), query, args...).Scan(&count)
+	err := r.db.QueryRow(ctx, query, args...).Scan(&count)
 	return count, err
 }
 
-func (r *EmployeeRepo) SoftDelete(id string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *EmployeeRepo) SoftDelete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE employees SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err
 }
 
-func (r *EmployeeRepo) UpdateStatus(id, status string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *EmployeeRepo) UpdateStatus(ctx context.Context, id, status string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE employees SET employment_status=$2, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id, status)
 	return err

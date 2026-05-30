@@ -1,31 +1,31 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/config"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type TenantUC struct {
 	tenantRepo domain.TenantRepository
 	plans      *config.PlansConfig
-	log        *zap.Logger
 }
 
-func NewTenantUC(repo domain.TenantRepository, plans *config.PlansConfig, log *zap.Logger) domain.TenantUseCase {
-	return &TenantUC{tenantRepo: repo, plans: plans, log: log}
+func NewTenantUC(repo domain.TenantRepository, plans *config.PlansConfig) domain.TenantUseCase {
+	return &TenantUC{tenantRepo: repo, plans: plans}
 }
 
 // CreateTenant validates the request and creates a new tenant.
-func (uc *TenantUC) CreateTenant(req *domain.CreateTenantRequest) (*domain.Tenant, error) {
+func (uc *TenantUC) CreateTenant(ctx context.Context, req *domain.CreateTenantRequest) (*domain.Tenant, error) {
 	if err := Validate().Struct(req); err != nil {
 		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
 
-	existing, _ := uc.tenantRepo.GetBySlug(req.Slug)
+	existing, _ := uc.tenantRepo.GetBySlug(ctx, req.Slug)
 	if existing != nil {
 		return nil, domain.NewConflict("slug already exists")
 	}
@@ -41,88 +41,88 @@ func (uc *TenantUC) CreateTenant(req *domain.CreateTenantRequest) (*domain.Tenan
 		Settings:             domain.JSONB{},
 	}
 
-	if err := uc.tenantRepo.Create(t); err != nil {
-		uc.log.Error("create tenant failed", zap.String("slug", req.Slug), zap.Error(err))
+	if err := uc.tenantRepo.Create(ctx, t); err != nil {
+		logger.Error(ctx, "create tenant failed", "slug", req.Slug, "error", err)
 		return nil, domain.NewInternal(fmt.Sprintf("create tenant: %v", err))
 	}
 
-	uc.log.Info("tenant created", zap.String("tenant_id", t.ID), zap.String("slug", t.Slug), zap.String("plan", t.Plan))
+	logger.Info(ctx, "tenant created", "tenant_id", t.ID, "slug", t.Slug, "plan", t.Plan)
 	return t, nil
 }
 
-func (uc *TenantUC) GetTenant(id string) (*domain.Tenant, error) {
-	t, err := uc.tenantRepo.GetByID(id)
+func (uc *TenantUC) GetTenant(ctx context.Context, id string) (*domain.Tenant, error) {
+	t, err := uc.tenantRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, domain.NewNotFound("tenant not found")
 	}
 	return t, nil
 }
 
-func (uc *TenantUC) UpdateTenant(t *domain.Tenant) error {
-	if err := uc.tenantRepo.Update(t); err != nil {
-		uc.log.Error("update tenant failed", zap.String("tenant_id", t.ID), zap.Error(err))
+func (uc *TenantUC) UpdateTenant(ctx context.Context, t *domain.Tenant) error {
+	if err := uc.tenantRepo.Update(ctx, t); err != nil {
+		logger.Error(ctx, "update tenant failed", "tenant_id", t.ID, "error", err)
 		return domain.NewInternal(fmt.Sprintf("update tenant: %v", err))
 	}
-	uc.log.Info("tenant updated", zap.String("tenant_id", t.ID))
+	logger.Info(ctx, "tenant updated", "tenant_id", t.ID)
 	return nil
 }
 
-func (uc *TenantUC) ListTenants() ([]domain.Tenant, error) {
-	tenants, err := uc.tenantRepo.List(100, 0)
+func (uc *TenantUC) ListTenants(ctx context.Context) ([]domain.Tenant, error) {
+	tenants, err := uc.tenantRepo.List(ctx, 100, 0)
 	if err != nil {
-		uc.log.Error("list tenants failed", zap.Error(err))
+		logger.Error(ctx, "list tenants failed", "error", err)
 		return nil, domain.NewInternal(fmt.Sprintf("list tenants: %v", err))
 	}
 	return tenants, nil
 }
 
-func (uc *TenantUC) ActivateTenant(id string) error {
-	if err := uc.tenantRepo.Activate(id); err != nil {
-		uc.log.Error("activate tenant failed", zap.String("tenant_id", id), zap.Error(err))
+func (uc *TenantUC) ActivateTenant(ctx context.Context, id string) error {
+	if err := uc.tenantRepo.Activate(ctx, id); err != nil {
+		logger.Error(ctx, "activate tenant failed", "tenant_id", id, "error", err)
 		return domain.NewInternal("failed to activate tenant")
 	}
-	uc.log.Info("tenant activated", zap.String("tenant_id", id))
+	logger.Info(ctx, "tenant activated", "tenant_id", id)
 	return nil
 }
 
-func (uc *TenantUC) DeactivateTenant(id string) error {
-	if err := uc.tenantRepo.Deactivate(id); err != nil {
-		uc.log.Error("deactivate tenant failed", zap.String("tenant_id", id), zap.Error(err))
+func (uc *TenantUC) DeactivateTenant(ctx context.Context, id string) error {
+	if err := uc.tenantRepo.Deactivate(ctx, id); err != nil {
+		logger.Error(ctx, "deactivate tenant failed", "tenant_id", id, "error", err)
 		return domain.NewInternal("failed to deactivate tenant")
 	}
-	uc.log.Info("tenant deactivated", zap.String("tenant_id", id))
+	logger.Info(ctx, "tenant deactivated", "tenant_id", id)
 	return nil
 }
 
-func (uc *TenantUC) ExtendTenant(id string, months int) error {
+func (uc *TenantUC) ExtendTenant(ctx context.Context, id string, months int) error {
 	if months < 1 || months > 36 {
 		return domain.NewValidation("months must be between 1 and 36")
 	}
-	if err := uc.tenantRepo.Extend(id, months); err != nil {
-		uc.log.Error("extend tenant failed", zap.String("tenant_id", id), zap.Int("months", months), zap.Error(err))
+	if err := uc.tenantRepo.Extend(ctx, id, months); err != nil {
+		logger.Error(ctx, "extend tenant failed", "tenant_id", id, "months", months, "error", err)
 		return domain.NewInternal("failed to extend subscription")
 	}
-	uc.log.Info("tenant subscription extended", zap.String("tenant_id", id), zap.Int("months", months))
+	logger.Info(ctx, "tenant subscription extended", "tenant_id", id, "months", months)
 	return nil
 }
 
-func (uc *TenantUC) ChangePlan(id string, req *domain.ChangePlanRequest) error {
+func (uc *TenantUC) ChangePlan(ctx context.Context, id string, req *domain.ChangePlanRequest) error {
 	if err := Validate().Struct(req); err != nil {
 		return domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
-	if err := uc.tenantRepo.ChangePlan(id, req.Plan, req.PricePerEmployee); err != nil {
-		uc.log.Error("change plan failed", zap.String("tenant_id", id), zap.String("plan", req.Plan), zap.Error(err))
+	if err := uc.tenantRepo.ChangePlan(ctx, id, req.Plan, req.PricePerEmployee); err != nil {
+		logger.Error(ctx, "change plan failed", "tenant_id", id, "plan", req.Plan, "error", err)
 		return domain.NewInternal("failed to change plan")
 	}
-	uc.log.Info("tenant plan changed", zap.String("tenant_id", id), zap.String("plan", req.Plan))
+	logger.Info(ctx, "tenant plan changed", "tenant_id", id, "plan", req.Plan)
 	return nil
 }
 
-func (uc *TenantUC) SoftDeleteTenant(id string) error {
-	if err := uc.tenantRepo.SoftDelete(id); err != nil {
-		uc.log.Error("soft delete tenant failed", zap.String("tenant_id", id), zap.Error(err))
+func (uc *TenantUC) SoftDeleteTenant(ctx context.Context, id string) error {
+	if err := uc.tenantRepo.SoftDelete(ctx, id); err != nil {
+		logger.Error(ctx, "soft delete tenant failed", "tenant_id", id, "error", err)
 		return domain.NewInternal("failed to delete tenant")
 	}
-	uc.log.Info("tenant soft deleted", zap.String("tenant_id", id))
+	logger.Info(ctx, "tenant soft deleted", "tenant_id", id)
 	return nil
 }

@@ -20,12 +20,12 @@ func NewTenantRepo(db *pgxpool.Pool) domain.TenantRepository {
 
 // ── CRUD ────────────────────────────────────────
 
-func (r *TenantRepo) Create(tenant *domain.Tenant) error {
+func (r *TenantRepo) Create(ctx context.Context, tenant *domain.Tenant) error {
 	query := `
 		INSERT INTO tenants (id, name, slug, plan, plan_price_per_employee, subscription_expires_at, is_active, max_employees, settings, logo_url, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		tenant.ID, tenant.Name, tenant.Slug, tenant.Plan,
 		tenant.PlanPricePerEmployee, tenant.SubscriptionExpiresAt, tenant.IsActive,
 		tenant.MaxEmployees, tenant.Settings, tenant.LogoURL,
@@ -33,29 +33,29 @@ func (r *TenantRepo) Create(tenant *domain.Tenant) error {
 	return err
 }
 
-func (r *TenantRepo) GetByID(id string) (*domain.Tenant, error) {
+func (r *TenantRepo) GetByID(ctx context.Context, id string) (*domain.Tenant, error) {
 	query := `
 		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
 		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
 		FROM tenants
 		WHERE id = $1 AND deleted_at IS NULL
 	`
-	row := r.db.QueryRow(context.Background(), query, id)
+	row := r.db.QueryRow(ctx, query, id)
 	return scanTenant(row)
 }
 
-func (r *TenantRepo) GetBySlug(slug string) (*domain.Tenant, error) {
+func (r *TenantRepo) GetBySlug(ctx context.Context, slug string) (*domain.Tenant, error) {
 	query := `
 		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
 		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
 		FROM tenants
 		WHERE slug = $1 AND deleted_at IS NULL
 	`
-	row := r.db.QueryRow(context.Background(), query, slug)
+	row := r.db.QueryRow(ctx, query, slug)
 	return scanTenant(row)
 }
 
-func (r *TenantRepo) Update(tenant *domain.Tenant) error {
+func (r *TenantRepo) Update(ctx context.Context, tenant *domain.Tenant) error {
 	query := `
 		UPDATE tenants
 		SET name=$2, slug=$3, plan=$4, plan_price_per_employee=$5,
@@ -63,7 +63,7 @@ func (r *TenantRepo) Update(tenant *domain.Tenant) error {
 		    settings=$9, logo_url=$10, updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		tenant.ID, tenant.Name, tenant.Slug, tenant.Plan,
 		tenant.PlanPricePerEmployee, tenant.SubscriptionExpiresAt, tenant.IsActive,
 		tenant.MaxEmployees, tenant.Settings, tenant.LogoURL,
@@ -71,7 +71,7 @@ func (r *TenantRepo) Update(tenant *domain.Tenant) error {
 	return err
 }
 
-func (r *TenantRepo) List(limit, offset int) ([]domain.Tenant, error) {
+func (r *TenantRepo) List(ctx context.Context, limit, offset int) ([]domain.Tenant, error) {
 	query := `
 		SELECT id, name, slug, plan, plan_price_per_employee, subscription_expires_at,
 		       is_active, max_employees, settings, logo_url, created_at, deleted_at, updated_at
@@ -80,7 +80,7 @@ func (r *TenantRepo) List(limit, offset int) ([]domain.Tenant, error) {
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`
-	rows, err := r.db.Query(context.Background(), query, limit, offset)
+	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -99,36 +99,36 @@ func (r *TenantRepo) List(limit, offset int) ([]domain.Tenant, error) {
 
 // ── Subscription / lifecycle ────────────────────
 
-func (r *TenantRepo) Activate(id string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *TenantRepo) Activate(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET is_active=true, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err
 }
 
-func (r *TenantRepo) Deactivate(id string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *TenantRepo) Deactivate(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET is_active=false, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err
 }
 
-func (r *TenantRepo) Extend(id string, months int) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *TenantRepo) Extend(ctx context.Context, id string, months int) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET subscription_expires_at = COALESCE(subscription_expires_at, NOW()) + ($2::int * INTERVAL '1 month'), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id, months)
 	return err
 }
 
-func (r *TenantRepo) ChangePlan(id, plan string, pricePerEmployee int64) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *TenantRepo) ChangePlan(ctx context.Context, id, plan string, pricePerEmployee int64) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET plan=$2, plan_price_per_employee=$3, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id, plan, pricePerEmployee)
 	return err
 }
 
-func (r *TenantRepo) SoftDelete(id string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *TenantRepo) SoftDelete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err

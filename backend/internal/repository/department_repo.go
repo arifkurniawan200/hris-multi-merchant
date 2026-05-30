@@ -38,41 +38,41 @@ func scanDepartment(row pgx.Row) (*domain.Department, error) {
 	return &d, nil
 }
 
-func (r *DepartmentRepo) Create(d *domain.Department) error {
+func (r *DepartmentRepo) Create(ctx context.Context, d *domain.Department) error {
 	query := `
 		INSERT INTO departments (id, tenant_id, parent_id, name, code, description, manager_id, level, is_active, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW(), NOW())
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		d.ID, d.TenantID, d.ParentID, d.Name, d.Code,
 		d.Description, d.ManagerID, d.Level, d.IsActive,
 	)
 	return err
 }
 
-func (r *DepartmentRepo) GetByID(id string) (*domain.Department, error) {
+func (r *DepartmentRepo) GetByID(ctx context.Context, id string) (*domain.Department, error) {
 	query := `SELECT ` + deptColumns + ` FROM departments WHERE id=$1 AND deleted_at IS NULL`
-	return scanDepartment(r.db.QueryRow(context.Background(), query, id))
+	return scanDepartment(r.db.QueryRow(ctx, query, id))
 }
 
-func (r *DepartmentRepo) GetByCode(tenantID, code string) (*domain.Department, error) {
+func (r *DepartmentRepo) GetByCode(ctx context.Context, tenantID, code string) (*domain.Department, error) {
 	query := `SELECT ` + deptColumns + ` FROM departments WHERE tenant_id=$1 AND code=$2 AND deleted_at IS NULL`
-	return scanDepartment(r.db.QueryRow(context.Background(), query, tenantID, code))
+	return scanDepartment(r.db.QueryRow(ctx, query, tenantID, code))
 }
 
-func (r *DepartmentRepo) Update(d *domain.Department) error {
+func (r *DepartmentRepo) Update(ctx context.Context, d *domain.Department) error {
 	query := `
 		UPDATE departments
 		SET name=$2, code=$3, description=$4, manager_id=$5, parent_id=$6, is_active=$7, updated_at=NOW()
 		WHERE id=$1 AND deleted_at IS NULL
 	`
-	_, err := r.db.Exec(context.Background(), query,
+	_, err := r.db.Exec(ctx, query,
 		d.ID, d.Name, d.Code, d.Description, d.ManagerID, d.ParentID, d.IsActive,
 	)
 	return err
 }
 
-func (r *DepartmentRepo) List(tenantID string, parentID *string) ([]domain.Department, error) {
+func (r *DepartmentRepo) List(ctx context.Context, tenantID string, parentID *string) ([]domain.Department, error) {
 	query := `SELECT ` + deptColumns + ` FROM departments WHERE tenant_id=$1 AND deleted_at IS NULL`
 	args := []interface{}{tenantID}
 
@@ -84,7 +84,7 @@ func (r *DepartmentRepo) List(tenantID string, parentID *string) ([]domain.Depar
 	}
 	query += ` ORDER BY level ASC, name ASC`
 
-	rows, err := r.db.Query(context.Background(), query, args...)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +107,8 @@ func (r *DepartmentRepo) List(tenantID string, parentID *string) ([]domain.Depar
 	return depts, rows.Err()
 }
 
-func (r *DepartmentRepo) SoftDelete(id string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *DepartmentRepo) SoftDelete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE departments SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		id)
 	return err

@@ -18,55 +18,55 @@ func NewSubscriptionRepo(db *pgxpool.Pool) *SubscriptionRepo {
 }
 
 // Activate enables a tenant (sets is_active=true).
-func (r *SubscriptionRepo) Activate(tenantID string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) Activate(ctx context.Context, tenantID string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET is_active=true, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
 }
 
 // Deactivate disables a tenant (sets is_active=false).
-func (r *SubscriptionRepo) Deactivate(tenantID string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) Deactivate(ctx context.Context, tenantID string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET is_active=false, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
 }
 
 // Extend extends subscription_expire_at by the given duration.
-func (r *SubscriptionRepo) Extend(tenantID string, duration time.Duration) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) Extend(ctx context.Context, tenantID string, duration time.Duration) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET subscription_expire_at = COALESCE(subscription_expire_at, NOW()) + $2::interval, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID, duration)
 	return err
 }
 
 // ChangePlan updates the plan and price.
-func (r *SubscriptionRepo) ChangePlan(tenantID, plan string, pricePerEmployee int64) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) ChangePlan(ctx context.Context, tenantID, plan string, pricePerEmployee int64) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET plan=$2, plan_price_per_employee=$3, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID, plan, pricePerEmployee)
 	return err
 }
 
 // SoftDelete sets deleted_at (soft delete).
-func (r *SubscriptionRepo) SoftDelete(tenantID string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) SoftDelete(ctx context.Context, tenantID string) error {
+	_, err := r.db.Exec(ctx,
 		`UPDATE tenants SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`,
 		tenantID)
 	return err
 }
 
 // HardDelete permanently removes.
-func (r *SubscriptionRepo) HardDelete(tenantID string) error {
-	_, err := r.db.Exec(context.Background(),
+func (r *SubscriptionRepo) HardDelete(ctx context.Context, tenantID string) error {
+	_, err := r.db.Exec(ctx,
 		`DELETE FROM tenants WHERE id=$1`, tenantID)
 	return err
 }
 
 // GetUserTenantsWithExpiry returns tenants for user with expiry info.
-func (r *SubscriptionRepo) GetUserTenantsWithExpiry(userID string) ([]domain.Tenant, error) {
-	rows, err := r.db.Query(context.Background(), `
+func (r *SubscriptionRepo) GetUserTenantsWithExpiry(ctx context.Context, userID string) ([]domain.Tenant, error) {
+	rows, err := r.db.Query(ctx, `
 		SELECT t.id, t.name, t.slug, t.plan, t.plan_price_per_employee, t.max_employees, t.settings, t.logo_url, t.is_active, t.subscription_expires_at, t.created_at, t.updated_at
 		FROM tenants t
 		JOIN user_tenants ut ON ut.tenant_id = t.id

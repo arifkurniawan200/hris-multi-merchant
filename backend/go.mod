@@ -12,6 +12,6 @@ require (
 	github.com/jackc/pgxlisten v0.0.0-20240523160151-9b7027036617
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stretchr/testify v1.9.0
-	go.uber.org/zap v1.27.0
+	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.28.0
 )

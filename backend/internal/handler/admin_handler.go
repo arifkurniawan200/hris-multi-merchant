@@ -6,26 +6,25 @@ import (
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/response"
-	"go.uber.org/zap"
 )
 
 type AdminHandler struct {
 	tenantUC domain.TenantUseCase
-	logger   *zap.Logger
 }
 
-func NewAdminHandler(tenantUC domain.TenantUseCase, logger *zap.Logger) *AdminHandler {
-	return &AdminHandler{tenantUC: tenantUC, logger: logger}
+func NewAdminHandler(tenantUC domain.TenantUseCase) *AdminHandler {
+	return &AdminHandler{tenantUC: tenantUC}
 }
 
 // ListTenants GET /api/v1/admin/tenants (super_admin only)
 func (h *AdminHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
-	tenants, err := h.tenantUC.ListTenants()
+	tenants, err := h.tenantUC.ListTenants(r.Context())
 	if err != nil {
-		h.logger.Error("admin list tenants failed", zap.Error(err), zap.String("request_id", reqID))
+		logger.Error(r.Context(), "admin list tenants failed", "error", err)
 		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to list tenants", reqID)
 		return
 	}
@@ -37,8 +36,7 @@ func (h *AdminHandler) ActivateTenant(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 	tenantID := r.PathValue("id")
 
-	if err := h.tenantUC.ActivateTenant(tenantID); err != nil {
-		h.logger.Error("activate tenant failed", zap.String("tenant_id", tenantID), zap.String("request_id", reqID), zap.Error(err))
+	if err := h.tenantUC.ActivateTenant(r.Context(), tenantID); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -50,8 +48,7 @@ func (h *AdminHandler) DeactivateTenant(w http.ResponseWriter, r *http.Request) 
 	reqID := middleware.GetReqID(r.Context())
 	tenantID := r.PathValue("id")
 
-	if err := h.tenantUC.DeactivateTenant(tenantID); err != nil {
-		h.logger.Error("deactivate tenant failed", zap.String("tenant_id", tenantID), zap.String("request_id", reqID), zap.Error(err))
+	if err := h.tenantUC.DeactivateTenant(r.Context(), tenantID); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -68,8 +65,7 @@ func (h *AdminHandler) ExtendTenant(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
-	if err := h.tenantUC.ExtendTenant(tenantID, req.Months); err != nil {
-		h.logger.Error("extend tenant failed", zap.String("tenant_id", tenantID), zap.String("request_id", reqID), zap.Error(err))
+	if err := h.tenantUC.ExtendTenant(r.Context(), tenantID, req.Months); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -89,8 +85,7 @@ func (h *AdminHandler) ChangePlan(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
-	if err := h.tenantUC.ChangePlan(tenantID, &req); err != nil {
-		h.logger.Error("change plan failed", zap.String("tenant_id", tenantID), zap.String("request_id", reqID), zap.Error(err))
+	if err := h.tenantUC.ChangePlan(r.Context(), tenantID, &req); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -105,8 +100,7 @@ func (h *AdminHandler) SoftDeleteTenant(w http.ResponseWriter, r *http.Request) 
 	reqID := middleware.GetReqID(r.Context())
 	tenantID := r.PathValue("id")
 
-	if err := h.tenantUC.SoftDeleteTenant(tenantID); err != nil {
-		h.logger.Error("soft delete tenant failed", zap.String("tenant_id", tenantID), zap.String("request_id", reqID), zap.Error(err))
+	if err := h.tenantUC.SoftDeleteTenant(r.Context(), tenantID); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type contextKey string
@@ -19,8 +19,6 @@ const (
 	CtxReqID    contextKey = "request_id"
 )
 
-// ── RequestID ──────────────────────────────────
-// Injects X-Request-ID into context and response header.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqID := r.Header.Get("X-Request-ID")
@@ -33,30 +31,21 @@ func RequestID(next http.Handler) http.Handler {
 	})
 }
 
-// ── Logger ──────────────────────────────────────
-// Attach Zap logger with request ID to context.
-func Logger(log *zap.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			reqID, _ := r.Context().Value(CtxReqID).(string)
-
-			// Wrap response writer to capture status
-			ww := &statusWriter{ResponseWriter: w, status: http.StatusOK}
-			start := time.Now()
-
-			next.ServeHTTP(ww, r.WithContext(r.Context()))
-
-			log.Info("http_request",
-				zap.String("request_id", reqID),
-				zap.String("method", r.Method),
-				zap.String("path", r.URL.Path),
-				zap.Int("status", ww.status),
-				zap.Duration("duration", time.Since(start)),
-				zap.String("remote_addr", r.RemoteAddr),
-				zap.String("user_agent", r.UserAgent()),
-			)
-		})
-	}
+// Logging is the HTTP logging middleware using global logger.
+func Logging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ww := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		next.ServeHTTP(ww, r)
+		logger.Info(r.Context(),
+			"http_request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", ww.status,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"remote_addr", r.RemoteAddr,
+			"user_agent", r.UserAgent())
+	})
 }
 
 type statusWriter struct {
@@ -69,27 +58,19 @@ func (w *statusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-// ── Recovery ────────────────────────────────────
-func Recovery(log *zap.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := recover(); err != nil {
-					reqID, _ := r.Context().Value(CtxReqID).(string)
-					log.Error("panic_recovered",
-						zap.String("request_id", reqID),
-						zap.Any("error", err),
-						zap.Stack("stack"),
-					)
-					http.Error(w, `{"error":"internal_server_error"}`, http.StatusInternalServerError)
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	}
+// Recovery middleware using global logger.
+func Recovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				logger.Error(r.Context(), "panic_recovered", "error", err)
+				http.Error(w, `{"error":"internal_server_error"}`, http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
-// GetReqID extracts request ID from context.
 func GetReqID(ctx context.Context) string {
 	if v, ok := ctx.Value(CtxReqID).(string); ok {
 		return v
@@ -97,8 +78,6 @@ func GetReqID(ctx context.Context) string {
 	return ""
 }
 
-// RequireAuth validates JWT and injects claims into context.
-// Skipped here — implementation in auth middleware.
 func BearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if strings.HasPrefix(h, "Bearer ") {

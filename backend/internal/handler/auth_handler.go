@@ -42,7 +42,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userUC.RegisterUser(&req)
+	user, err := h.userUC.RegisterUser(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -60,13 +60,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userUC.LoginUser(&req)
+	user, err := h.userUC.LoginUser(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
-	tokens, err := h.userUC.IssueTokens(user.ID, user.Email, "", "")
+	tokens, err := h.userUC.IssueTokens(r.Context(), user.ID, user.Email, "", "")
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -103,13 +103,13 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userUC.GetUser(userID)
+	user, err := h.userUC.GetUser(r.Context(), userID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
-	tokens, err := h.userUC.IssueTokens(user.ID, user.Email, "", "")
+	tokens, err := h.userUC.IssueTokens(r.Context(), user.ID, user.Email, "", "")
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -132,7 +132,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userUC.GetUser(userID)
+	user, err := h.userUC.GetUser(r.Context(), userID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return

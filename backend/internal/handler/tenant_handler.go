@@ -32,7 +32,7 @@ func (h *TenantHandler) MyTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantUC.GetTenant(tenantID)
+	tenant, err := h.tenantUC.GetTenant(r.Context(), tenantID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -56,7 +56,7 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantUC.GetTenant(tenantID)
+	tenant, err := h.tenantUC.GetTenant(r.Context(), tenantID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -66,7 +66,7 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 	tenant.LogoURL = req.LogoURL
 	tenant.Settings = req.Settings
 
-	if err := h.tenantUC.UpdateTenant(tenant); err != nil {
+	if err := h.tenantUC.UpdateTenant(r.Context(), tenant); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -77,7 +77,7 @@ func (h *TenantHandler) UpdateMyTenant(w http.ResponseWriter, r *http.Request) {
 func (h *TenantHandler) ListAllTenants(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
-	tenants, err := h.tenantUC.ListTenants()
+	tenants, err := h.tenantUC.ListTenants(r.Context())
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -95,7 +95,7 @@ func (h *TenantHandler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantUC.CreateTenant(&req)
+	tenant, err := h.tenantUC.CreateTenant(r.Context(), &req)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return

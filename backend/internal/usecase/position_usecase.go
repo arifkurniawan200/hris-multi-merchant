@@ -1,28 +1,28 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type PositionUC struct {
 	repo domain.PositionRepository
-	log  *zap.Logger
 }
 
-func NewPositionUC(repo domain.PositionRepository, log *zap.Logger) domain.PositionUseCase {
-	return &PositionUC{repo: repo, log: log}
+func NewPositionUC(repo domain.PositionRepository) domain.PositionUseCase {
+	return &PositionUC{repo: repo}
 }
 
-func (uc *PositionUC) Create(req *domain.CreatePositionRequest) (*domain.Position, error) {
+func (uc *PositionUC) Create(ctx context.Context, req *domain.CreatePositionRequest) (*domain.Position, error) {
 	if err := Validate().Struct(req); err != nil {
 		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
 	}
 
-	existing, _ := uc.repo.GetByCode(req.TenantID, req.Code)
+	existing, _ := uc.repo.GetByCode(ctx, req.TenantID, req.Code)
 	if existing != nil {
 		return nil, domain.NewConflict("position code already exists in this tenant")
 	}
@@ -39,46 +39,46 @@ func (uc *PositionUC) Create(req *domain.CreatePositionRequest) (*domain.Positio
 		IsActive:    true,
 	}
 
-	if err := uc.repo.Create(p); err != nil {
-		uc.log.Error("create position failed", zap.String("tenant_id", req.TenantID), zap.String("code", req.Code), zap.Error(err))
+	if err := uc.repo.Create(ctx, p); err != nil {
+		logger.Error(ctx, "create position failed", "tenant_id", req.TenantID, "code", req.Code, "error", err)
 		return nil, domain.NewInternal(fmt.Sprintf("create position: %v", err))
 	}
 
-	uc.log.Info("position created", zap.String("pos_id", p.ID), zap.String("code", p.Code), zap.String("tenant_id", p.TenantID))
+	logger.Info(ctx, "position created", "pos_id", p.ID, "code", p.Code, "tenant_id", p.TenantID)
 	return p, nil
 }
 
-func (uc *PositionUC) Get(id string) (*domain.Position, error) {
-	p, err := uc.repo.GetByID(id)
+func (uc *PositionUC) Get(ctx context.Context, id string) (*domain.Position, error) {
+	p, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, domain.NewNotFound("position not found")
 	}
 	return p, nil
 }
 
-func (uc *PositionUC) Update(p *domain.Position) error {
-	if err := uc.repo.Update(p); err != nil {
-		uc.log.Error("update position failed", zap.String("pos_id", p.ID), zap.Error(err))
+func (uc *PositionUC) Update(ctx context.Context, p *domain.Position) error {
+	if err := uc.repo.Update(ctx, p); err != nil {
+		logger.Error(ctx, "update position failed", "pos_id", p.ID, "error", err)
 		return domain.NewInternal(fmt.Sprintf("update position: %v", err))
 	}
-	uc.log.Info("position updated", zap.String("pos_id", p.ID))
+	logger.Info(ctx, "position updated", "pos_id", p.ID)
 	return nil
 }
 
-func (uc *PositionUC) List(tenantID string) ([]domain.Position, error) {
-	positions, err := uc.repo.List(tenantID)
+func (uc *PositionUC) List(ctx context.Context, tenantID string) ([]domain.Position, error) {
+	positions, err := uc.repo.List(ctx, tenantID)
 	if err != nil {
-		uc.log.Error("list positions failed", zap.String("tenant_id", tenantID), zap.Error(err))
+		logger.Error(ctx, "list positions failed", "tenant_id", tenantID, "error", err)
 		return nil, domain.NewInternal(fmt.Sprintf("list positions: %v", err))
 	}
 	return positions, nil
 }
 
-func (uc *PositionUC) SoftDelete(id string) error {
-	if err := uc.repo.SoftDelete(id); err != nil {
-		uc.log.Error("soft delete position failed", zap.String("pos_id", id), zap.Error(err))
+func (uc *PositionUC) SoftDelete(ctx context.Context, id string) error {
+	if err := uc.repo.SoftDelete(ctx, id); err != nil {
+		logger.Error(ctx, "soft delete position failed", "pos_id", id, "error", err)
 		return domain.NewInternal("failed to delete position")
 	}
-	uc.log.Info("position soft deleted", zap.String("pos_id", id))
+	logger.Info(ctx, "position soft deleted", "pos_id", id)
 	return nil
 }

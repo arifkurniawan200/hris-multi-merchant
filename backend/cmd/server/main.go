@@ -21,21 +21,18 @@ import (
 )
 
 func main() {
-	log, err := logger.New(newGetEnv("APP_ENV", "development"))
-	if err != nil {
-		panic("init logger: " + err.Error())
-	}
+	logger.Init(newGetEnv("APP_ENV", "development"))
 
 	cfg := config.Load()
 
 	// ── DB ──────────────────────────────────
 	dbpool, err := adapter.NewPgxPool()
 	if err != nil {
-		log.Fatal("connect db", logger.ErrField(err))
+		logger.Fatal("connect db", "error", err)
 	}
 	defer dbpool.Close()
 
-	log.Info("database connected")
+	logger.L.WithField("event", "db_connected").Info("database connected")
 
 	// ── JWT ─────────────────────────────────
 	jwtMgr := middleware.NewJWTManager(
@@ -54,11 +51,11 @@ func main() {
 	empRepo := repository.NewEmployeeRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
-	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans, log)
-	userUC := usecase.NewUserUC(userRepo, jwtMgr, log)
-	deptUC := usecase.NewDepartmentUC(deptRepo, log)
-	posUC := usecase.NewPositionUC(posRepo, log)
-	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo, log)
+	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
+	userUC := usecase.NewUserUC(userRepo, jwtMgr)
+	deptUC := usecase.NewDepartmentUC(deptRepo)
+	posUC := usecase.NewPositionUC(posRepo)
+	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -69,7 +66,7 @@ func main() {
 	// ── Handlers ────────────────────────────
 	authH := handler.NewAuthHandler(userUC, jwtMgr, refreshStore)
 	tenantH := handler.NewTenantHandler(tenantUC)
-	adminH := handler.NewAdminHandler(tenantUC, log)
+	adminH := handler.NewAdminHandler(tenantUC)
 	deptH := handler.NewDepartmentHandler(deptUC)
 	posH := handler.NewPositionHandler(posUC)
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
@@ -90,8 +87,8 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger(log))
-	r.Use(middleware.Recovery(log))
+	r.Use(middleware.Logging)
+	r.Use(middleware.Recovery)
 	r.Use(chicors.Handler(chicors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -184,9 +181,9 @@ func main() {
 	}
 
 	go func() {
-		log.Info("server_starting", logger.Str("port", port))
+		logger.L.WithField("port", port).Info("server starting")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("server_failed", logger.ErrField(err))
+			logger.Fatal("server failed", "error", err)
 		}
 	}()
 
@@ -194,14 +191,14 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info("server_shutting_down")
+	logger.L.Info("server shutting down")
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.ParseDuration(cfg.Server.ShutdownTimeout))
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Error("shutdown_error", logger.ErrField(err))
+		logger.L.WithField("error", err).Error("shutdown error")
 	}
-	log.Info("server_stopped")
+	logger.L.Info("server stopped")
 }
 
 func newGetEnv(key, def string) string {
