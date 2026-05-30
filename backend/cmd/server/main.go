@@ -52,6 +52,9 @@ func main() {
 	deptRepo := repository.NewDepartmentRepo(dbpool)
 	posRepo := repository.NewPositionRepo(dbpool)
 	empRepo := repository.NewEmployeeRepo(dbpool)
+	attendanceRepo := repository.NewAttendanceRepo(dbpool)
+	shiftRepo := repository.NewShiftRepo(dbpool)
+	empShiftRepo := repository.NewEmployeeShiftRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -59,6 +62,9 @@ func main() {
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
+	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
+	shiftUC := usecase.NewShiftUC(shiftRepo)
+	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -73,6 +79,8 @@ func main() {
 	deptH := handler.NewDepartmentHandler(deptUC)
 	posH := handler.NewPositionHandler(posUC)
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
+	attendanceH := handler.NewAttendanceHandler(attendanceUC)
+	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -129,36 +137,67 @@ func main() {
 				r.Put("/api/v1/tenants/me", tenantH.UpdateMyTenant)
 			})
 
-			// Manager+ — Department CRUD
+			// Manager+ — Department CRUD + Shift Management
 			r.Group(func(r chi.Router) {
 				r.Use(rbManager)
+
+				// Department
 				r.Post("/api/v1/departments", deptH.Create)
 				r.Get("/api/v1/departments", deptH.List)
 				r.Get("/api/v1/departments/{id}", deptH.Get)
 				r.Put("/api/v1/departments/{id}", deptH.Update)
 				r.Delete("/api/v1/departments/{id}", deptH.Delete)
 
-				// Position CRUD
+				// Position
 				r.Post("/api/v1/positions", posH.Create)
 				r.Get("/api/v1/positions", posH.List)
 				r.Get("/api/v1/positions/{id}", posH.Get)
 				r.Put("/api/v1/positions/{id}", posH.Update)
 				r.Delete("/api/v1/positions/{id}", posH.Delete)
 
-				// Employee write
+				// Shift CRUD (manager+)
+				r.Post("/api/v1/shifts", shiftH.Create)
+				r.Get("/api/v1/shifts", shiftH.List)
+				r.Post("/api/v1/shifts/bulk-assign", shiftH.BulkAssign)
+				r.Get("/api/v1/shifts/{id}", shiftH.Get)
+				r.Put("/api/v1/shifts/{id}", shiftH.Update)
+				r.Delete("/api/v1/shifts/{id}", shiftH.Delete)
+				r.Get("/api/v1/shifts/{id}/employees", shiftH.ListShiftEmployees)
+
+				// Employee write (manager+)
 				r.Post("/api/v1/employees", empH.Create)
 				r.Put("/api/v1/employees/{id}", empH.Update)
 				r.Delete("/api/v1/employees/{id}", empH.Delete)
 				r.Put("/api/v1/employees/{id}/status", empH.ChangeStatus)
+
+				// Employee → shift assignment (manager+)
+				r.Post("/api/v1/employees/{id}/shifts", shiftH.AssignShift)
+				r.Get("/api/v1/employees/{id}/shifts", shiftH.ListEmployeeShifts)
+				r.Put("/api/v1/employees/{id}/shifts/{sid}", shiftH.UpdateAssignment)
+				r.Delete("/api/v1/employees/{id}/shifts/{sid}", shiftH.RemoveAssignment)
 			})
 
-			// Employee+ — Employee read + org chart
+			// Employee+ — Employee read + org chart + self-service
 			r.Group(func(r chi.Router) {
 				r.Use(rbEmployee)
 				r.Get("/api/v1/employees", empH.List)
 				r.Get("/api/v1/employees/{id}", empH.Get)
 				r.Get("/api/v1/org-chart", empH.OrgChart)
-			})
+
+				// Employee self-service shift
+				r.Get("/api/v1/employee/me/shift", shiftH.MyShift)
+
+				// Attendance routes
+				r.Post("/api/attendance/clock-in", attendanceH.ClockIn)
+				r.Post("/api/attendance/clock-out", attendanceH.ClockOut)
+				r.Get("/api/attendance/history", attendanceH.History)
+				})
+
+				// Manager+ — Attendance report
+				r.Group(func(r chi.Router) {
+				r.Use(rbManager)
+				r.Get("/api/attendance/report", attendanceH.Report)
+				})
 		})
 
 		// Super admin only

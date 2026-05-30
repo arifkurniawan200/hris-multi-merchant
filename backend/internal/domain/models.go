@@ -184,6 +184,146 @@ type PositionUseCase interface {
 	SoftDelete(ctx context.Context, id string) error
 }
 
+// ── Attendance ──────────────────────────────────
+
+type AttendanceStatus string
+
+const (
+	AttendancePresent AttendanceStatus = "present"
+	AttendanceLate    AttendanceStatus = "late"
+	AttendanceHalfDay AttendanceStatus = "half_day"
+	AttendanceAbsent  AttendanceStatus = "absent"
+)
+
+type Attendance struct {
+	ID         string           `json:"id"`
+	EmployeeID string           `json:"employee_id" validate:"required,uuid"`
+	TenantID   string           `json:"tenant_id" validate:"required,uuid"`
+	ClockIn    time.Time        `json:"clock_in"`
+	ClockOut   *time.Time       `json:"clock_out,omitempty"`
+	ClockDate  string           `json:"clock_date" validate:"required"`
+	Status     AttendanceStatus `json:"status" validate:"required,oneof=present late half_day absent"`
+	Notes      string           `json:"notes,omitempty"`
+	Latitude   *float64         `json:"latitude,omitempty"`
+	Longitude  *float64         `json:"longitude,omitempty"`
+	SelfieURL  string           `json:"selfie_url,omitempty"`
+	CreatedAt  time.Time        `json:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at"`
+	DeletedAt  *time.Time       `json:"deleted_at,omitempty"`
+
+	// Joined
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
+}
+
+type AttendanceRepository interface {
+	Create(ctx context.Context, a *Attendance) error
+	GetToday(ctx context.Context, employeeID string) (*Attendance, error)
+	GetTodayForUpdate(ctx context.Context, employeeID string) (*Attendance, error)
+	GetByID(ctx context.Context, id string) (*Attendance, error)
+	UpdateClockOut(ctx context.Context, id string, clockOut time.Time, notes string) error
+	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
+	ListByTenant(ctx context.Context, tenantID string, clockDate string, limit, offset int) ([]Attendance, error)
+	CountByTenant(ctx context.Context, tenantID string, clockDate string) (int, error)
+}
+
+type AttendanceUseCase interface {
+	ClockIn(ctx context.Context, req *ClockInRequest) (*Attendance, error)
+	ClockOut(ctx context.Context, req *ClockOutRequest) (*Attendance, error)
+	GetHistory(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
+	GetReport(ctx context.Context, tenantID string, clockDate string, limit, offset int) (*AttendanceReport, error)
+}
+
+type AttendanceReport struct {
+	Date   string       `json:"date"`
+	Total  int          `json:"total"`
+	Data   []Attendance `json:"data"`
+	Limit  int          `json:"limit"`
+	Offset int          `json:"offset"`
+}
+
+// ── Shift ───────────────────────────────────────
+
+type Shift struct {
+	ID                  string     `json:"id" validate:"required,uuid"`
+	TenantID            string     `json:"tenant_id" validate:"required,uuid"`
+	Name                string     `json:"name" validate:"required,min=2"`
+	Code                string     `json:"code" validate:"required,min=2"`
+	StartTime           string     `json:"start_time"`                         // "07:00"
+	EndTime             string     `json:"end_time"`                           // "15:00"
+	GraceMinutes        int        `json:"grace_minutes"`
+	ClockinWindowBefore int        `json:"clockin_window_before_minutes"`
+	ClockoutWindowAfter int        `json:"clockout_window_after_minutes"`
+	IsFlexible          bool       `json:"is_flexible"`
+	Color               string     `json:"color,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	DeletedAt           *time.Time `json:"deleted_at,omitempty"`
+}
+
+type ShiftRepository interface {
+	Create(ctx context.Context, s *Shift) error
+	GetByID(ctx context.Context, id string) (*Shift, error)
+	GetByCode(ctx context.Context, tenantID, code string) (*Shift, error)
+	Update(ctx context.Context, s *Shift) error
+	List(ctx context.Context, tenantID string) ([]Shift, error)
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type ShiftUseCase interface {
+	Create(ctx context.Context, req *CreateShiftRequest) (*Shift, error)
+	Get(ctx context.Context, id string) (*Shift, error)
+	Update(ctx context.Context, s *Shift) error
+	List(ctx context.Context, tenantID string) ([]Shift, error)
+	SoftDelete(ctx context.Context, id string) error
+}
+
+// ── EmployeeShift (assignment) ──────────────────
+
+type EmployeeShift struct {
+	ID            string     `json:"id"`
+	TenantID      string     `json:"tenant_id"`
+	EmployeeID    string     `json:"employee_id"`
+	ShiftID       string     `json:"shift_id"`
+	EffectiveFrom string     `json:"effective_from"` // "2006-01-02"
+	EffectiveTo   *string    `json:"effective_to,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+
+	// Joined
+	ShiftName            string `json:"shift_name,omitempty"`
+	ShiftCode            string `json:"shift_code,omitempty"`
+	StartTime            string `json:"start_time,omitempty"`
+	EndTime              string `json:"end_time,omitempty"`
+	GraceMinutes         int    `json:"grace_minutes,omitempty"`
+	ClockinWindowBefore  int    `json:"clockin_window_before_minutes,omitempty"`
+	ClockoutWindowAfter  int    `json:"clockout_window_after_minutes,omitempty"`
+	IsFlexible           bool   `json:"is_flexible,omitempty"`
+}
+
+type EmployeeShiftRepository interface {
+	Create(ctx context.Context, es *EmployeeShift) error
+	GetByID(ctx context.Context, id string) (*EmployeeShift, error)
+	GetActive(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	GetActiveByEmployee(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
+	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	Update(ctx context.Context, es *EmployeeShift) error
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type EmployeeShiftUseCase interface {
+	Assign(ctx context.Context, req *AssignShiftRequest) (*EmployeeShift, error)
+	Get(ctx context.Context, id string) (*EmployeeShift, error)
+	GetActive(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
+	Update(ctx context.Context, es *EmployeeShift) error
+	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
+	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	RemoveAssignment(ctx context.Context, id string) error
+	BulkAssign(ctx context.Context, req *BulkAssignShiftRequest) ([]EmployeeShift, error)
+}
+
 // ── Employee ────────────────────────────────────
 
 type Employee struct {
@@ -246,6 +386,7 @@ type EmployeeListResult struct {
 type EmployeeRepository interface {
 	Create(ctx context.Context, e *Employee) error
 	GetByID(ctx context.Context, id string) (*Employee, error)
+	GetByUserID(ctx context.Context, tenantID, userID string) (*Employee, error)
 	GetByCode(ctx context.Context, tenantID, code string) (*Employee, error)
 	Update(ctx context.Context, e *Employee) error
 	List(ctx context.Context, tenantID string, filter EmployeeFilter) ([]Employee, error)
