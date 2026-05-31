@@ -63,7 +63,7 @@ export default function ReportPage() {
     setIsLoading(true);
     setError('');
     try {
-      const data = await api.get<ReportResponse>(`/api/attendance/report?date=${reportDate}`);
+      const data = await api.get<ReportResponse>(`/api/v1/attendance/report?date=${reportDate}`);
       setReport(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');

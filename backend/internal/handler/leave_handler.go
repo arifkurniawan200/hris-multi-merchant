@@ -230,8 +230,18 @@ func (h *LeaveHandler) ApproveLeave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "User ID not found in context", reqID)
+		return
+	}
 
-	err = h.uc.Approve(r.Context(), leaveID, uuid.MustParse(userID))
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in context", reqID)
+		return
+	}
+
+	err = h.uc.Approve(r.Context(), leaveID, parsedUserID)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -251,6 +261,16 @@ func (h *LeaveHandler) RejectLeave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "User ID not found in context", reqID)
+		return
+	}
+
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in context", reqID)
+		return
+	}
 
 	var body domain.RejectLeaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -263,7 +283,7 @@ func (h *LeaveHandler) RejectLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.uc.Reject(r.Context(), leaveID, uuid.MustParse(userID), body.Reason)
+	err = h.uc.Reject(r.Context(), leaveID, parsedUserID, body.Reason)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return

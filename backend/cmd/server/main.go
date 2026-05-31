@@ -206,7 +206,7 @@ func main() {
 				// Manager+ — Attendance report
 					r.Group(func(r chi.Router) {
 					r.Use(rbManager)
-					r.Get("/api/attendance/report", attendanceH.Report)
+					r.Get("/api/v1/attendance/report", attendanceH.Report)
 
 					// Leave Management (manager+)
 					r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)
