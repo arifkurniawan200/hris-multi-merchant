@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
 import {
+  Bell,
   Clock,
   History,
   BarChart3,
@@ -56,9 +57,19 @@ export function Sidebar() {
       icon: Clock,
     },
     {
+      href: '/dashboard/overtime',
+      label: 'Overtime Request',
+      icon: Clock,
+    },
+    {
       href: '/dashboard/history',
       label: 'Attendance History',
       icon: History,
+    },
+    {
+      href: '/dashboard/notifications',
+      label: 'Notifications',
+      icon: Bell,
     },
     {
       href: '/manager/shifts',
@@ -75,6 +86,12 @@ export function Sidebar() {
     {
       href: '/manager/leaves/pending',
       label: 'Leave Approvals',
+      icon: CheckCircle2,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/overtime',
+      label: 'Overtime Approvals',
       icon: CheckCircle2,
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
