@@ -179,3 +179,14 @@ type RejectLeaveRequest struct {
 	ReviewedBy string `json:"-"`                             // set by handler
 	Reason     string `json:"reason" validate:"required,min=10"`
 }
+
+// ── Forgot / Reset Password ─────────────────────
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token    string `json:"token" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
+}

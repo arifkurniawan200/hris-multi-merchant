@@ -76,13 +76,6 @@ type AttendanceConfig struct {
 	DefaultClockoutWindowAfter int    `yaml:"default_clockout_window_after"` // 60
 }
 
-// ── Leave defaults ──────────────────────────────
-
-type LeaveConfig struct {
-	DefaultAnnualDays    int  `yaml:"default_annual_days"`
-	AllowNegativeBalance bool `yaml:"allow_negative_balance"`
-}
-
 // ── Defaults with env overrides ──────────────────
 
 func Load() *Config {
@@ -116,10 +109,6 @@ func Load() *Config {
 			DefaultGraceMinutes:        15,
 			DefaultClockinWindowBefore: 60,
 			DefaultClockoutWindowAfter: 60,
-		},
-		Leave: LeaveConfig{
-			DefaultAnnualDays:    12,
-			AllowNegativeBalance: false,
 		},
 		Leave: LeaveConfig{
 			DefaultAnnualDays:    12,
