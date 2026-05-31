@@ -15,13 +15,6 @@ import (
 type EmployeeRepo struct {
 	db adapter.DBTX
 }
-// dbQuerier returns the active transaction from context if available.
-func (r *EmployeeRepo) dbQuerier(ctx context.Context) adapter.DBTX {
-	if tx := adapter.GetTxDB(ctx); tx != nil {
-		return tx
-	}
-	return r.db
-}
 
 // dbQuerier returns the active transaction from context if available.
 func (r *EmployeeRepo) dbQuerier(ctx context.Context) adapter.DBTX {
@@ -30,20 +23,19 @@ func (r *EmployeeRepo) dbQuerier(ctx context.Context) adapter.DBTX {
 	}
 	return r.db
 }
-
 
 func NewEmployeeRepo(db adapter.DBTX) domain.EmployeeRepository {
 	return &EmployeeRepo{db: db}
 }
 
 var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, e.last_name,
-	e.gender, e.birth_date::text, e.birth_place, e.email, e.phone, e.address,
+	COALESCE(e.gender, ''), e.birth_date::text, e.birth_place, e.email, e.phone, e.address,
 	e.department_id, e.position_id, e.manager_id,
 	e.employment_status, e.employment_type, e.join_date::text,
 	e.resign_date::text, e.contract_start::text, e.contract_end::text,
-	e.national_id, e.tax_id, e.bpjs_health, e.bpjs_labor,
-	e.base_salary, e.bank_name, e.bank_account,
-	e.custom_fields, e.notes,
+	COALESCE(e.national_id, ''), COALESCE(e.tax_id, ''), COALESCE(e.bpjs_health, ''), COALESCE(e.bpjs_labor, ''),
+	e.base_salary, COALESCE(e.bank_name, ''), COALESCE(e.bank_account, ''),
+	e.custom_fields, COALESCE(e.notes, ''),
 	e.created_at, e.updated_at, e.deleted_at,
 	COALESCE(d.name, ''), COALESCE(p.name, ''), COALESCE(m.first_name || ' ' || m.last_name, '')`
 
@@ -80,9 +72,9 @@ func scanEmployee(row pgx.Row) (*domain.Employee, error) {
 	e.DeletedAt = deletedAt
 	e.BirthDate = birthDate
 	e.JoinDate = ptrToStr(joinDate)
-	e.ResignDate = ptrToStr(resignDate)
-	e.ContractStart = ptrToStr(contractStart)
-	e.ContractEnd = ptrToStr(contractEnd)
+	e.ResignDate = resignDate
+	e.ContractStart = contractStart
+	e.ContractEnd = contractEnd
 	if customFields == nil {
 		e.CustomFields = domain.JSONB{}
 	} else {
@@ -112,10 +104,10 @@ func (r *EmployeeRepo) Create(ctx context.Context, e *domain.Employee) error {
 	query := `
 		INSERT INTO employees (
 			id, tenant_id, user_id, employee_code, first_name, last_name,
-			gender, birth_date::date, birth_place, email, phone, address,
+			gender, birth_date, birth_place, email, phone, address,
 			department_id, position_id, manager_id,
-			employment_status, employment_type, join_date::date,
-			resign_date::date, contract_start::date, contract_end::date,
+			employment_status, employment_type, join_date,
+			resign_date, contract_start, contract_end,
 			national_id, tax_id, bpjs_health, bpjs_labor,
 			base_salary, bank_name, bank_account,
 			custom_fields, notes,
@@ -156,8 +148,14 @@ func (r *EmployeeRepo) GetByCode(ctx context.Context, tenantID, code string) (*d
 }
 
 // GetByUserID looks up an employee by their linked user account within a tenant.
+// If tenantID is empty, searches across all tenants for the user.
 func (r *EmployeeRepo) GetByUserID(ctx context.Context, tenantID, userID string) (*domain.Employee, error) {
-	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.tenant_id=$1 AND e.user_id=$2 AND e.deleted_at IS NULL`
+	var query string
+	if tenantID == "" {
+		query = `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.user_id=$1 AND e.deleted_at IS NULL`
+		return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, userID))
+	}
+	query = `SELECT ` + empColumns + ` FROM employees e ` + empJoins + ` WHERE e.tenant_id=$1 AND e.user_id=$2 AND e.deleted_at IS NULL`
 	return scanEmployee(r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, userID))
 }
 
@@ -262,9 +260,9 @@ func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.
 		e.DeletedAt = deletedAt
 		e.BirthDate = birthDate
 		e.JoinDate = ptrToStr(joinDate)
-		e.ResignDate = ptrToStr(resignDate)
-		e.ContractStart = ptrToStr(contractStart)
-		e.ContractEnd = ptrToStr(contractEnd)
+		e.ResignDate = resignDate
+		e.ContractStart = contractStart
+		e.ContractEnd = contractEnd
 		if customFields == nil {
 			e.CustomFields = domain.JSONB{}
 		} else {

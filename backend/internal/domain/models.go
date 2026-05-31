@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ── Tenant ──────────────────────────────────────
@@ -73,6 +75,7 @@ type UserUseCase interface {
 	LoginUser(ctx context.Context, req *LoginRequest) (*User, error)
 	GetUser(ctx context.Context, id string) (*User, error)
 	IssueTokens(ctx context.Context, userID string, email string, tenantID string, role UserTenantRole) (*TokenPair, error)
+	FindUserTenant(ctx context.Context, userID string) (tenantID string, role UserTenantRole, err error)
 }
 
 // ── UserTenant (membership) ─────────────────────
@@ -230,7 +233,7 @@ type AttendanceRepository interface {
 type AttendanceUseCase interface {
 	ClockIn(ctx context.Context, req *ClockInRequest) (*Attendance, error)
 	ClockOut(ctx context.Context, req *ClockOutRequest) (*Attendance, error)
-	GetHistory(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
+	GetHistory(ctx context.Context, userID string, limit, offset int) ([]Attendance, error)
 	GetReport(ctx context.Context, tenantID string, clockDate string, limit, offset int) (*AttendanceReport, error)
 }
 

@@ -63,7 +63,7 @@ func main() {
 	userUC := usecase.NewUserUC(userRepo, userTenantRepo, jwtMgr, txMgr)
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
-	empUC := usecase.NewEmployeeUC(empRepo, deptRepo, posRepo)
+	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
@@ -106,9 +106,9 @@ func main() {
 	r.Use(middleware.Recovery)
 	r.Use(chicors.Handler(chicors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Request-ID"},
-		AllowCredentials: true,
+		ExposedHeaders:   []string{"Content-Length", "X-Request-ID"},
 		MaxAge:           300,
 	}))
 
@@ -192,9 +192,9 @@ func main() {
 				r.Get("/api/v1/employee/me/shift", shiftH.MyShift)
 
 				// Attendance routes
-				r.Post("/api/attendance/clock-in", attendanceH.ClockIn)
-				r.Post("/api/attendance/clock-out", attendanceH.ClockOut)
-				r.Get("/api/attendance/history", attendanceH.History)
+				r.Post("/api/v1/attendance/clock-in", attendanceH.ClockIn)
+							r.Post("/api/v1/attendance/clock-out", attendanceH.ClockOut)
+							r.Get("/api/v1/attendance/history", attendanceH.History)
 
 				// Leave routes (employee+)
 				r.Post("/api/v1/leaves", leaveH.SubmitLeave)

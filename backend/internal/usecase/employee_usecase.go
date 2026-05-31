@@ -11,17 +11,20 @@ import (
 
 type EmployeeUC struct {
 	empRepo  domain.EmployeeRepository
+	userRepo domain.UserRepository
 	deptRepo domain.DepartmentRepository
 	posRepo  domain.PositionRepository
 }
 
 func NewEmployeeUC(
 	empRepo domain.EmployeeRepository,
+	userRepo domain.UserRepository,
 	deptRepo domain.DepartmentRepository,
 	posRepo domain.PositionRepository,
 ) domain.EmployeeUseCase {
 	return &EmployeeUC{
 		empRepo:  empRepo,
+		userRepo: userRepo,
 		deptRepo: deptRepo,
 		posRepo:  posRepo,
 	}
@@ -49,9 +52,16 @@ func (uc *EmployeeUC) Create(ctx context.Context, req *domain.CreateEmployeeRequ
 		}
 	}
 
+	// ── Auto-link user_id by email ──────────────────────
+	var userID *string
+	if u, err := uc.userRepo.GetByEmail(ctx, req.Email); err == nil && u != nil {
+		userID = &u.ID
+	}
+
 	e := &domain.Employee{
 		ID:               uuid.New().String(),
 		TenantID:         req.TenantID,
+		UserID:           userID,
 		EmployeeCode:     req.EmployeeCode,
 		FirstName:        req.FirstName,
 		LastName:         req.LastName,
