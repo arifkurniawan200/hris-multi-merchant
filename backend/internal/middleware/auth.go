@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/response"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -46,9 +47,16 @@ func (a *Auth) Require(next http.Handler) http.Handler {
 }
 
 func writeErr(w http.ResponseWriter, status int, msg string) {
+	errCode := response.MapHTTPStatusToErrorCode(status)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Write([]byte(`{"success":false,"error":"` + msg + `"}`))
+	json.NewEncoder(w).Encode(response.Envelope{
+		Success:   false,
+		Message:   msg,
+		ErrorCode: errCode,
+		RequestID: "",
+		Data:      struct{}{},
+	})
 }
 
 // ── Internal JWT implementation ──────────────────────
@@ -109,7 +117,7 @@ func (j *JWTManager) ParseToken(token string) (*domain.JWTClaims, error) {
 	return &domain.JWTClaims{
 		UserID:   claims["user_id"].(string),
 		Email:    claims["email"].(string),
-		tenantID: strOrEmpty(claims["tenant_id"]),
+		TenantID: strOrEmpty(claims["tenant_id"]),
 		Role:     domain.UserTenantRole(strOrEmpty(claims["role"])),
 	}, nil
 }

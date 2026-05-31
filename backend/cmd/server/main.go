@@ -57,10 +57,11 @@ func main() {
 	empShiftRepo := repository.NewEmployeeShiftRepo(dbpool)
 	leaveTypeRepo := repository.NewLeaveTypeRepo(dbpool)
 	leaveRequestRepo := repository.NewLeaveRequestRepo(dbpool)
+	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
-	userUC := usecase.NewUserUC(userRepo, userTenantRepo, jwtMgr, txMgr)
+	userUC := usecase.NewUserUC(userRepo, userTenantRepo, resetTokenRepo, jwtMgr, txMgr)
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
@@ -122,6 +123,8 @@ func main() {
 	r.Post("/api/v1/auth/register", authH.Register)
 	r.Post("/api/v1/auth/login", authH.Login)
 	r.Post("/api/v1/auth/refresh", authH.Refresh)
+	r.Post("/api/v1/auth/forgot-password", authH.ForgotPassword)
+	r.Post("/api/v1/auth/reset-password", authH.ResetPassword)
 
 	// ── Auth-protected ──────────────────────
 	r.Group(func(r chi.Router) {

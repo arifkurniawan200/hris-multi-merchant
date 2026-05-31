@@ -68,6 +68,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Update(ctx context.Context, user *User) error
+	UpdatePassword(ctx context.Context, userID, passwordHash string) error
 }
 
 type UserUseCase interface {
@@ -76,6 +77,26 @@ type UserUseCase interface {
 	GetUser(ctx context.Context, id string) (*User, error)
 	IssueTokens(ctx context.Context, userID string, email string, tenantID string, role UserTenantRole) (*TokenPair, error)
 	FindUserTenant(ctx context.Context, userID string) (tenantID string, role UserTenantRole, err error)
+	ForgotPassword(ctx context.Context, email string) (string, error)
+	ResetPassword(ctx context.Context, token, password string) error
+}
+
+// ── Password Reset Token ─────────────────────────
+type PasswordResetToken struct {
+	ID        string     `json:"id"`
+	UserID    string     `json:"user_id"`
+	TokenHash string     `json:"-"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+}
+
+type PasswordResetTokenRepository interface {
+	Create(ctx context.Context, token *PasswordResetToken) error
+	GetValidByTokenHash(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	MarkUsed(ctx context.Context, id string) error
+	DeleteUnusedByUser(ctx context.Context, userID string) error
 }
 
 // ── UserTenant (membership) ─────────────────────

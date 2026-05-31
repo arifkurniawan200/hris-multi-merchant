@@ -72,6 +72,16 @@ func (r *UserRepo) Update(ctx context.Context, user *domain.User) error {
 	return err
 }
 
+func (r *UserRepo) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	query := `
+		UPDATE users
+		SET password_hash=$2, updated_at=NOW()
+		WHERE id=$1 AND deleted_at IS NULL
+	`
+	_, err := r.dbQuerier(ctx).Exec(ctx, query, userID, passwordHash)
+	return err
+}
+
 func scanUser(scanner pgx.Row) (*domain.User, error) {
 	var u domain.User
 	var deletedAt *time.Time

@@ -140,3 +140,40 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, "Success", user, reqID)
 }
+
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	var req domain.ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	token, err := h.userUC.ForgotPassword(r.Context(), req.Email)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "If the email exists, a reset link has been sent", map[string]string{
+		"token": token,
+	}, reqID)
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	var req domain.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	if err := h.userUC.ResetPassword(r.Context(), req.Token, req.Password); err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Password has been reset successfully", nil, reqID)
+}

@@ -14,13 +14,6 @@ import (
 type TenantRepo struct {
 	db adapter.DBTX
 }
-// dbQuerier returns the active transaction from context if available.
-func (r *TenantRepo) dbQuerier(ctx context.Context) adapter.DBTX {
-	if tx := adapter.GetTxDB(ctx); tx != nil {
-		return tx
-	}
-	return r.db
-}
 
 // dbQuerier returns the active transaction from context if available.
 func (r *TenantRepo) dbQuerier(ctx context.Context) adapter.DBTX {
