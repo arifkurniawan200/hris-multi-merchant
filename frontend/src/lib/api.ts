@@ -11,12 +11,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  } catch (err) {
-    // Network error (CORS, DNS, connection refused, etc.)
-    const msg = err instanceof TypeError
-      ? 'Cannot connect to server. Check your network or try again later.'
-      : `Request failed: ${err}`;
+    // Add timeout signal to detect hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    const fetchOpts = { ...options, headers, signal: controller.signal } as RequestInit;
+    res = await fetch(`${API_BASE}${path}`, fetchOpts);
+    clearTimeout(timeoutId);
+  } catch (err: any) {
+    let msg: string;
+    if (err?.name === 'AbortError') {
+      msg = 'Server did not respond within 30 seconds. Please try again.';
+    } else if (err instanceof TypeError) {
+      msg = `Cannot reach server (${API_BASE || 'same origin'}). Port might be blocked or server down.`;
+    } else {
+      msg = err?.message || 'An unknown network error occurred.';
+    }
     throw new Error(msg);
   }
 
