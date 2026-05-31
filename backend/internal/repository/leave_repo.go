@@ -153,7 +153,7 @@ func (r *LeaveRequestRepo) dbQuerier(ctx context.Context) adapter.DBTX {
 var lrColumns = `lr.id, lr.tenant_id, lr.employee_id, lr.leave_type_id,
 	lr.start_date::text, lr.end_date::text, lr.total_days,
 	lr.reason, lr.status,
-	lr.reviewed_by, lr.reviewed_at, lr.reject_reason,
+	lr.reviewed_by, lr.reviewed_at, COALESCE(lr.reject_reason, ''),
 	lr.cancelled_at,
 	lr.created_at, lr.updated_at, lr.deleted_at`
 

@@ -36,13 +36,17 @@ export default function MyShiftPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await api.get<ShiftAssignment>("/api/v1/shifts/my");
-      setAssignment(data);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message === "no active shift for today") {
-        setAssignment(null);
+      const data = await api.get<ShiftAssignment>("/api/v1/employee/me/shift");
+      // Check if we got a real assignment (has shift_name) or a "no shift" response
+      if (data && "shift_name" in data) {
+        setAssignment(data);
       } else {
-        setError(err instanceof Error ? err.message : "Failed to load shift");
+        setAssignment(null);
+      }
+    } catch (err: unknown) {
+      setAssignment(null);
+      if (err instanceof Error && err.message !== "no active shift for today") {
+        setError(err.message);
       }
     } finally {
       setLoading(false);

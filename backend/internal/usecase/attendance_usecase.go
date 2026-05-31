@@ -260,7 +260,7 @@ func (uc *AttendanceUC) configCutoff(clockIn time.Time) time.Time {
 }
 
 // GetHistory returns the attendance history for an employee.
-func (uc *AttendanceUC) GetHistory(ctx context.Context, employeeID string, limit, offset int) ([]domain.Attendance, error) {
+func (uc *AttendanceUC) GetHistory(ctx context.Context, userID string, limit, offset int) ([]domain.Attendance, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -268,10 +268,25 @@ func (uc *AttendanceUC) GetHistory(ctx context.Context, employeeID string, limit
 		offset = 0
 	}
 
-	attendances, err := uc.attendanceRepo.ListByEmployee(ctx, employeeID, limit, offset)
+	// Resolve userID → employeeID via tenant from context
+	// Try all tenants — get employee linked to this user
+	emp, err := uc.employeeRepo.GetByUserID(ctx, "", userID)
+	if err != nil || emp == nil {
+		// fallback: try using userID as employeeID directly
+		logger.Warn(ctx, "attendance history: employee not found by userID, trying direct",
+			"user_id", userID,
+			"error", err)
+		attendances, err := uc.attendanceRepo.ListByEmployee(ctx, userID, limit, offset)
+		if err != nil {
+			return nil, domain.NewNotFound("employee not found")
+		}
+		return attendances, nil
+	}
+
+	attendances, err := uc.attendanceRepo.ListByEmployee(ctx, emp.ID, limit, offset)
 	if err != nil {
 		logger.Error(ctx, "get attendance history failed",
-			"employee_id", employeeID,
+			"employee_id", emp.ID,
 			"error", err)
 		return nil, domain.NewInternal("failed to get attendance history")
 	}

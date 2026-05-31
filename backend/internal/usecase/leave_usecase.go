@@ -424,7 +424,7 @@ func (uc *LeaveUC) Cancel(ctx context.Context, leaveID uuid.UUID, userID uuid.UU
 // ── GetBalance ───────────────────────────────────
 
 func (uc *LeaveUC) GetBalance(ctx context.Context, userID uuid.UUID, year int) ([]domain.LeaveBalance, error) {
-	// Resolve the employee to get tenant
+	// Resolve the employee to get tenant — try without tenant filter first
 	emp, err := uc.employeeRepo.GetByUserID(ctx, "", userID.String())
 	if err != nil {
 		// Try resolving by employee ID directly - maybe the caller passed employee UUID
