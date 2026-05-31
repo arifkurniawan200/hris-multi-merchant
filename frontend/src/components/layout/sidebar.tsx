@@ -16,6 +16,8 @@ import {
   CalendarDays,
   CheckCircle2,
   List,
+  ArrowLeftRight,
+  UserCog,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -50,9 +52,20 @@ export function Sidebar() {
       icon: CalendarDays,
     },
     {
+      href: '/dashboard/shifts',
+      label: 'My Shift',
+      icon: Clock,
+    },
+    {
       href: '/dashboard/history',
       label: 'Attendance History',
       icon: History,
+    },
+    {
+      href: '/manager/shifts',
+      label: 'Shift Management',
+      icon: ArrowLeftRight,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
       href: '/manager/report',
