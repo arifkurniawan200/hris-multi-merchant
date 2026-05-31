@@ -47,7 +47,7 @@ export default function HistoryPage() {
     setError('');
     try {
       const data = await api.get<HistoryResponse>(
-        `/api/attendance/history?limit=${limit}&offset=${currentOffset}`
+        `/api/v1/attendance/history?limit=${limit}&offset=${currentOffset}`
       );
       setRecords(data.records || []);
       setTotal(data.total || 0);

@@ -62,7 +62,7 @@ export default function DashboardPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const data = await api.get<AttendanceRecord[]>('/api/attendance/history?limit=1&offset=0');
+      const data = await api.get<AttendanceRecord[]>('/api/v1/attendance/history?limit=1&offset=0');
       if (data && data.length > 0) {
         const latest = data[0];
         if (!latest.clock_out_time) {
@@ -91,7 +91,7 @@ export default function DashboardPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await api.post<ClockInResponse>('/api/attendance/clock-in', {
+      const response = await api.post<ClockInResponse>('/api/v1/attendance/clock-in', {
         tenant_id: user?.tenant_id,
       });
       setCurrentRecord(response.attendance);
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await api.post<ClockOutResponse>('/api/attendance/clock-out', {
+      const response = await api.post<ClockOutResponse>('/api/v1/attendance/clock-out', {
         tenant_id: user?.tenant_id,
       });
       setLastRecord(response.attendance);

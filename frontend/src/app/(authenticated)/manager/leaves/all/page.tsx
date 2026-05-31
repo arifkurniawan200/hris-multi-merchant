@@ -51,7 +51,7 @@ export default function AllLeavesPage() {
 
   useEffect(() => {
     if (isManager) loadLeaves();
-  }, [page, statusFilter, dateFrom, dateTo]);
+  }, [page, statusFilter, dateFrom, dateTo, search]);
 
   async function loadLeaves() {
     setLoading(true);

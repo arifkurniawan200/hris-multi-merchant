@@ -66,7 +66,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.userUC.IssueTokens(r.Context(), user.ID, user.Email, "", "")
+	// Look up tenant membership — user may have zero or many tenants
+	tenantID, role, _ := h.userUC.FindUserTenant(r.Context(), user.ID)
+
+	tokens, err := h.userUC.IssueTokens(r.Context(), user.ID, user.Email, tenantID, role)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -77,7 +80,30 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "Login successful", tokens, reqID)
+	// Build structured login response with user info
+	type loginResponse struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		User         struct {
+			ID    string `json:"id"`
+			Email string `json:"email"`
+			Name  string `json:"name"`
+			Role  string `json:"role"`
+		} `json:"user"`
+	}
+
+	resp := loginResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+	}
+	resp.User.ID = user.ID
+	resp.User.Email = user.Email
+	resp.User.Name = user.FullName
+	resp.User.Role = string(role)
+
+	response.JSON(w, http.StatusOK, "Login successful", resp, reqID)
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {

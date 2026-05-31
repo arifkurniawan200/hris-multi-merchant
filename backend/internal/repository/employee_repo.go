@@ -29,7 +29,7 @@ func NewEmployeeRepo(db adapter.DBTX) domain.EmployeeRepository {
 }
 
 var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, e.last_name,
-	COALESCE(e.gender, ''), e.birth_date::text, e.birth_place, e.email, e.phone, e.address,
+	COALESCE(e.gender, ''), e.birth_date::text, COALESCE(e.birth_place, ''), e.email, COALESCE(e.phone, ''), COALESCE(e.address, ''),
 	e.department_id, e.position_id, e.manager_id,
 	e.employment_status, e.employment_type, e.join_date::text,
 	e.resign_date::text, e.contract_start::text, e.contract_end::text,
@@ -48,6 +48,7 @@ func scanEmployee(row pgx.Row) (*domain.Employee, error) {
 	var deletedAt *time.Time
 	var birthDate, joinDate *string
 	var resignDate, contractStart, contractEnd *string
+	var baseSalary *int64
 	var customFields domain.JSONB
 
 	err := row.Scan(
@@ -56,8 +57,8 @@ func scanEmployee(row pgx.Row) (*domain.Employee, error) {
 		&e.DepartmentID, &e.PositionID, &e.ManagerID,
 		&e.EmploymentStatus, &e.EmploymentType, &joinDate,
 		&resignDate, &contractStart, &contractEnd,
-		&e.NationalID, &e.TaxID, &e.BPJSHealth, &e.BPJSLabor,
-		&e.BaseSalary, &e.BankName, &e.BankAccount,
+						&e.NationalID, &e.TaxID, &e.BPJSHealth, &e.BPJSLabor,
+						&baseSalary, &e.BankName, &e.BankAccount,
 		&customFields, &e.Notes,
 		&e.CreatedAt, &e.UpdatedAt, &deletedAt,
 		&e.DepartmentName, &e.PositionName, &e.ManagerName,
@@ -75,6 +76,9 @@ func scanEmployee(row pgx.Row) (*domain.Employee, error) {
 	e.ResignDate = resignDate
 	e.ContractStart = contractStart
 	e.ContractEnd = contractEnd
+	if baseSalary != nil {
+		e.BaseSalary = *baseSalary
+	}
 	if customFields == nil {
 		e.CustomFields = domain.JSONB{}
 	} else {
