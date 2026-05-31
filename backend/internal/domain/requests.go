@@ -148,3 +148,34 @@ type BulkAssignShiftRequest struct {
 	EffectiveFrom string   `json:"effective_from" validate:"required"`
 	EffectiveTo   *string  `json:"effective_to,omitempty"`
 }
+
+// ── Leave request DTOs ───────────────────────────
+
+type CreateLeaveRequest struct {
+	TenantID    string  `json:"tenant_id" validate:"required,uuid"`
+	UserID      string  `json:"-"`                          // set by handler from JWT
+	LeaveTypeID string  `json:"leave_type_id" validate:"required,uuid"`
+	StartDate   string  `json:"start_date" validate:"required"`   // "2006-01-02"
+	EndDate     string  `json:"end_date" validate:"required"`     // "2006-01-02"
+	TotalDays   float64 `json:"total_days" validate:"required,min=0.5"`
+	Reason      string  `json:"reason" validate:"required,min=10"`
+}
+
+type CreateLeaveTypeRequest struct {
+	TenantID           string `json:"tenant_id" validate:"required,uuid"`
+	Name               string `json:"name" validate:"required,min=2"`
+	Code               string `json:"code" validate:"required,min=2"`
+	DefaultDaysPerYear int    `json:"default_days_per_year"`
+	MaxConsecutiveDays int    `json:"max_consecutive_days"`
+	IsPaid             bool   `json:"is_paid"`
+	Color              string `json:"color,omitempty"`
+	Description        string `json:"description,omitempty"`
+}
+
+type ApproveLeaveRequest struct {
+	ReviewedBy string `json:"-"` // set by handler from JWT → employee ID
+}
+type RejectLeaveRequest struct {
+	ReviewedBy string `json:"-"`                             // set by handler
+	Reason     string `json:"reason" validate:"required,min=10"`
+}

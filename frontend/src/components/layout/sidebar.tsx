@@ -12,6 +12,10 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
+  CalendarDays,
+  CheckCircle2,
+  List,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -36,14 +40,36 @@ export function Sidebar() {
       icon: Clock,
     },
     {
+      href: '/dashboard/leave',
+      label: 'Leave Request',
+      icon: FileText,
+    },
+    {
+      href: '/dashboard/leave/history',
+      label: 'Leave History',
+      icon: CalendarDays,
+    },
+    {
       href: '/dashboard/history',
-      label: 'History',
+      label: 'Attendance History',
       icon: History,
     },
     {
       href: '/manager/report',
       label: 'Attendance Report',
       icon: BarChart3,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/leaves/pending',
+      label: 'Leave Approvals',
+      icon: CheckCircle2,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/leaves/all',
+      label: 'All Leaves',
+      icon: List,
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
   ];

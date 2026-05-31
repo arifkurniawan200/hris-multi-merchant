@@ -404,6 +404,104 @@ type EmployeeUseCase interface {
 	ChangeStatus(ctx context.Context, id, status string) error
 }
 
+// ── Leave Type ──────────────────────────────────
+
+type LeaveType struct {
+	ID                 uuid.UUID  `json:"id"`
+	TenantID           uuid.UUID  `json:"tenant_id"`
+	Name               string     `json:"name"`
+	Code               string     `json:"code"`
+	DefaultDaysPerYear int        `json:"default_days_per_year"`
+	MaxConsecutiveDays int        `json:"max_consecutive_days"`
+	IsPaid             bool       `json:"is_paid"`
+	Color              string     `json:"color"`
+	Description        string     `json:"description"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	DeletedAt          *time.Time `json:"deleted_at,omitempty"`
+}
+
+type LeaveTypeRepository interface {
+	Create(ctx context.Context, lt *LeaveType) error
+	GetByID(ctx context.Context, id uuid.UUID) (*LeaveType, error)
+	GetByCode(ctx context.Context, tenantID uuid.UUID, code string) (*LeaveType, error)
+	List(ctx context.Context, tenantID uuid.UUID) ([]LeaveType, error)
+	Update(ctx context.Context, lt *LeaveType) error
+	SoftDelete(ctx context.Context, id uuid.UUID) error
+}
+
+// ── Leave Request ────────────────────────────────
+
+type LeaveRequest struct {
+	ID           uuid.UUID  `json:"id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	EmployeeID   uuid.UUID  `json:"employee_id"`
+	LeaveTypeID  uuid.UUID  `json:"leave_type_id"`
+	StartDate    string     `json:"start_date"`
+	EndDate      string     `json:"end_date"`
+	TotalDays    float64    `json:"total_days"`
+	Reason       string     `json:"reason"`
+	Status       string     `json:"status"`
+	ReviewedBy   *uuid.UUID `json:"reviewed_by"`
+	ReviewedAt   *time.Time `json:"reviewed_at"`
+	RejectReason string     `json:"reject_reason"`
+	CancelledAt  *time.Time `json:"cancelled_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	// Joined fields
+	EmployeeName  string `json:"employee_name,omitempty"`
+	EmployeeCode  string `json:"employee_code,omitempty"`
+	LeaveTypeName string `json:"leave_type_name,omitempty"`
+	LeaveTypeCode string `json:"leave_type_code,omitempty"`
+	ReviewerName  string `json:"reviewer_name,omitempty"`
+}
+
+type LeaveBalance struct {
+	LeaveTypeID   uuid.UUID `json:"leave_type_id"`
+	LeaveTypeName string    `json:"leave_type_name"`
+	LeaveTypeCode string    `json:"leave_type_code"`
+	TotalAllocated int      `json:"total_allocated"`
+	Used          int       `json:"used"`
+	Remaining     int       `json:"remaining"`
+}
+
+type LeaveRequestRepository interface {
+	Create(ctx context.Context, lr *LeaveRequest) error
+	GetByID(ctx context.Context, id uuid.UUID) (*LeaveRequest, error)
+	ListByEmployee(ctx context.Context, employeeID uuid.UUID, limit, offset int) ([]LeaveRequest, error)
+	ListPending(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]LeaveRequest, error)
+	ListByTenant(ctx context.Context, tenantID uuid.UUID, filter LeaveFilter, limit, offset int) ([]LeaveRequest, error)
+	CountByTenant(ctx context.Context, tenantID uuid.UUID, filter LeaveFilter) (int, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status string, reviewedBy uuid.UUID, rejectReason string) error
+	Cancel(ctx context.Context, id uuid.UUID) error
+	HasOverlap(ctx context.Context, employeeID uuid.UUID, startDate, endDate string, excludeID *uuid.UUID) (bool, error)
+	GetUsedDays(ctx context.Context, employeeID, leaveTypeID uuid.UUID, year int) (int, error)
+	SoftDelete(ctx context.Context, id uuid.UUID) error
+}
+
+type LeaveFilter struct {
+	Status     string `json:"status,omitempty"`
+	EmployeeID string `json:"employee_id,omitempty"`
+	DateFrom   string `json:"date_from,omitempty"`
+	DateTo     string `json:"date_to,omitempty"`
+}
+
+type LeaveUseCase interface {
+	Submit(ctx context.Context, req *CreateLeaveRequest) (*LeaveRequest, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*LeaveRequest, error)
+	ListMyLeaves(ctx context.Context, tenantID, userID uuid.UUID, limit, offset int) ([]LeaveRequest, error)
+	ListPending(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]LeaveRequest, error)
+	ListAll(ctx context.Context, tenantID uuid.UUID, filter LeaveFilter, limit, offset int) ([]LeaveRequest, int, error)
+	Approve(ctx context.Context, leaveID uuid.UUID, userID uuid.UUID) error
+	Reject(ctx context.Context, leaveID uuid.UUID, userID uuid.UUID, reason string) error
+	Cancel(ctx context.Context, leaveID uuid.UUID, userID uuid.UUID) error
+	GetBalance(ctx context.Context, userID uuid.UUID, year int) ([]LeaveBalance, error)
+	CreateLeaveType(ctx context.Context, req *CreateLeaveTypeRequest) (*LeaveType, error)
+	ListLeaveTypes(ctx context.Context, tenantID uuid.UUID) ([]LeaveType, error)
+	UpdateLeaveType(ctx context.Context, req *LeaveType) error
+}
+
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}

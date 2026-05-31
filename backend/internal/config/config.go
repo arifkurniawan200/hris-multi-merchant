@@ -14,6 +14,7 @@ type Config struct {
 	Server     ServerConfig     `yaml:"server"`
 	Plans      PlansConfig      `yaml:"plans"`
 	Attendance AttendanceConfig `yaml:"attendance"`
+	Leave      LeaveConfig      `yaml:"leave"`
 }
 
 type DatabaseConfig struct {
@@ -59,13 +60,27 @@ func (p PlansConfig) MaxEmployeesForPlan(plan string) int {
 	}
 }
 
+// ── Leave defaults ───────────────────────────────
+
+type LeaveConfig struct {
+	DefaultAnnualDays    int  `yaml:"default_annual_days"`
+	AllowNegativeBalance bool `yaml:"allow_negative_balance"`
+}
+
 // ── Attendance defaults ──────────────────────────
 
 type AttendanceConfig struct {
-	DefaultCutoff               string `yaml:"default_cutoff"`                // "08:00"
-	DefaultGraceMinutes         int    `yaml:"default_grace_minutes"`         // 15
-	DefaultClockinWindowBefore  int    `yaml:"default_clockin_window_before"` // 60
-	DefaultClockoutWindowAfter  int    `yaml:"default_clockout_window_after"` // 60
+	DefaultCutoff              string `yaml:"default_cutoff"`               // "08:00"
+	DefaultGraceMinutes        int    `yaml:"default_grace_minutes"`        // 15
+	DefaultClockinWindowBefore int    `yaml:"default_clockin_window_before"` // 60
+	DefaultClockoutWindowAfter int    `yaml:"default_clockout_window_after"` // 60
+}
+
+// ── Leave defaults ──────────────────────────────
+
+type LeaveConfig struct {
+	DefaultAnnualDays    int  `yaml:"default_annual_days"`
+	AllowNegativeBalance bool `yaml:"allow_negative_balance"`
 }
 
 // ── Defaults with env overrides ──────────────────
@@ -101,6 +116,14 @@ func Load() *Config {
 			DefaultGraceMinutes:        15,
 			DefaultClockinWindowBefore: 60,
 			DefaultClockoutWindowAfter: 60,
+		},
+		Leave: LeaveConfig{
+			DefaultAnnualDays:    12,
+			AllowNegativeBalance: false,
+		},
+		Leave: LeaveConfig{
+			DefaultAnnualDays:    12,
+			AllowNegativeBalance: false,
 		},
 	}
 

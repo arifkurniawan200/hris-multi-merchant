@@ -29,3 +29,8 @@ attendance:
   default_grace_minutes: 15
   default_clockin_window_before: 60
   default_clockout_window_after: 60
+
+leave:
+  default_annual_days: 12
+  allow_negative_balance: false
+

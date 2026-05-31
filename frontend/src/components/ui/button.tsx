@@ -11,6 +11,7 @@ const buttonVariants = cva(
         outline: 'border border-border bg-background hover:bg-secondary hover:text-secondary-foreground',
         ghost: 'hover:bg-secondary hover:text-secondary-foreground',
         destructive: 'bg-danger text-white hover:bg-danger/90',
+        danger: 'bg-danger text-white hover:bg-danger/90',
         success: 'bg-success text-white hover:bg-success/90',
         warning: 'bg-warning text-white hover:bg-warning/90',
       },
