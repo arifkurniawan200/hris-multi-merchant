@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   List,
   ArrowLeftRight,
-  UserCog,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
