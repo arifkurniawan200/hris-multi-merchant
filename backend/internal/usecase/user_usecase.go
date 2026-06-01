@@ -18,6 +18,7 @@ import (
 type UserUC struct {
 	userRepo       domain.UserRepository
 	userTenantRepo domain.UserTenantRepository
+	tenantRepo     domain.TenantRepository
 	resetTokenRepo domain.PasswordResetTokenRepository
 	jwt            JWTComposer
 	txManager      *adapter.TxManager
@@ -31,6 +32,7 @@ type JWTComposer interface {
 func NewUserUC(
 	userRepo domain.UserRepository,
 	userTenantRepo domain.UserTenantRepository,
+	tenantRepo domain.TenantRepository,
 	resetTokenRepo domain.PasswordResetTokenRepository,
 	jwt JWTComposer,
 	txManager *adapter.TxManager,
@@ -38,6 +40,7 @@ func NewUserUC(
 	return &UserUC{
 		userRepo:       userRepo,
 		userTenantRepo: userTenantRepo,
+		tenantRepo:     tenantRepo,
 		resetTokenRepo: resetTokenRepo,
 		jwt:            jwt,
 		txManager:      txManager,
@@ -68,12 +71,26 @@ func (uc *UserUC) RegisterUser(ctx context.Context, req *domain.RegisterRequest)
 		IsActive:     true,
 	}
 
-	// Transaction ensures atomicity when multi-table writes are involved.
-	// Currently single-table (users), but pattern is established for when
-	// we add user_tenant creation on registration (tenant assignment flow).
+	// Look up tenant by code
+	tenant, err := uc.tenantRepo.GetBySlug(ctx, req.TenantCode)
+	if err != nil {
+		return nil, domain.NewValidation("invalid tenant_code: tenant not found")
+	}
+
+	// Transaction: create user + user_tenant membership
 	if err := uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		if err := uc.userRepo.Create(txCtx, user); err != nil {
 			return fmt.Errorf("create user: %w", err)
+		}
+
+		ut := &domain.UserTenant{
+			UserID:    user.ID,
+			TenantID:  tenant.ID,
+			Role:      domain.RoleEmployee,
+			IsActive:  true,
+		}
+		if err := uc.userTenantRepo.Add(txCtx, ut); err != nil {
+			return fmt.Errorf("create user_tenant: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -81,7 +98,7 @@ func (uc *UserUC) RegisterUser(ctx context.Context, req *domain.RegisterRequest)
 		return nil, domain.NewInternal(fmt.Sprintf("register user: %v", err))
 	}
 
-	logger.Info(ctx, "user registered", "user_id", user.ID, "email", user.Email)
+	logger.Info(ctx, "user registered", "user_id", user.ID, "email", user.Email, "tenant_id", tenant.ID)
 	user.PasswordHash = ""
 	return user, nil
 }

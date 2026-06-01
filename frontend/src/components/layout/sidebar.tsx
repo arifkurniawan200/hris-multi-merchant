@@ -19,6 +19,8 @@ import {
   List,
   ArrowLeftRight,
   UserCircle,
+  Users,
+  Building2,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -73,6 +75,18 @@ export function Sidebar() {
       icon: Bell,
     },
     {
+      href: '/manager/employees',
+      label: 'Employee Management',
+      icon: Users,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/departments',
+      label: 'Departments',
+      icon: Building2,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
       href: '/manager/shifts',
       label: 'Shift Management',
       icon: ArrowLeftRight,
@@ -82,6 +96,12 @@ export function Sidebar() {
       href: '/manager/report',
       label: 'Attendance Report',
       icon: BarChart3,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/leaves-types',
+      label: 'Leave Types',
+      icon: FileText,
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
@@ -142,9 +162,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {visibleItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
             <Link

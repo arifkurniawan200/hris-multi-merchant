@@ -28,6 +28,11 @@ export default function OvertimeApprovalsPage() {
   const [success, setSuccess] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
 
+  // Reject modal state
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; id: string }>({ open: false, id: "" });
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
   const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
@@ -58,6 +63,23 @@ export default function OvertimeApprovalsPage() {
       setError(err instanceof Error ? err.message : "Failed to approve");
     } finally {
       setProcessing(null);
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectReason.trim()) return;
+    setRejecting(true);
+    setError("");
+    try {
+      await api.put(`/api/v1/overtime/${rejectModal.id}/reject`, { reason: rejectReason });
+      setSuccess("Overtime rejected");
+      setRejectModal({ open: false, id: "" });
+      setRejectReason("");
+      loadPending();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reject");
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -191,7 +213,7 @@ export default function OvertimeApprovalsPage() {
                           <span className="text-[var(--muted-foreground)]">Hours:</span> {ot.total_hours}h
                         </div>
                       </div>
-                      <p className="text-sm text-[var(--muted-foreground)] mt-1">"{ot.reason}"</p>
+                      <p className="text-sm text-[var(--muted-foreground)] mt-1">&ldquo;{ot.reason}&rdquo;</p>
                     </div>
                   </div>
 
@@ -213,11 +235,15 @@ export default function OvertimeApprovalsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={true}
-                      className="text-[var(--muted-foreground)]"
+                      disabled={processing === ot.id}
+                      onClick={() => {
+                        setRejectModal({ open: true, id: ot.id });
+                        setRejectReason("");
+                      }}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
                     >
                       <XCircle className="h-4 w-4 mr-1" />
-                      Reject (coming soon)
+                      Reject
                     </Button>
                   </div>
                 </div>
@@ -226,6 +252,40 @@ export default function OvertimeApprovalsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Reject Modal */}
+      {rejectModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reject Overtime Request</h3>
+            <p className="text-sm text-gray-500 mb-4">Please provide a reason for rejection.</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              required
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
+              placeholder="Why is this request being rejected?"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setRejectModal({ open: false, id: "" })}
+                disabled={rejecting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleReject}
+                disabled={!rejectReason.trim() || rejecting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {rejecting ? "Rejecting..." : "Reject"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

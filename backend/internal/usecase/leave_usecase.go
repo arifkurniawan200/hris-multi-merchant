@@ -18,6 +18,7 @@ type LeaveUC struct {
 	employeeRepo     domain.EmployeeRepository
 	txManager        *adapter.TxManager
 	leaveCfg         *config.LeaveConfig
+	notificationUC   domain.NotificationUseCase
 }
 
 func NewLeaveUC(
@@ -26,6 +27,7 @@ func NewLeaveUC(
 	employeeRepo domain.EmployeeRepository,
 	txManager *adapter.TxManager,
 	leaveCfg *config.LeaveConfig,
+	notificationUC domain.NotificationUseCase,
 ) domain.LeaveUseCase {
 	return &LeaveUC{
 		leaveTypeRepo:    leaveTypeRepo,
@@ -33,6 +35,7 @@ func NewLeaveUC(
 		employeeRepo:     employeeRepo,
 		txManager:        txManager,
 		leaveCfg:         leaveCfg,
+		notificationUC:   notificationUC,
 	}
 }
 
@@ -212,6 +215,15 @@ func (uc *LeaveUC) Submit(ctx context.Context, req *domain.CreateLeaveRequest) (
 		"start_date", req.StartDate,
 		"end_date", req.EndDate)
 
+	// Notify manager
+	go func() {
+		freshCtx := context.Background()
+		updated, err := uc.leaveRequestRepo.GetByID(freshCtx, leaveRequest.ID)
+		if err == nil {
+			_ = uc.notificationUC.NotifyLeaveSubmitted(freshCtx, updated)
+		}
+	}()
+
 	return uc.leaveRequestRepo.GetByID(ctx, leaveRequest.ID)
 }
 
@@ -333,6 +345,19 @@ func (uc *LeaveUC) Approve(ctx context.Context, leaveID uuid.UUID, userID uuid.U
 		"leave_id", leaveID,
 		"reviewer", reviewerEmployeeID)
 
+	// Notify employee
+	go func() {
+		freshCtx := context.Background()
+		updated, err := uc.leaveRequestRepo.GetByID(freshCtx, leaveID)
+		if err == nil {
+			reviewerName := "Manager"
+			if revEmp, err := uc.employeeRepo.GetByID(freshCtx, reviewerEmployeeID.String()); err == nil {
+				reviewerName = revEmp.FirstName + " " + revEmp.LastName
+			}
+			_ = uc.notificationUC.NotifyLeaveReviewed(freshCtx, updated, "approved", reviewerName)
+		}
+	}()
+
 	return nil
 }
 
@@ -366,6 +391,19 @@ func (uc *LeaveUC) Reject(ctx context.Context, leaveID uuid.UUID, userID uuid.UU
 		"leave_id", leaveID,
 		"reviewer", reviewerEmployeeID,
 		"reason", reason)
+
+	// Notify employee
+	go func() {
+		freshCtx := context.Background()
+		updated, err := uc.leaveRequestRepo.GetByID(freshCtx, leaveID)
+		if err == nil {
+			reviewerName := "Manager"
+			if revEmp, err := uc.employeeRepo.GetByID(freshCtx, reviewerEmployeeID.String()); err == nil {
+				reviewerName = revEmp.FirstName + " " + revEmp.LastName
+			}
+			_ = uc.notificationUC.NotifyLeaveReviewed(freshCtx, updated, "rejected", reviewerName)
+		}
+	}()
 
 	return nil
 }
@@ -418,6 +456,29 @@ func (uc *LeaveUC) Cancel(ctx context.Context, leaveID uuid.UUID, userID uuid.UU
 		"leave_id", leaveID,
 		"employee_id", employeeID)
 
+	return nil
+}
+
+// ── SoftDeleteLeaveType ───────────────────────────
+
+func (uc *LeaveUC) SoftDeleteLeaveType(ctx context.Context, id, tenantID uuid.UUID) error {
+	// Verify it belongs to this tenant
+	lt, err := uc.leaveTypeRepo.GetByID(ctx, id)
+	if err != nil {
+		return domain.NewNotFound("leave type not found")
+	}
+	if lt.TenantID != tenantID {
+		return domain.NewForbidden("leave type does not belong to this tenant")
+	}
+
+	if err := uc.leaveTypeRepo.SoftDelete(ctx, id); err != nil {
+		logger.Error(ctx, "soft delete leave type failed",
+			"leave_type_id", id,
+			"error", err)
+		return domain.NewInternal("failed to delete leave type")
+	}
+
+	logger.Info(ctx, "leave type deleted", "leave_type_id", id)
 	return nil
 }
 
