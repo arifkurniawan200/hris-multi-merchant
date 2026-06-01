@@ -86,7 +86,7 @@ func (r *SubscriptionRepo) GetUserTenantsWithExpiry(ctx context.Context, userID 
 	}
 	defer rows.Close()
 
-	var tenants []domain.Tenant
+	tenants := make([]domain.Tenant, 0)
 	for rows.Next() {
 		var t domain.Tenant
 		var expiresAt *time.Time

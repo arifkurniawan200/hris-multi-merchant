@@ -36,7 +36,7 @@ func (r *AnalyticsRepo) GetDepartmentDistribution(ctx context.Context, tenantID 
 	}
 	defer rows.Close()
 
-	var items []domain.DepartmentDistribution
+	items := make([]domain.DepartmentDistribution, 0)
 	for rows.Next() {
 		var item domain.DepartmentDistribution
 		if err := rows.Scan(&item.DepartmentName, &item.EmployeeCount); err != nil {
@@ -60,7 +60,7 @@ func (r *AnalyticsRepo) GetEmploymentTypeDistribution(ctx context.Context, tenan
 	}
 	defer rows.Close()
 
-	var items []domain.EmploymentTypeDistribution
+	items := make([]domain.EmploymentTypeDistribution, 0)
 	for rows.Next() {
 		var item domain.EmploymentTypeDistribution
 		if err := rows.Scan(&item.Type, &item.Count); err != nil {
@@ -84,7 +84,7 @@ func (r *AnalyticsRepo) GetGenderDistribution(ctx context.Context, tenantID stri
 	}
 	defer rows.Close()
 
-	var items []domain.GenderDistribution
+	items := make([]domain.GenderDistribution, 0)
 	for rows.Next() {
 		var item domain.GenderDistribution
 		if err := rows.Scan(&item.Gender, &item.Count); err != nil {
@@ -126,7 +126,7 @@ func (r *AnalyticsRepo) GetAttendanceTrend(ctx context.Context, tenantID string,
 	}
 	defer rows.Close()
 
-	var items []domain.AttendanceTrendItem
+	items := make([]domain.AttendanceTrendItem, 0)
 	for rows.Next() {
 		var item domain.AttendanceTrendItem
 		if err := rows.Scan(&item.Date, &item.Present, &item.Late, &item.Absent, &item.HalfDay); err != nil {

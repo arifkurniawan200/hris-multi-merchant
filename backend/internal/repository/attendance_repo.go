@@ -145,7 +145,7 @@ func (r *AttendanceRepo) ListByEmployee(ctx context.Context, employeeID string, 
 	}
 	defer rows.Close()
 
-	var attendances []domain.Attendance
+	attendances := make([]domain.Attendance, 0)
 	for rows.Next() {
 		var a domain.Attendance
 		var deletedAt *time.Time
@@ -179,7 +179,7 @@ func (r *AttendanceRepo) ListByTenant(ctx context.Context, tenantID string, cloc
 	}
 	defer rows.Close()
 
-	var attendances []domain.Attendance
+	attendances := make([]domain.Attendance, 0)
 	for rows.Next() {
 		var a domain.Attendance
 		var deletedAt *time.Time
@@ -223,7 +223,7 @@ func (r *AttendanceRepo) ListByTenantDateRange(ctx context.Context, tenantID str
 	}
 	defer rows.Close()
 
-	var attendances []domain.Attendance
+	attendances := make([]domain.Attendance, 0)
 	for rows.Next() {
 		var a domain.Attendance
 		var deletedAt *time.Time

@@ -105,7 +105,7 @@ func (r *ShiftRepo) List(ctx context.Context, tenantID string) ([]domain.Shift, 
 	}
 	defer rows.Close()
 
-	var shifts []domain.Shift
+	shifts := make([]domain.Shift, 0)
 	for rows.Next() {
 		var s domain.Shift
 		var deletedAt *time.Time

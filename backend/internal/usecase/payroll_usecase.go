@@ -68,7 +68,7 @@ func (uc *PayrollUC) Generate(ctx context.Context, req *domain.GeneratePayrollRe
 	absentPenaltyAmt := cfg.AbsentPenalty
 
 	// Resolve employees
-	var employees []domain.Employee
+	employees := make([]domain.Employee, 0)
 	if len(req.EmployeeIDs) > 0 {
 		for _, eid := range req.EmployeeIDs {
 			emp, err := uc.employeeRepo.GetByID(ctx, eid)
@@ -103,7 +103,7 @@ func (uc *PayrollUC) Generate(ctx context.Context, req *domain.GeneratePayrollRe
 	dateFrom := fmt.Sprintf("%d-%02d-01", periodYear, periodMonth)
 	dateTo := fmt.Sprintf("%d-%02d-%d", periodYear, periodMonth, daysInMonth(periodYear, periodMonth))
 
-	var generated []domain.Payroll
+	generated := make([]domain.Payroll, 0)
 
 	err = uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		// Get a raw querier from the tx

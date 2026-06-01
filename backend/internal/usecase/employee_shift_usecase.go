@@ -137,7 +137,7 @@ func (uc *EmployeeShiftUC) BulkAssign(ctx context.Context, req *domain.BulkAssig
 		return nil, domain.NewNotFound("shift not found")
 	}
 
-	var assignments []domain.EmployeeShift
+	assignments := make([]domain.EmployeeShift, 0)
 	for _, empID := range req.EmployeeIDs {
 		es := &domain.EmployeeShift{
 			ID:            uuid.New().String(),
