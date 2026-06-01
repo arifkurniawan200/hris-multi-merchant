@@ -105,6 +105,16 @@ func (uc *EmployeeShiftUC) ListByShift(ctx context.Context, shiftID string) ([]d
 	return assignments, nil
 }
 
+// ListAll returns all shift assignments across the tenant with employee info.
+func (uc *EmployeeShiftUC) ListAll(ctx context.Context, tenantID string) ([]domain.EmployeeShift, error) {
+	assignments, err := uc.esRepo.ListAllByTenant(ctx, tenantID)
+	if err != nil {
+		logger.Error(ctx, "list all shift assignments failed", "tenant_id", tenantID, "error", err)
+		return nil, domain.NewInternal("failed to list shift assignments")
+	}
+	return assignments, nil
+}
+
 // RemoveAssignment soft-deletes an assignment.
 func (uc *EmployeeShiftUC) RemoveAssignment(ctx context.Context, id string) error {
 	if err := uc.esRepo.SoftDelete(ctx, id); err != nil {

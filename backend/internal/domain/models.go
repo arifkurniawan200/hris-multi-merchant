@@ -326,6 +326,10 @@ type EmployeeShift struct {
 	ClockinWindowBefore  int    `json:"clockin_window_before_minutes,omitempty"`
 	ClockoutWindowAfter  int    `json:"clockout_window_after_minutes,omitempty"`
 	IsFlexible           bool   `json:"is_flexible,omitempty"`
+
+	// Employee joined fields (for cross-tenant listing)
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
 }
 
 type EmployeeShiftRepository interface {
@@ -335,6 +339,7 @@ type EmployeeShiftRepository interface {
 	GetActiveByEmployee(ctx context.Context, employeeID, onDate string) (*EmployeeShift, error)
 	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
 	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	ListAllByTenant(ctx context.Context, tenantID string) ([]EmployeeShift, error)
 	Update(ctx context.Context, es *EmployeeShift) error
 	SoftDelete(ctx context.Context, id string) error
 }
@@ -346,6 +351,7 @@ type EmployeeShiftUseCase interface {
 	Update(ctx context.Context, es *EmployeeShift) error
 	ListByEmployee(ctx context.Context, employeeID string) ([]EmployeeShift, error)
 	ListByShift(ctx context.Context, shiftID string) ([]EmployeeShift, error)
+	ListAll(ctx context.Context, tenantID string) ([]EmployeeShift, error)
 	RemoveAssignment(ctx context.Context, id string) error
 	BulkAssign(ctx context.Context, req *BulkAssignShiftRequest) ([]EmployeeShift, error)
 }

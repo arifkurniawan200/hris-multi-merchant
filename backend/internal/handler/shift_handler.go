@@ -320,6 +320,25 @@ func (h *ShiftHandler) ListShiftEmployees(w http.ResponseWriter, r *http.Request
 
 // ── Employee Self-Service ────────────────────────
 
+// ListAllAssignments lists all shift assignments across the tenant.
+func (h *ShiftHandler) ListAllAssignments(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
+	assignments, err := h.empUC.ListAll(r.Context(), tenantID)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", assignments, reqID)
+}
+
 // MyShift returns the employee's active shift for today.
 func (h *ShiftHandler) MyShift(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
