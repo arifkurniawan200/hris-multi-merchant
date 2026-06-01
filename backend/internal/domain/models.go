@@ -210,6 +210,84 @@ type PositionUseCase interface {
 	SoftDelete(ctx context.Context, id string) error
 }
 
+// ── Attendance Correction ──────────────────────────
+
+type CorrectionType string
+
+const (
+	CorrectionClockIn  CorrectionType = "clock_in"
+	CorrectionClockOut CorrectionType = "clock_out"
+	CorrectionBoth     CorrectionType = "both"
+)
+
+type CorrectionStatus string
+
+const (
+	CorrectionPending  CorrectionStatus = "pending"
+	CorrectionApproved CorrectionStatus = "approved"
+	CorrectionRejected CorrectionStatus = "rejected"
+)
+
+type AttendanceCorrection struct {
+	ID                string           `json:"id"`
+	TenantID          string           `json:"tenant_id"`
+	EmployeeID        string           `json:"employee_id"`
+	AttendanceID      string           `json:"attendance_id"`
+	Type              CorrectionType   `json:"type"`
+	ClockDate         string           `json:"clock_date"`
+	CurrentClockIn    *time.Time       `json:"current_clock_in,omitempty"`
+	RequestedClockIn  *time.Time       `json:"requested_clock_in,omitempty"`
+	CurrentClockOut   *time.Time       `json:"current_clock_out,omitempty"`
+	RequestedClockOut *time.Time       `json:"requested_clock_out,omitempty"`
+	Reason            string           `json:"reason"`
+	Status            CorrectionStatus `json:"status"`
+	ApprovedBy        *string          `json:"approved_by,omitempty"`
+	ApprovedAt        *time.Time       `json:"approved_at,omitempty"`
+	RejectReason      *string          `json:"reject_reason,omitempty"`
+	CreatedAt         time.Time        `json:"created_at"`
+	UpdatedAt         time.Time        `json:"updated_at"`
+	DeletedAt         *time.Time       `json:"deleted_at,omitempty"`
+
+	// Joined
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
+}
+
+type AttendanceCorrectionRequest struct {
+	AttendanceID      string     `json:"attendance_id" validate:"required,uuid"`
+	Type              string     `json:"type" validate:"required,oneof=clock_in clock_out both"`
+	RequestedClockIn  *time.Time `json:"requested_clock_in,omitempty"`
+	RequestedClockOut *time.Time `json:"requested_clock_out,omitempty"`
+	Reason            string     `json:"reason" validate:"required,min=5"`
+	TenantID          string     `json:"-"` // set by handler
+	UserID            string     `json:"-"` // set by handler
+}
+
+type AttendanceCorrectionRepository interface {
+	Create(ctx context.Context, c *AttendanceCorrection) error
+	GetByID(ctx context.Context, id string) (*AttendanceCorrection, error)
+	ListByTenant(ctx context.Context, tenantID, status string, limit, offset int) ([]AttendanceCorrection, int, error)
+	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]AttendanceCorrection, error)
+	UpdateStatus(ctx context.Context, id string, status CorrectionStatus, approvedBy string, rejectReason string) error
+	GetByAttendanceID(ctx context.Context, attendanceID string) ([]AttendanceCorrection, error)
+}
+
+type AttendanceCorrectionUseCase interface {
+	Request(ctx context.Context, req *AttendanceCorrectionRequest) (*AttendanceCorrection, error)
+	Approve(ctx context.Context, id, approvedBy string) (*AttendanceCorrection, error)
+	Reject(ctx context.Context, id, approvedBy, rejectReason string) (*AttendanceCorrection, error)
+	ListPending(ctx context.Context, tenantID string, limit, offset int) (*AttendanceCorrectionReport, error)
+	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]AttendanceCorrection, error)
+	GetByID(ctx context.Context, id string) (*AttendanceCorrection, error)
+}
+
+type AttendanceCorrectionReport struct {
+	Total  int                   `json:"total"`
+	Data   []AttendanceCorrection `json:"data"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+}
+
 // ── Attendance ──────────────────────────────────
 
 type AttendanceStatus string
@@ -268,6 +346,202 @@ type AttendanceReport struct {
 	Data   []Attendance `json:"data"`
 	Limit  int          `json:"limit"`
 	Offset int          `json:"offset"`
+}
+
+// ── Reimbursement ─────────────────────────────────
+
+type ReimbursementStatus string
+
+const (
+	ReimbursementPending  ReimbursementStatus = "pending"
+	ReimbursementApproved ReimbursementStatus = "approved"
+	ReimbursementRejected ReimbursementStatus = "rejected"
+)
+
+type ReimbursementType struct {
+	ID          string     `json:"id"`
+	TenantID    string     `json:"tenant_id"`
+	Name        string     `json:"name"`
+	Code        string     `json:"code"`
+	Description string     `json:"description,omitempty"`
+	MaxAmount   *int64     `json:"max_amount,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+}
+
+type Reimbursement struct {
+	ID          string              `json:"id"`
+	TenantID    string              `json:"tenant_id"`
+	EmployeeID  string              `json:"employee_id"`
+	TypeID      string              `json:"type_id"`
+	Amount      int64               `json:"amount"`
+	Description string              `json:"description"`
+	ReceiptURL  string              `json:"receipt_url,omitempty"`
+	Status      ReimbursementStatus `json:"status"`
+	ApprovedBy  *string             `json:"approved_by,omitempty"`
+	ApprovedAt  *time.Time          `json:"approved_at,omitempty"`
+	RejectReason *string            `json:"reject_reason,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	DeletedAt   *time.Time          `json:"deleted_at,omitempty"`
+
+	// Joined
+	EmployeeName         string `json:"employee_name,omitempty"`
+	EmployeeCode         string `json:"employee_code,omitempty"`
+	ReimbursementTypeName string `json:"reimbursement_type_name,omitempty"`
+}
+
+type CreateReimbursementTypeRequest struct {
+	Name        string `json:"name" validate:"required,min=2"`
+	Code        string `json:"code" validate:"required,min=2"`
+	Description string `json:"description,omitempty"`
+	MaxAmount   *int64 `json:"max_amount,omitempty"`
+}
+
+type UpdateReimbursementTypeRequest struct {
+	Name        string `json:"name" validate:"required,min=2"`
+	Code        string `json:"code" validate:"required,min=2"`
+	Description string `json:"description,omitempty"`
+	MaxAmount   *int64 `json:"max_amount,omitempty"`
+}
+
+type ReimbursementRequest struct {
+	TypeID      string `json:"type_id" validate:"required,uuid"`
+	Amount      int64  `json:"amount" validate:"required,min=1"`
+	Description string `json:"description" validate:"required,min=5"`
+	ReceiptURL  string `json:"receipt_url,omitempty"`
+	TenantID    string `json:"-"` // set by handler
+	UserID      string `json:"-"` // set by handler
+}
+
+type ReimbursementTypeRepository interface {
+	Create(ctx context.Context, rt *ReimbursementType) error
+	GetByID(ctx context.Context, id string) (*ReimbursementType, error)
+	GetByCode(ctx context.Context, tenantID, code string) (*ReimbursementType, error)
+	Update(ctx context.Context, rt *ReimbursementType) error
+	List(ctx context.Context, tenantID string) ([]ReimbursementType, error)
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type ReimbursementRepository interface {
+	Create(ctx context.Context, r *Reimbursement) error
+	GetByID(ctx context.Context, id string) (*Reimbursement, error)
+	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]Reimbursement, error)
+	ListByTenant(ctx context.Context, tenantID, status string, limit, offset int) ([]Reimbursement, int, error)
+	UpdateStatus(ctx context.Context, id string, status ReimbursementStatus, approvedBy, rejectReason string) error
+}
+
+type ReimbursementUseCase interface {
+	// Reimbursement Type CRUD (manager+)
+	CreateType(ctx context.Context, tenantID string, req *CreateReimbursementTypeRequest) (*ReimbursementType, error)
+	UpdateType(ctx context.Context, id string, req *UpdateReimbursementTypeRequest) (*ReimbursementType, error)
+	ListTypes(ctx context.Context, tenantID string) ([]ReimbursementType, error)
+	DeleteType(ctx context.Context, id string) error
+
+	// Reimbursement (employee+)
+	Submit(ctx context.Context, req *ReimbursementRequest) (*Reimbursement, error)
+	MyReimbursements(ctx context.Context, userID string, limit, offset int) ([]Reimbursement, error)
+
+	// Reimbursement management (manager+)
+	ListPending(ctx context.Context, tenantID string, limit, offset int) (*ReimbursementReport, error)
+	ListAll(ctx context.Context, tenantID string, status string, limit, offset int) (*ReimbursementReport, error)
+	Approve(ctx context.Context, id, approvedBy string) (*Reimbursement, error)
+	Reject(ctx context.Context, id, approvedBy, rejectReason string) (*Reimbursement, error)
+}
+
+type ReimbursementReport struct {
+	Total  int             `json:"total"`
+	Data   []Reimbursement `json:"data"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+}
+
+// ── Payroll ───────────────────────────────────
+
+type PayrollStatus string
+
+const (
+	PayrollDraft     PayrollStatus = "draft"
+	PayrollApproved  PayrollStatus = "approved"
+	PayrollPaid      PayrollStatus = "paid"
+)
+
+type Payroll struct {
+	ID              string        `json:"id"`
+	TenantID        string        `json:"tenant_id"`
+	EmployeeID      string        `json:"employee_id"`
+	PeriodYear      int           `json:"period_year"`
+	PeriodMonth     int           `json:"period_month"`
+	BaseSalary      int64         `json:"base_salary"`
+	OvertimePay     int64         `json:"overtime_pay"`
+	LateDeduction   int64         `json:"late_deduction"`
+	AbsentDeduction int64         `json:"absent_deduction"`
+	LeaveDeduction  int64         `json:"leave_deduction"`
+	Reimbursement   int64         `json:"reimbursement"`
+	NetSalary       int64         `json:"net_salary"`
+	Status          PayrollStatus `json:"status"`
+	Notes           string        `json:"notes,omitempty"`
+	ApprovedBy      *string       `json:"approved_by,omitempty"`
+	ApprovedAt      *time.Time    `json:"approved_at,omitempty"`
+	PaidAt          *time.Time    `json:"paid_at,omitempty"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
+	DeletedAt       *time.Time    `json:"deleted_at,omitempty"`
+
+	// Joined
+	EmployeeName     string `json:"employee_name,omitempty"`
+	EmployeeCode     string `json:"employee_code,omitempty"`
+	DepartmentName   string `json:"department_name,omitempty"`
+	PositionName     string `json:"position_name,omitempty"`
+}
+
+type PayrollConfig struct {
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id"`
+	DailySalaryRatio  int       `json:"daily_salary_ratio"` // default: 25 (1/25 of monthly = daily)
+	LatePenaltyAmount int64     `json:"late_penalty_amount"`
+	AbsentPenalty     int64     `json:"absent_penalty_amount"`
+	OvertimeRate      int       `json:"overtime_rate"` // multiplier, default: 150 (1.5x)
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type GeneratePayrollRequest struct {
+	PeriodYear  int      `json:"period_year" validate:"required,min=2020,max=2100"`
+	PeriodMonth int      `json:"period_month" validate:"required,min=1,max=12"`
+	EmployeeIDs []string `json:"employee_ids,omitempty"`
+}
+
+type PayrollRepository interface {
+	Create(ctx context.Context, p *Payroll) error
+	GetByID(ctx context.Context, id string) (*Payroll, error)
+	ListByPeriod(ctx context.Context, tenantID string, year, month int, limit, offset int) ([]Payroll, int, error)
+	ListByEmployeePeriod(ctx context.Context, employeeID string, year, month int) ([]Payroll, error)
+	UpdateStatus(ctx context.Context, id string, status PayrollStatus, byUser string, paidAt *time.Time) error
+	GetByEmployeePeriod(ctx context.Context, employeeID string, year, month int) (*Payroll, error)
+}
+
+type PayrollConfigRepository interface {
+	Get(ctx context.Context, tenantID string) (*PayrollConfig, error)
+	Upsert(ctx context.Context, cfg *PayrollConfig) error
+}
+
+type PayrollUseCase interface {
+	Generate(ctx context.Context, req *GeneratePayrollRequest) ([]Payroll, error)
+	Approve(ctx context.Context, id, userID string) (*Payroll, error)
+	MarkPaid(ctx context.Context, id, userID string) (*Payroll, error)
+	ListByPeriod(ctx context.Context, tenantID string, year, month int, limit, offset int) (*PayrollReport, error)
+	GetByID(ctx context.Context, id string) (*Payroll, error)
+	GetConfig(ctx context.Context, tenantID string) (*PayrollConfig, error)
+	UpdateConfig(ctx context.Context, tenantID string, cfg *PayrollConfig) (*PayrollConfig, error)
+}
+
+type PayrollReport struct {
+	Total  int       `json:"total"`
+	Data   []Payroll `json:"data"`
+	Limit  int       `json:"limit"`
+	Offset int       `json:"offset"`
 }
 
 // ── Shift ───────────────────────────────────────

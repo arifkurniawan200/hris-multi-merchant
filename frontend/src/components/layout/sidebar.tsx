@@ -24,6 +24,10 @@ import {
   Building2,
   Upload,
   Download,
+  PenLine,
+  DollarSign,
+  LayoutDashboard,
+  Wallet,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -68,6 +72,11 @@ export function Sidebar() {
       icon: Clock,
     },
     {
+      href: '/employee/reimbursement',
+      label: 'Reimbursement',
+      icon: DollarSign,
+    },
+    {
       href: '/dashboard/history',
       label: 'Attendance History',
       icon: History,
@@ -76,6 +85,12 @@ export function Sidebar() {
       href: '/dashboard/notifications',
       label: 'Notifications',
       icon: Bell,
+    },
+    {
+      href: '/manager/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
       href: '/manager/employees',
@@ -120,6 +135,12 @@ export function Sidebar() {
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
+      href: '/manager/attendance/corrections',
+      label: 'Attendance Correction',
+      icon: PenLine,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
       href: '/manager/report',
       label: 'Attendance Report',
       icon: BarChart3,
@@ -147,6 +168,18 @@ export function Sidebar() {
       href: '/manager/leaves/all',
       label: 'All Leaves',
       icon: List,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/reimbursement',
+      label: 'Reimbursement',
+      icon: DollarSign,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/payroll',
+      label: 'Payroll',
+      icon: Wallet,
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {

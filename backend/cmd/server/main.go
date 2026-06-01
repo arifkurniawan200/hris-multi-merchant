@@ -58,6 +58,7 @@ func main() {
 	posRepo := repository.NewPositionRepo(dbpool)
 	empRepo := repository.NewEmployeeRepo(dbpool)
 	attendanceRepo := repository.NewAttendanceRepo(dbpool)
+	attendanceCorrectionRepo := repository.NewAttendanceCorrectionRepo(dbpool)
 	shiftRepo := repository.NewShiftRepo(dbpool)
 	empShiftRepo := repository.NewEmployeeShiftRepo(dbpool)
 	leaveTypeRepo := repository.NewLeaveTypeRepo(dbpool)
@@ -66,6 +67,10 @@ func main() {
 	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
 	overtimeRepo := repository.NewOvertimeRepo(dbpool)
 	documentRepo := repository.NewEmployeeDocumentRepo(dbpool)
+	reimbTypeRepo := repository.NewReimbursementTypeRepo(dbpool)
+	reimbRepo := repository.NewReimbursementRepo(dbpool)
+	payrollConfigRepo := repository.NewPayrollConfigRepo(dbpool)
+	payrollRepo := repository.NewPayrollRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -74,12 +79,15 @@ func main() {
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
+	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr)
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
 	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
+	reimbUC := usecase.NewReimbursementUC(reimbTypeRepo, reimbRepo, empRepo, txMgr)
+	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -95,11 +103,14 @@ func main() {
 	posH := handler.NewPositionHandler(posUC)
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
 	attendanceH := handler.NewAttendanceHandler(attendanceUC)
+	attendanceCorrectionH := handler.NewAttendanceCorrectionHandler(attendanceCorrectionUC)
 	leaveH := handler.NewLeaveHandler(leaveUC)
 	notificationH := handler.NewNotificationHandler(notificationUC)
 	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
 	overtimeH := handler.NewOvertimeHandler(overtimeUC)
 	documentH := handler.NewEmployeeDocumentHandler(documentUC, cfg.Storage.UploadDir)
+	reimbH := handler.NewReimbursementHandler(reimbUC)
+	payrollH := handler.NewPayrollHandler(payrollUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -209,6 +220,15 @@ func main() {
 				r.Get("/api/v1/employees/documents/{id}/download", documentH.Download)
 				r.Delete("/api/v1/employees/documents/{id}", documentH.Delete)
 				r.Put("/api/v1/employees/documents/{id}/verify", documentH.Verify)
+
+				// Payroll (manager+)
+				r.Post("/api/v1/payroll/generate", payrollH.Generate)
+				r.Get("/api/v1/payroll", payrollH.ListByPeriod)
+				r.Get("/api/v1/payroll/{id}", payrollH.GetByID)
+				r.Put("/api/v1/payroll/{id}/approve", payrollH.Approve)
+				r.Put("/api/v1/payroll/{id}/paid", payrollH.MarkPaid)
+				r.Get("/api/v1/payroll/config", payrollH.GetConfig)
+				r.Put("/api/v1/payroll/config", payrollH.UpdateConfig)
 			})
 
 			// Employee+ — Employee read + org chart + self-service
@@ -242,6 +262,10 @@ func main() {
 				r.Post("/api/v1/overtime", overtimeH.SubmitOvertime)
 				r.Get("/api/v1/overtime", overtimeH.MyOvertime)
 
+				// Reimbursement routes (employee+)
+				r.Post("/api/v1/reimbursements", reimbH.Submit)
+				r.Get("/api/v1/reimbursements/my", reimbH.MyReimbursements)
+
 				// Leave types (employee+ needs to see types when submitting)
 				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
 			})
@@ -251,6 +275,13 @@ func main() {
 				r.Use(rbManager)
 				r.Get("/api/v1/attendance/report", attendanceH.Report)
 				r.Get("/api/v1/attendance/export", attendanceH.Export)
+
+				// Attendance Correction (manager+)
+				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
+				r.Get("/api/v1/attendance/corrections/pending", attendanceCorrectionH.ListPending)
+				r.Put("/api/v1/attendance/corrections/{id}/approve", attendanceCorrectionH.Approve)
+				r.Put("/api/v1/attendance/corrections/{id}/reject", attendanceCorrectionH.Reject)
+				r.Get("/api/v1/attendance/corrections/employee/{employeeID}", attendanceCorrectionH.ListByEmployee)
 
 				// Leave Management (manager+)
 				r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)
@@ -265,6 +296,16 @@ func main() {
 				r.Get("/api/v1/overtime/pending", overtimeH.ListPendingOvertime)
 				r.Put("/api/v1/overtime/{id}/approve", overtimeH.ApproveOvertime)
 				r.Put("/api/v1/overtime/{id}/reject", overtimeH.RejectOvertime)
+
+				// Reimbursement Management (manager+)
+				r.Post("/api/v1/reimbursements/types", reimbH.CreateType)
+				r.Get("/api/v1/reimbursements/types", reimbH.ListTypes)
+				r.Put("/api/v1/reimbursements/types/{id}", reimbH.UpdateType)
+				r.Delete("/api/v1/reimbursements/types/{id}", reimbH.DeleteType)
+				r.Get("/api/v1/reimbursements/pending", reimbH.ListPending)
+				r.Get("/api/v1/reimbursements", reimbH.ListAll)
+				r.Put("/api/v1/reimbursements/{id}/approve", reimbH.Approve)
+				r.Put("/api/v1/reimbursements/{id}/reject", reimbH.Reject)
 			})
 		})
 
