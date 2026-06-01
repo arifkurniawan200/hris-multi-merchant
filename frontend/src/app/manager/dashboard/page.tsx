@@ -24,13 +24,17 @@ import {
   ArrowRight,
   UserX,
   Briefcase,
+  Megaphone,
+  Pin,
 } from 'lucide-react';
 import {
   fetchDashboardSummary,
   fetchPendingApprovals,
+  fetchPinnedAnnouncements,
   type DashboardSummary,
   type PendingApprovals,
   type AttendanceRecord,
+  type PinnedAnnouncement,
 } from '@/lib/api-dashboard';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -103,6 +107,7 @@ export default function ManagerDashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [attendanceToday, setAttendanceToday] = useState<TodayAttendanceRecord[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingApprovals | null>(null);
+  const [pinnedAnnouncements, setPinnedAnnouncements] = useState<PinnedAnnouncement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -127,18 +132,20 @@ export default function ManagerDashboardPage() {
       setError('');
 
       try {
-        const [summaryData, pendingData, attData] = await Promise.all([
+        const [summaryData, pendingData, attData, pinnedData] = await Promise.all([
           fetchDashboardSummary(user?.tenant_id),
           fetchPendingApprovals(user?.tenant_id),
           api.get<{ total: number; present: number; late: number; absent: number; data: AttendanceRecord[] }>(
             `/api/v1/attendance/report?date=${todayDate()}`
           ).catch(() => null),
+          fetchPinnedAnnouncements(user?.tenant_id).catch(() => []),
         ]);
 
         if (cancelled) return;
 
         setSummary(summaryData);
         setPendingApprovals(pendingData);
+        setPinnedAnnouncements(pinnedData);
         setAttendanceToday(
           (attData?.data ?? []).map((r) => ({
             id: r.id,
@@ -652,6 +659,47 @@ export default function ManagerDashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Row 4: Pinned Announcements ───────────────────────────────────*/}
+      {pinnedAnnouncements.length > 0 && (
+        <Card className="ring-1 ring-primary/20 border-primary/10">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-primary" />
+                {t('pinnedAnnouncements')}
+              </CardTitle>
+              <CardDescription>
+                {pinnedAnnouncements.length} announcement{pinnedAnnouncements.length > 1 ? 's' : ''}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/manager/announcements')}
+            >
+              <Megaphone className="h-4 w-4 mr-1.5" />
+              {t('title')}
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pinnedAnnouncements.map((a) => (
+              <div key={a.id} className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Pin className="h-3 w-3 text-primary" />
+                  <h4 className="text-sm font-semibold text-foreground">{a.title}</h4>
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+                  {a.message}
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  {format(new Date(a.published_at || a.created_at), 'MMM d, yyyy')}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

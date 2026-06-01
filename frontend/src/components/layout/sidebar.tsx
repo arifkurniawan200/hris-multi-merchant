@@ -37,6 +37,7 @@ import {
   Briefcase,
   PiggyBank,
   UserCog,
+  Megaphone,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -137,6 +138,14 @@ export function Sidebar() {
         { href: '/manager/reimbursement', labelKey: 'finance.reimbursementManage', icon: DollarSign, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/payroll', labelKey: 'finance.payroll', icon: Wallet, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/employee/payslip', labelKey: 'finance.payslip', icon: FileText, roles: ['employee', 'manager', 'tenant_admin'] },
+      ],
+    },
+    {
+      labelKey: 'announcements.group',
+      icon: Megaphone,
+      roles: ['employee', 'manager', 'tenant_admin'],
+      items: [
+        { href: '/manager/announcements', labelKey: 'announcements.announcements', icon: Megaphone, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {

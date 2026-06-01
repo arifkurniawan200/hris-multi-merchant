@@ -73,6 +73,7 @@ func main() {
 	payrollRepo := repository.NewPayrollRepo(dbpool)
 	analyticsRepo := repository.NewAnalyticsRepo(dbpool)
 	rosterRepo := repository.NewRosterRepo(dbpool)
+	announcementRepo := repository.NewAnnouncementRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -92,6 +93,7 @@ func main() {
 	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
 	analyticsUC := usecase.NewAnalyticsUC(analyticsRepo, empRepo)
 	rosterUC := usecase.NewRosterUC(rosterRepo, empRepo, shiftRepo)
+	announcementUC := usecase.NewAnnouncementUC(announcementRepo, empRepo, notificationRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -117,6 +119,7 @@ func main() {
 	payrollH := handler.NewPayrollHandler(payrollUC)
 	analyticsH := handler.NewAnalyticsHandler(analyticsUC)
 	rosterH := handler.NewRosterHandler(rosterUC)
+	announcementH := handler.NewAnnouncementHandler(announcementUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -276,6 +279,12 @@ func main() {
 				r.Post("/api/v1/reimbursements", reimbH.Submit)
 				r.Get("/api/v1/reimbursements/my", reimbH.MyReimbursements)
 
+				// Announcements (employee+ read)
+				r.Get("/api/v1/announcements", announcementH.List)
+				r.Get("/api/v1/announcements/pinned", announcementH.GetPinned)
+				r.Get("/api/v1/announcements/{id}", announcementH.GetByID)
+				r.Post("/api/v1/announcements/{id}/read", announcementH.MarkRead)
+
 				// Leave types (employee+ needs to see types when submitting)
 				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
 			})
@@ -323,6 +332,11 @@ func main() {
 				r.Get("/api/v1/reimbursements", reimbH.ListAll)
 				r.Put("/api/v1/reimbursements/{id}/approve", reimbH.Approve)
 				r.Put("/api/v1/reimbursements/{id}/reject", reimbH.Reject)
+
+				// Announcements Management (manager+ CRUD)
+				r.Post("/api/v1/announcements", announcementH.Create)
+				r.Put("/api/v1/announcements/{id}", announcementH.Update)
+				r.Delete("/api/v1/announcements/{id}", announcementH.Delete)
 			})
 		})
 
