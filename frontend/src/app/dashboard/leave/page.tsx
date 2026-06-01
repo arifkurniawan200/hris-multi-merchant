@@ -147,7 +147,7 @@ export default function LeavePage() {
               </div>
               <div>
                 <p className="text-sm text-[var(--muted-foreground)]">Total Requests</p>
-                <p className="text-2xl font-bold">{myLeaves.length}</p>
+                <p className="text-2xl font-bold">{myLeaves?.length ?? 0}</p>
               </div>
             </div>
           </CardContent>
@@ -161,7 +161,7 @@ export default function LeavePage() {
               <div>
                 <p className="text-sm text-[var(--muted-foreground)]">Pending</p>
                 <p className="text-2xl font-bold">
-                  {myLeaves.filter((l) => l.status === "pending").length}
+                  {(myLeaves ?? []).filter((l) => l.status === "pending").length}
                 </p>
               </div>
             </div>
@@ -176,7 +176,7 @@ export default function LeavePage() {
               <div>
                 <p className="text-sm text-[var(--muted-foreground)]">Approved</p>
                 <p className="text-2xl font-bold">
-                  {myLeaves.filter((l) => l.status === "approved").length}
+                  {(myLeaves ?? []).filter((l) => l.status === "approved").length}
                 </p>
               </div>
             </div>
@@ -284,7 +284,7 @@ export default function LeavePage() {
           <CardTitle>Recent Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
-          {myLeaves.length === 0 ? (
+          {(myLeaves ?? []).length === 0 ? (
             <div className="text-center py-12 text-[var(--muted-foreground)]">
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">No leave requests yet</p>
@@ -292,7 +292,7 @@ export default function LeavePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {myLeaves.map((leave) => {
+              {(myLeaves ?? []).map((leave) => {
                 const sc = statusConfig[leave.status] || { label: leave.status, variant: "default" };
                 return (
                   <div

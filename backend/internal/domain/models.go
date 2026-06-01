@@ -541,14 +541,40 @@ type OvertimeRequest struct {
 	TenantID     uuid.UUID      `json:"tenant_id"`
 	EmployeeID   uuid.UUID      `json:"employee_id"`
 	Date         string         `json:"date"`
+	StartTime    string         `json:"start_time"`
+	EndTime      string         `json:"end_time"`
 	TotalHours   float64        `json:"total_hours"`
 	Reason       string         `json:"reason"`
 	Status       OvertimeStatus `json:"status"`
 	ReviewedBy   *uuid.UUID     `json:"reviewed_by"`
+	ReviewedAt   *time.Time     `json:"reviewed_at,omitempty"`
 	RejectReason string         `json:"reject_reason"`
+	CancelledAt  *time.Time     `json:"cancelled_at,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    *time.Time     `json:"deleted_at,omitempty"`
+
+	// Joined fields (read-only)
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
+}
+
+type OvertimeRepository interface {
+	Create(ctx context.Context, ot *OvertimeRequest) error
+	GetByID(ctx context.Context, id uuid.UUID) (*OvertimeRequest, error)
+	ListByEmployee(ctx context.Context, employeeID uuid.UUID, limit, offset int) ([]OvertimeRequest, error)
+	ListPending(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]OvertimeRequest, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status OvertimeStatus, reviewedBy uuid.UUID, rejectReason string) error
+	SoftDelete(ctx context.Context, id uuid.UUID) error
+}
+
+type OvertimeUseCase interface {
+	Submit(ctx context.Context, req *SubmitOvertimeRequest) (*OvertimeRequest, error)
+	ListMyOvertime(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, limit, offset int) ([]OvertimeRequest, error)
+	ListPending(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]OvertimeRequest, error)
+	Approve(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	Reject(ctx context.Context, id uuid.UUID, userID uuid.UUID, reason string) error
+	Cancel(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 // ── Notification ────────────────────────────────

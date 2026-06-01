@@ -204,7 +204,7 @@ export default function ReportPage() {
             Employee Attendance — {format(new Date(date + 'T00:00:00'), 'MMMM d, yyyy')}
           </CardTitle>
           <CardDescription>
-            {report ? `${report.data.length} employees` : 'Loading...'}
+            {report?.data ? `${report.data.length} employees` : 'Loading...'}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -214,7 +214,7 @@ export default function ReportPage() {
                 <div key={i} className="h-10 bg-muted rounded animate-pulse" />
               ))}
             </div>
-          ) : !report || report.data.length === 0 ? (
+          ) : !report || !report.data || report.data.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
