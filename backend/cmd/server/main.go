@@ -71,6 +71,8 @@ func main() {
 	reimbRepo := repository.NewReimbursementRepo(dbpool)
 	payrollConfigRepo := repository.NewPayrollConfigRepo(dbpool)
 	payrollRepo := repository.NewPayrollRepo(dbpool)
+	analyticsRepo := repository.NewAnalyticsRepo(dbpool)
+	rosterRepo := repository.NewRosterRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -88,6 +90,8 @@ func main() {
 	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
 	reimbUC := usecase.NewReimbursementUC(reimbTypeRepo, reimbRepo, empRepo, txMgr)
 	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
+	analyticsUC := usecase.NewAnalyticsUC(analyticsRepo, empRepo)
+	rosterUC := usecase.NewRosterUC(rosterRepo, empRepo, shiftRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -111,6 +115,8 @@ func main() {
 	documentH := handler.NewEmployeeDocumentHandler(documentUC, cfg.Storage.UploadDir)
 	reimbH := handler.NewReimbursementHandler(reimbUC)
 	payrollH := handler.NewPayrollHandler(payrollUC)
+	analyticsH := handler.NewAnalyticsHandler(analyticsUC)
+	rosterH := handler.NewRosterHandler(rosterUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -257,10 +263,14 @@ func main() {
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
 				r.Get("/api/v1/leaves/balance", leaveH.Balance)
 				r.Put("/api/v1/leaves/{id}/cancel", leaveH.CancelLeave)
+				r.Get("/api/v1/leaves/calendar", leaveH.Calendar)
 
 				// Overtime routes (employee+)
 				r.Post("/api/v1/overtime", overtimeH.SubmitOvertime)
 				r.Get("/api/v1/overtime", overtimeH.MyOvertime)
+
+				// Payslip self-service
+				r.Get("/api/v1/payroll/mine", payrollH.ListMyPayslips)
 
 				// Reimbursement routes (employee+)
 				r.Post("/api/v1/reimbursements", reimbH.Submit)
@@ -276,6 +286,12 @@ func main() {
 				r.Get("/api/v1/attendance/report", attendanceH.Report)
 				r.Get("/api/v1/attendance/export", attendanceH.Export)
 				r.Get("/api/v1/attendance/export/preview", attendanceH.ExportPreview)
+
+				// Analytics
+				r.Get("/api/v1/analytics/summary", analyticsH.Summary)
+
+				// Roster view
+				r.Get("/api/v1/roster", rosterH.List)
 
 				// Attendance Correction (manager+)
 				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
