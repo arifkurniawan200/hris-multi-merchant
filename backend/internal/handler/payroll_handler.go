@@ -182,3 +182,29 @@ func (h *PayrollHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, "Payroll config updated", result, reqID)
 }
+
+// ListMyPayslips handles GET /api/v1/payroll/mine
+func (h *PayrollHandler) ListMyPayslips(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No user context", reqID)
+		return
+	}
+
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	offset, _ := strconv.Atoi(q.Get("offset"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	payslips, err := h.uc.ListByPeriod(r.Context(), "", 0, 0, limit, offset)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", payslips, reqID)
+}

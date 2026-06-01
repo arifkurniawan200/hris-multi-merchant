@@ -169,6 +169,42 @@ func (h *LeaveHandler) ListAllLeaves(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
 	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+
+	q := r.URL.Query()
+	limit := 20
+	offset := 0
+	if l := q.Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	if o := q.Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+
+	filter := domain.LeaveFilter{
+		Status: q.Get("status"),
+	}
+
+	leaves, total, err := h.uc.ListAll(r.Context(), uuid.MustParse(tenantID), filter, limit, offset)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", map[string]interface{}{
+		"data":  leaves,
+		"total": total,
+	}, reqID)
+}
+
+// Calendar handles GET /api/v1/leaves/calendar
+func (h *LeaveHandler) Calendar(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
 	if tenantID == "" {
 		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return

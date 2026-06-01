@@ -71,6 +71,18 @@ export interface PendingApprovals {
   total: number;
 }
 
+// ── Announcements ─────────────────────────────────────────
+
+export interface PinnedAnnouncement {
+  id: string;
+  title: string;
+  message: string;
+  is_pinned: boolean;
+  published_at: string | null;
+  created_at: string;
+  creator_name?: string;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function todayDate(): string {
@@ -258,4 +270,17 @@ export async function fetchPendingApprovals(
     reimbursements: { count: reimbursements.length, items: reimbursements },
     total: leaves.length + overtime.length + reimbursements.length,
   };
+}
+
+// ── Fetch Pinned Announcements ────────────────────────────
+
+export async function fetchPinnedAnnouncements(
+  _tenant?: string
+): Promise<PinnedAnnouncement[]> {
+  try {
+    const data = await api.get<PinnedAnnouncement[]>('/api/v1/announcements/pinned');
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }

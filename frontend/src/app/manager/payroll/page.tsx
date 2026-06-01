@@ -162,8 +162,8 @@ export default function PayrollPage() {
     setError("");
     try {
       await generatePayroll(tenant, {
-        period_year: year,
-        period_month: month,
+        year: year,
+        month: month,
       });
       await loadPayrolls();
     } catch (e: any) {
@@ -218,7 +218,7 @@ export default function PayrollPage() {
     if (!tenant) return;
     setSavingConfig(true);
     try {
-      await updatePayrollConfig(tenant, configForm);
+      await updatePayrollConfig(configForm, tenant);
       setConfigOpen(false);
     } catch (e: any) {
       setError(e.message || "Failed to save config");
@@ -450,7 +450,7 @@ export default function PayrollPage() {
                               {record.employee_name}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {record.employee_code}
+                              {record.employee_id}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
