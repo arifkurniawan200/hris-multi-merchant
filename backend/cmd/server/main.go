@@ -25,6 +25,11 @@ func main() {
 
 	cfg := config.Load()
 
+	// ── Ensure upload directory exists ───────
+	if err := os.MkdirAll(cfg.Storage.UploadDir, 0755); err != nil {
+		logger.Fatal("create upload dir", "error", err)
+	}
+
 	// ── DB ──────────────────────────────────
 	dbpool, err := adapter.NewPgxPool()
 	if err != nil {
@@ -60,6 +65,7 @@ func main() {
 	notificationRepo := repository.NewNotificationRepo(dbpool)
 	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
 	overtimeRepo := repository.NewOvertimeRepo(dbpool)
+	documentRepo := repository.NewEmployeeDocumentRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -73,6 +79,7 @@ func main() {
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
+	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -92,6 +99,7 @@ func main() {
 	notificationH := handler.NewNotificationHandler(notificationUC)
 	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
 	overtimeH := handler.NewOvertimeHandler(overtimeUC)
+	documentH := handler.NewEmployeeDocumentHandler(documentUC, cfg.Storage.UploadDir)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -194,6 +202,13 @@ func main() {
 
 				// Shift assignments overview (all assignments across tenant)
 				r.Get("/api/v1/shift-assignments", shiftH.ListAllAssignments)
+
+				// Employee Document management (manager+)
+				r.Post("/api/v1/employees/documents/upload", documentH.Upload)
+				r.Get("/api/v1/employees/documents", documentH.List)
+				r.Get("/api/v1/employees/documents/{id}/download", documentH.Download)
+				r.Delete("/api/v1/employees/documents/{id}", documentH.Delete)
+				r.Put("/api/v1/employees/documents/{id}/verify", documentH.Verify)
 			})
 
 			// Employee+ — Employee read + org chart + self-service

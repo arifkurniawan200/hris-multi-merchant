@@ -637,6 +637,58 @@ type NotificationUseCase interface {
 	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 }
 
+// ── Employee Document ────────────────────────────
+
+type DocumentType string
+
+const (
+	DocKTP         DocumentType = "ktp"
+	DocNPWP        DocumentType = "npwp"
+	DocBPJSHealth  DocumentType = "bpjs_health"
+	DocBPJSLabor   DocumentType = "bpjs_labor"
+	DocIjazah      DocumentType = "ijazah"
+	DocCertificate DocumentType = "certificate"
+	DocContract    DocumentType = "contract"
+	DocOther       DocumentType = "other"
+)
+
+type EmployeeDocument struct {
+	ID           string     `json:"id"`
+	EmployeeID   string     `json:"employee_id"`
+	TenantID     string     `json:"tenant_id"`
+	DocumentType string     `json:"document_type"`
+	DocumentName string     `json:"document_name"`
+	FileName     string     `json:"file_name"`
+	FileSize     int64      `json:"file_size"`
+	MimeType     string     `json:"mime_type"`
+	FilePath     string     `json:"file_path"`
+	Notes        string     `json:"notes"`
+	UploadedBy   string     `json:"uploaded_by"`
+	IsVerified   bool       `json:"is_verified"`
+	VerifiedBy   *string    `json:"verified_by,omitempty"`
+	VerifiedAt   *time.Time `json:"verified_at,omitempty"`
+	ExpiresAt    *string    `json:"expires_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+}
+
+type EmployeeDocumentRepository interface {
+	Create(ctx context.Context, doc *EmployeeDocument) error
+	GetByID(ctx context.Context, id string) (*EmployeeDocument, error)
+	ListByEmployee(ctx context.Context, tenantID, employeeID string) ([]EmployeeDocument, error)
+	SoftDelete(ctx context.Context, id string) error
+	Verify(ctx context.Context, id, verifiedBy string) error
+}
+
+type EmployeeDocumentUseCase interface {
+	Upload(ctx context.Context, req *UploadDocumentRequest, fileBytes []byte, fileName, mimeType string) (*EmployeeDocument, error)
+	List(ctx context.Context, tenantID, employeeID string) ([]EmployeeDocument, error)
+	Get(ctx context.Context, id, tenantID string) (*EmployeeDocument, error)
+	Delete(ctx context.Context, id string) error
+	Verify(ctx context.Context, id, verifiedBy string) error
+}
+
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}

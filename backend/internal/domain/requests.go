@@ -235,3 +235,19 @@ type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required,min=8"`
 	NewPassword     string `json:"new_password" validate:"required,min=8"`
 }
+
+// ── Employee Document request DTOs ─────────────────
+
+type UploadDocumentRequest struct {
+	EmployeeID   string  `json:"employee_id" validate:"required,uuid"`
+	TenantID     string  `json:"tenant_id" validate:"required,uuid"`
+	DocumentType string  `json:"document_type" validate:"required,oneof=ktp npwp bpjs_health bpjs_labor ijazah certificate contract other"`
+	DocumentName string  `json:"document_name"`
+	Notes        string  `json:"notes"`
+	UploadedBy   string  `json:"-"` // set by handler
+	ExpiresAt    *string `json:"expires_at,omitempty"`
+}
+
+type DocumentListResult struct {
+	Data []EmployeeDocument `json:"data"`
+}

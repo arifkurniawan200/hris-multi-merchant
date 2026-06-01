@@ -15,6 +15,13 @@ type Config struct {
 	Plans      PlansConfig      `yaml:"plans"`
 	Attendance AttendanceConfig `yaml:"attendance"`
 	Leave      LeaveConfig      `yaml:"leave"`
+	Storage    StorageConfig    `yaml:"storage"`
+}
+
+// ── Storage defaults ─────────────────────────────
+
+type StorageConfig struct {
+	UploadDir string `yaml:"upload_dir"`
 }
 
 type DatabaseConfig struct {
@@ -113,6 +120,9 @@ func Load() *Config {
 		Leave: LeaveConfig{
 			DefaultAnnualDays:    12,
 			AllowNegativeBalance: false,
+		},
+		Storage: StorageConfig{
+			UploadDir: getEnv("UPLOAD_DIR", "./uploads"),
 		},
 	}
 
