@@ -86,7 +86,7 @@ export default function LeaveHistoryPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {leaves.length === 0 ? (
+          {(leaves ?? []).length === 0 ? (
             <div className="text-center py-12 text-[var(--muted-foreground)]">
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">No leave requests found</p>
@@ -175,7 +175,7 @@ export default function LeaveHistoryPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((p) => p + 1)}
-                    disabled={leaves.length < limit}
+                    disabled={(leaves?.length ?? 0) < limit}
                   >
                     Next <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>

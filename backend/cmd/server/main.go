@@ -59,6 +59,7 @@ func main() {
 	leaveRequestRepo := repository.NewLeaveRequestRepo(dbpool)
 	notificationRepo := repository.NewNotificationRepo(dbpool)
 	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
+	overtimeRepo := repository.NewOvertimeRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -71,6 +72,7 @@ func main() {
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
+	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -89,6 +91,7 @@ func main() {
 	leaveH := handler.NewLeaveHandler(leaveUC)
 	notificationH := handler.NewNotificationHandler(notificationUC)
 	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
+	overtimeH := handler.NewOvertimeHandler(overtimeUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -213,9 +216,13 @@ func main() {
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
 				r.Get("/api/v1/leaves/balance", leaveH.Balance)
 				r.Put("/api/v1/leaves/{id}/cancel", leaveH.CancelLeave)
+
+				// Overtime routes (employee+)
+				r.Post("/api/v1/overtime", overtimeH.SubmitOvertime)
+				r.Get("/api/v1/overtime", overtimeH.MyOvertime)
 			})
 
-			// Manager+ — Attendance report
+			// Manager+ — Attendance report, Leave Management, Overtime approvals
 			r.Group(func(r chi.Router) {
 				r.Use(rbManager)
 				r.Get("/api/v1/attendance/report", attendanceH.Report)
@@ -228,6 +235,11 @@ func main() {
 				r.Get("/api/v1/leaves", leaveH.ListAllLeaves)
 				r.Put("/api/v1/leaves/{id}/approve", leaveH.ApproveLeave)
 				r.Put("/api/v1/leaves/{id}/reject", leaveH.RejectLeave)
+
+				// Overtime Management (manager+)
+				r.Get("/api/v1/overtime/pending", overtimeH.ListPendingOvertime)
+				r.Put("/api/v1/overtime/{id}/approve", overtimeH.ApproveOvertime)
+				r.Put("/api/v1/overtime/{id}/reject", overtimeH.RejectOvertime)
 			})
 		})
 

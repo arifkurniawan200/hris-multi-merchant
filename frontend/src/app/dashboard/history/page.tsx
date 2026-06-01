@@ -49,8 +49,8 @@ export default function HistoryPage() {
       const data = await api.get<HistoryResponse>(
         `/api/v1/attendance/history?limit=${limit}&offset=${currentOffset}`
       );
-      setRecords(data.records || []);
-      setTotal(data.total || 0);
+      setRecords((data as HistoryResponse)?.records || []);
+      setTotal((data as HistoryResponse)?.total || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load history');
     } finally {

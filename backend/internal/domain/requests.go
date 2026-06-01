@@ -180,7 +180,26 @@ type RejectLeaveRequest struct {
 	Reason     string `json:"reason" validate:"required,min=10"`
 }
 
-// ── Forgot / Reset Password ─────────────────────
+// ── Overtime request DTOs ─────────────────────────
+
+type SubmitOvertimeRequest struct {
+	TenantID   string  `json:"tenant_id" validate:"required,uuid"`
+	UserID     string  `json:"-"` // set by handler from JWT
+	Date       string  `json:"date" validate:"required"`
+	StartTime  string  `json:"start_time" validate:"required"`
+	EndTime    string  `json:"end_time" validate:"required"`
+	TotalHours float64 `json:"total_hours" validate:"required,min=0.5"`
+	Reason     string  `json:"reason" validate:"required,min=5"`
+}
+
+type ApproveOvertimeRequest struct {
+	ReviewedBy string `json:"-"` // set by handler
+}
+
+type RejectOvertimeRequest struct {
+	ReviewedBy string `json:"-"`                             // set by handler
+	Reason     string `json:"reason" validate:"required,min=5"`
+}
 
 type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email"`
