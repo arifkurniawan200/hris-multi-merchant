@@ -327,3 +327,46 @@ func (r *EmployeeRepo) UpdateStatus(ctx context.Context, id, status string) erro
 		id, status)
 	return err
 }
+
+// BulkCreate inserts multiple employees in a loop with proper IDs and timestamps.
+func (r *EmployeeRepo) BulkCreate(ctx context.Context, employees []domain.Employee) error {
+	query := `
+		INSERT INTO employees (
+			id, tenant_id, user_id, employee_code, first_name, last_name,
+			gender, birth_date, birth_place, email, phone, address,
+			department_id, position_id, manager_id,
+			employment_status, employment_type, join_date,
+			resign_date, contract_start, contract_end,
+			national_id, tax_id, bpjs_health, bpjs_labor,
+			base_salary, bank_name, bank_account,
+			custom_fields, notes,
+			created_at, updated_at
+		) VALUES (
+			$1,$2,$3,$4,$5,$6,
+			NULLIF($7,''), NULLIF($8,'')::date, $9, $10, $11, $12,
+			$13, $14, $15,
+			$16, $17, $18::date,
+			NULLIF($19,'')::date, NULLIF($20,'')::date, NULLIF($21,'')::date,
+			$22, $23, $24, $25,
+			$26, $27, $28,
+			COALESCE($29, '{}'::jsonb), $30,
+			NOW(), NOW()
+		)
+	`
+	for _, e := range employees {
+		_, err := r.dbQuerier(ctx).Exec(ctx, query,
+			e.ID, e.TenantID, e.UserID, e.EmployeeCode, e.FirstName, e.LastName,
+			e.Gender, e.BirthDate, e.BirthPlace, e.Email, e.Phone, e.Address,
+			e.DepartmentID, e.PositionID, e.ManagerID,
+			e.EmploymentStatus, e.EmploymentType, e.JoinDate,
+			e.ResignDate, e.ContractStart, e.ContractEnd,
+			e.NationalID, e.TaxID, e.BPJSHealth, e.BPJSLabor,
+			e.BaseSalary, e.BankName, e.BankAccount,
+			e.CustomFields, e.Notes,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

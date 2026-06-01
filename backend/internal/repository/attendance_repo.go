@@ -210,3 +210,38 @@ func (r *AttendanceRepo) CountByTenant(ctx context.Context, tenantID string, clo
 	err := r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, clockDate).Scan(&count)
 	return count, err
 }
+
+// ListByTenantDateRange returns attendance records within a date range, joined with employee info.
+func (r *AttendanceRepo) ListByTenantDateRange(ctx context.Context, tenantID string, dateFrom, dateTo string) ([]domain.Attendance, error) {
+	query := `SELECT ` + attJoinColumns + ` FROM attendances a ` + attJoins +
+		` WHERE a.tenant_id=$1 AND a.clock_date >= $2::date AND a.clock_date <= $3::date AND a.deleted_at IS NULL
+		ORDER BY a.clock_date, e.first_name`
+
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, tenantID, dateFrom, dateTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var attendances []domain.Attendance
+	for rows.Next() {
+		var a domain.Attendance
+		var deletedAt *time.Time
+		var clockOut *time.Time
+
+		if err := rows.Scan(
+			&a.ID, &a.EmployeeID, &a.TenantID, &a.ClockIn, &clockOut,
+			&a.ClockDate, &a.Status, &a.Notes,
+			&a.Latitude, &a.Longitude, &a.SelfieURL,
+			&a.CreatedAt, &a.UpdatedAt, &deletedAt,
+			&a.EmployeeName, &a.EmployeeCode,
+		); err != nil {
+			return nil, err
+		}
+
+		a.ClockOut = clockOut
+		a.DeletedAt = deletedAt
+		attendances = append(attendances, a)
+	}
+	return attendances, rows.Err()
+}

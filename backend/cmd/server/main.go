@@ -181,6 +181,7 @@ func main() {
 
 				// Employee write (manager+)
 				r.Post("/api/v1/employees", empH.Create)
+				r.Post("/api/v1/employees/import", empH.ImportEmployees)
 				r.Put("/api/v1/employees/{id}", empH.Update)
 				r.Delete("/api/v1/employees/{id}", empH.Delete)
 				r.Put("/api/v1/employees/{id}/status", empH.ChangeStatus)
@@ -190,6 +191,9 @@ func main() {
 				r.Get("/api/v1/employees/{id}/shifts", shiftH.ListEmployeeShifts)
 				r.Put("/api/v1/employees/{id}/shifts/{sid}", shiftH.UpdateAssignment)
 				r.Delete("/api/v1/employees/{id}/shifts/{sid}", shiftH.RemoveAssignment)
+
+				// Shift assignments overview (all assignments across tenant)
+				r.Get("/api/v1/shift-assignments", shiftH.ListAllAssignments)
 			})
 
 			// Employee+ — Employee read + org chart + self-service
@@ -231,6 +235,7 @@ func main() {
 			r.Group(func(r chi.Router) {
 				r.Use(rbManager)
 				r.Get("/api/v1/attendance/report", attendanceH.Report)
+				r.Get("/api/v1/attendance/export", attendanceH.Export)
 
 				// Leave Management (manager+)
 				r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)

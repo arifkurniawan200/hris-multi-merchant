@@ -211,6 +211,19 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
+// ── Bulk Import ─────────────────────────────────────
+
+type BulkImportResult struct {
+	Total    int           `json:"total"`
+	Imported int           `json:"imported"`
+	Errors   []ImportError `json:"errors"`
+}
+
+type ImportError struct {
+	Row     int    `json:"row"`
+	Message string `json:"message"`
+}
+
 // ── Profile request DTOs ──────────────────────────
 
 type UpdateProfileRequest struct {

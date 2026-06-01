@@ -205,6 +205,25 @@ func (uc *AttendanceUC) ClockOut(ctx context.Context, req *domain.ClockOutReques
 	return uc.attendanceRepo.GetByID(ctx, attendance.ID)
 }
 
+// GetReportExport returns attendance records for a date range without pagination.
+func (uc *AttendanceUC) GetReportExport(ctx context.Context, tenantID, dateFrom, dateTo string) ([]domain.Attendance, error) {
+	if dateFrom == "" || dateTo == "" {
+		return nil, domain.NewValidation("date_from and date_to are required")
+	}
+
+	attendances, err := uc.attendanceRepo.ListByTenantDateRange(ctx, tenantID, dateFrom, dateTo)
+	if err != nil {
+		logger.Error(ctx, "get attendance export failed",
+			"tenant_id", tenantID,
+			"date_from", dateFrom,
+			"date_to", dateTo,
+			"error", err)
+		return nil, domain.NewInternal("failed to export attendance")
+	}
+
+	return attendances, nil
+}
+
 // ── Helper: detect status ───────────────────────────
 
 // detectStatus determines the attendance status based on clock-in time and shift.

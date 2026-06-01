@@ -1,13 +1,19 @@
 package handler
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/response"
+	"github.com/xuri/excelize/v2"
 )
 
 // ── Department Handler ──────────────────────────
@@ -621,4 +627,191 @@ func (h *EmployeeHandler) OrgChart(w http.ResponseWriter, r *http.Request) {
 		"departments":    nodes,
 		"total_employees": empResult.Total,
 	}, reqID)
+}
+
+// ── Bulk Import ─────────────────────────────────
+
+func parseInt64(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+// parseImportRow parses a map of column→value into a CreateEmployeeRequest.
+func parseImportRow(cols map[string]string, rowNum int) (*domain.CreateEmployeeRequest, []string) {
+	var errs []string
+
+	req := &domain.CreateEmployeeRequest{
+		EmployeeCode:     strings.TrimSpace(cols["employee_code"]),
+		FirstName:        strings.TrimSpace(cols["first_name"]),
+		LastName:         strings.TrimSpace(cols["last_name"]),
+		Gender:           strings.TrimSpace(cols["gender"]),
+		BirthPlace:       strings.TrimSpace(cols["birth_place"]),
+		Email:            strings.TrimSpace(cols["email"]),
+		Phone:            strings.TrimSpace(cols["phone"]),
+		Address:          strings.TrimSpace(cols["address"]),
+		EmploymentStatus: strings.TrimSpace(cols["employment_status"]),
+		EmploymentType:   strings.TrimSpace(cols["employment_type"]),
+		JoinDate:         strings.TrimSpace(cols["join_date"]),
+		NationalID:       strings.TrimSpace(cols["national_id"]),
+		TaxID:            strings.TrimSpace(cols["tax_id"]),
+		BPJSHealth:       strings.TrimSpace(cols["bpjs_health"]),
+		BPJSLabor:        strings.TrimSpace(cols["bpjs_labor"]),
+		BankName:         strings.TrimSpace(cols["bank_name"]),
+		BankAccount:      strings.TrimSpace(cols["bank_account"]),
+		Notes:            strings.TrimSpace(cols["notes"]),
+		BaseSalary:       parseInt64(cols["base_salary"]),
+	}
+
+	if bd := strings.TrimSpace(cols["birth_date"]); bd != "" {
+		req.BirthDate = &bd
+	}
+	if dc := strings.TrimSpace(cols["department_code"]); dc != "" {
+		req.DepartmentID = &dc
+	}
+	if pc := strings.TrimSpace(cols["position_code"]); pc != "" {
+		req.PositionID = &pc
+	}
+
+	return req, errs
+}
+
+func (h *EmployeeHandler) ImportEmployees(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
+	// Parse multipart form — max 32MB
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Failed to parse multipart form", reqID)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing file field 'file'", reqID)
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	var employees []*domain.CreateEmployeeRequest
+
+	switch ext {
+	case ".csv":
+		employees, err = h.parseCSV(file)
+	case ".xlsx":
+		employees, err = h.parseXLSX(file)
+	default:
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody,
+			"Unsupported file format. Use .csv or .xlsx", reqID)
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, err.Error(), reqID)
+		return
+	}
+
+	result, err := h.uc.BulkImport(r.Context(), tenantID, employees)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Import completed", result, reqID)
+}
+
+// parseCSV reads a CSV file and returns employee requests.
+func (h *EmployeeHandler) parseCSV(r io.Reader) ([]*domain.CreateEmployeeRequest, error) {
+	reader := csv.NewReader(r)
+	reader.TrimLeadingSpace = true
+	reader.LazyQuotes = true
+
+	// Read header row
+	headers, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV header: %v", err)
+	}
+
+	// Normalize header names
+	headerMap := make(map[string]int)
+	for i, h := range headers {
+		headerMap[strings.TrimSpace(strings.ToLower(h))] = i
+	}
+
+	var employees []*domain.CreateEmployeeRequest
+	lineNum := 2 // data starts at line 2
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("CSV parse error at line %d: %v", lineNum, err)
+		}
+
+		cols := make(map[string]string)
+		for colName, idx := range headerMap {
+			if idx < len(record) {
+				cols[colName] = record[idx]
+			}
+		}
+
+		req, _ := parseImportRow(cols, lineNum)
+		employees = append(employees, req)
+		lineNum++
+	}
+
+	return employees, nil
+}
+
+// parseXLSX reads an XLSX file and returns employee requests.
+func (h *EmployeeHandler) parseXLSX(r io.Reader) ([]*domain.CreateEmployeeRequest, error) {
+	f, err := excelize.OpenReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open XLSX: %v", err)
+	}
+	defer f.Close()
+
+	sheet := f.GetSheetName(0)
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read XLSX sheet: %v", err)
+	}
+
+	if len(rows) < 2 {
+		return nil, fmt.Errorf("XLSX file must have a header row and at least one data row")
+	}
+
+	// Normalize header names
+	headers := rows[0]
+	headerMap := make(map[string]int)
+	for i, h := range headers {
+		headerMap[strings.TrimSpace(strings.ToLower(h))] = i
+	}
+
+	var employees []*domain.CreateEmployeeRequest
+	for rowNum := 1; rowNum < len(rows); rowNum++ {
+		record := rows[rowNum]
+		cols := make(map[string]string)
+		for colName, idx := range headerMap {
+			if idx < len(record) {
+				cols[colName] = strings.TrimSpace(record[idx])
+			}
+		}
+
+		req, _ := parseImportRow(cols, rowNum+1)
+		employees = append(employees, req)
+	}
+
+	return employees, nil
 }

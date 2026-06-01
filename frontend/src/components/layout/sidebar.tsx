@@ -22,6 +22,8 @@ import {
   UserCircle,
   Users,
   Building2,
+  Upload,
+  Download,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -104,6 +106,18 @@ export function Sidebar() {
       label: 'Tenant Settings',
       icon: Building2,
       roles: ['tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/employees/import',
+      label: 'Bulk Import',
+      icon: Upload,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/attendance/export',
+      label: 'Export Report',
+      icon: Download,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
       href: '/manager/report',

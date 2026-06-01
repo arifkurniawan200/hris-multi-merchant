@@ -250,6 +250,7 @@ type AttendanceRepository interface {
 	UpdateClockOut(ctx context.Context, id string, clockOut time.Time, notes string) error
 	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]Attendance, error)
 	ListByTenant(ctx context.Context, tenantID string, clockDate string, limit, offset int) ([]Attendance, error)
+	ListByTenantDateRange(ctx context.Context, tenantID string, dateFrom, dateTo string) ([]Attendance, error)
 	CountByTenant(ctx context.Context, tenantID string, clockDate string) (int, error)
 }
 
@@ -258,6 +259,7 @@ type AttendanceUseCase interface {
 	ClockOut(ctx context.Context, req *ClockOutRequest) (*Attendance, error)
 	GetHistory(ctx context.Context, userID string, limit, offset int) ([]Attendance, error)
 	GetReport(ctx context.Context, tenantID string, clockDate string, limit, offset int) (*AttendanceReport, error)
+	GetReportExport(ctx context.Context, tenantID, dateFrom, dateTo string) ([]Attendance, error)
 }
 
 type AttendanceReport struct {
@@ -417,6 +419,7 @@ type EmployeeListResult struct {
 
 type EmployeeRepository interface {
 	Create(ctx context.Context, e *Employee) error
+	BulkCreate(ctx context.Context, employees []Employee) error
 	GetByID(ctx context.Context, id string) (*Employee, error)
 	GetByUserID(ctx context.Context, tenantID, userID string) (*Employee, error)
 	GetByCode(ctx context.Context, tenantID, code string) (*Employee, error)
@@ -429,6 +432,7 @@ type EmployeeRepository interface {
 
 type EmployeeUseCase interface {
 	Create(ctx context.Context, req *CreateEmployeeRequest) (*Employee, error)
+	BulkImport(ctx context.Context, tenantID string, employees []*CreateEmployeeRequest) (*BulkImportResult, error)
 	Get(ctx context.Context, id string) (*Employee, error)
 	Update(ctx context.Context, e *Employee) error
 	List(ctx context.Context, tenantID string, filter EmployeeFilter) (*EmployeeListResult, error)

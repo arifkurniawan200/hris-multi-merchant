@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
@@ -110,6 +111,155 @@ func (uc *EmployeeUC) Create(ctx context.Context, req *domain.CreateEmployeeRequ
 
 	// Return with joined fields
 	return uc.empRepo.GetByID(ctx, e.ID)
+}
+
+// BulkImport validates and imports multiple employees at once.
+func (uc *EmployeeUC) BulkImport(ctx context.Context, tenantID string, employees []*domain.CreateEmployeeRequest) (*domain.BulkImportResult, error) {
+	result := &domain.BulkImportResult{
+		Total:  len(employees),
+		Errors: []domain.ImportError{},
+	}
+
+	// Track seen codes within this batch to detect intra-batch duplicates
+	seenCodes := make(map[string]bool)
+
+	var toInsert []domain.Employee
+
+	for i, req := range employees {
+		rowNum := i + 2 // row 1 is header, data starts at row 2
+
+		// Skip if duplicate code in same batch
+		if seenCodes[req.EmployeeCode] {
+			result.Errors = append(result.Errors, domain.ImportError{
+				Row:     rowNum,
+				Message: fmt.Sprintf("duplicate employee_code in import: %s", req.EmployeeCode),
+			})
+			continue
+		}
+
+		// Check for existing employee with same code
+		existing, _ := uc.empRepo.GetByCode(ctx, tenantID, req.EmployeeCode)
+		if existing != nil {
+			result.Errors = append(result.Errors, domain.ImportError{
+				Row:     rowNum,
+				Message: fmt.Sprintf("employee_code already exists: %s", req.EmployeeCode),
+			})
+			continue
+		}
+
+		// Look up department by code within tenant
+		if req.DepartmentID != nil && *req.DepartmentID != "" {
+			dept, err := uc.deptRepo.GetByCode(ctx, tenantID, *req.DepartmentID)
+			if err != nil {
+				code := *req.DepartmentID
+				result.Errors = append(result.Errors, domain.ImportError{
+					Row:     rowNum,
+					Message: fmt.Sprintf("department_code not found: %s", code),
+				})
+				continue
+			}
+			req.DepartmentID = &dept.ID
+		}
+
+		// Look up position by code within tenant
+		if req.PositionID != nil && *req.PositionID != "" {
+			pos, err := uc.posRepo.GetByCode(ctx, tenantID, *req.PositionID)
+			if err != nil {
+				code := *req.PositionID
+				result.Errors = append(result.Errors, domain.ImportError{
+					Row:     rowNum,
+					Message: fmt.Sprintf("position_code not found: %s", code),
+				})
+				continue
+			}
+			req.PositionID = &pos.ID
+		}
+
+		// Auto-link user_id by email
+		var userID *string
+		if u, err := uc.userRepo.GetByEmail(ctx, req.Email); err == nil && u != nil {
+			userID = &u.ID
+		}
+
+		// Validate required fields
+		var validationErrors []string
+		if req.EmployeeCode == "" {
+			validationErrors = append(validationErrors, "employee_code is required")
+		}
+		if req.FirstName == "" {
+			validationErrors = append(validationErrors, "first_name is required")
+		}
+		if req.Email == "" {
+			validationErrors = append(validationErrors, "email is required")
+		}
+		if req.EmploymentStatus == "" {
+			validationErrors = append(validationErrors, "employment_status is required")
+		}
+		if req.EmploymentType == "" {
+			validationErrors = append(validationErrors, "employment_type is required")
+		}
+		if req.JoinDate == "" {
+			validationErrors = append(validationErrors, "join_date is required")
+		}
+		if len(validationErrors) > 0 {
+			result.Errors = append(result.Errors, domain.ImportError{
+				Row:     rowNum,
+				Message: fmt.Sprintf("validation: %s", strings.Join(validationErrors, "; ")),
+			})
+			continue
+		}
+
+		e := domain.Employee{
+			ID:               uuid.New().String(),
+			TenantID:         tenantID,
+			UserID:           userID,
+			EmployeeCode:     req.EmployeeCode,
+			FirstName:        req.FirstName,
+			LastName:         req.LastName,
+			Gender:           req.Gender,
+			BirthDate:        req.BirthDate,
+			BirthPlace:       req.BirthPlace,
+			Email:            req.Email,
+			Phone:            req.Phone,
+			Address:          req.Address,
+			DepartmentID:     req.DepartmentID,
+			PositionID:       req.PositionID,
+			ManagerID:        req.ManagerID,
+			EmploymentStatus: req.EmploymentStatus,
+			EmploymentType:   req.EmploymentType,
+			JoinDate:         req.JoinDate,
+			NationalID:       req.NationalID,
+			TaxID:            req.TaxID,
+			BPJSHealth:       req.BPJSHealth,
+			BPJSLabor:        req.BPJSLabor,
+			BaseSalary:       req.BaseSalary,
+			BankName:         req.BankName,
+			BankAccount:      req.BankAccount,
+			Notes:            req.Notes,
+			CustomFields:     domain.JSONB{},
+		}
+		if e.CustomFields == nil {
+			e.CustomFields = domain.JSONB{}
+		}
+
+		seenCodes[req.EmployeeCode] = true
+		toInsert = append(toInsert, e)
+		result.Imported++
+	}
+
+	if len(toInsert) > 0 {
+		if err := uc.empRepo.BulkCreate(ctx, toInsert); err != nil {
+			return nil, domain.NewInternal(fmt.Sprintf("bulk create employees: %v", err))
+		}
+	}
+
+	logger.Info(ctx, "bulk employee import completed",
+		"tenant_id", tenantID,
+		"total", result.Total,
+		"imported", result.Imported,
+		"errors", len(result.Errors))
+
+	return result, nil
 }
 
 func (uc *EmployeeUC) Get(ctx context.Context, id string) (*domain.Employee, error) {
