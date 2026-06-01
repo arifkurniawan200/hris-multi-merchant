@@ -167,6 +167,53 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, "Success", user, reqID)
 }
 
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "Unauthorized", reqID)
+		return
+	}
+
+	var req domain.UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	user, err := h.userUC.UpdateProfile(r.Context(), userID, &req)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Profile updated successfully", user, reqID)
+}
+
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "Unauthorized", reqID)
+		return
+	}
+
+	var req domain.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	if err := h.userUC.ChangePassword(r.Context(), userID, &req); err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Password changed successfully", nil, reqID)
+}
+
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 

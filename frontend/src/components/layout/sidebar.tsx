@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   List,
   ArrowLeftRight,
+  UserCircle,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -100,6 +101,11 @@ export function Sidebar() {
       label: 'All Leaves',
       icon: List,
       roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/dashboard/profile',
+      label: 'Profile',
+      icon: UserCircle,
     },
   ];
 

@@ -209,3 +209,15 @@ type ResetPasswordRequest struct {
 	Token    string `json:"token" validate:"required"`
 	Password string `json:"password" validate:"required,min=8"`
 }
+
+// ── Profile request DTOs ──────────────────────────
+
+type UpdateProfileRequest struct {
+	FullName string `json:"full_name" validate:"required,min=2"`
+	Phone    string `json:"phone"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required,min=8"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
