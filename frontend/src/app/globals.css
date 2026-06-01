@@ -2,10 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.cdnfonts.com/s/19795/Inter_18pt-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.cdnfonts.com/s/19795/Inter_18pt-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.cdnfonts.com/s/19795/Inter_18pt-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.cdnfonts.com/s/19795/Inter_18pt-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @layer base {
   * {
     word-wrap: break-word;
-    overflow-wrap: break-word;
+    word-break: break-word;
   }
   :root {
     --background: #ffffff;
@@ -15,7 +46,7 @@
     --secondary: #f1f5f9;
     --secondary-foreground: #1e293b;
     --muted: #f8fafc;
-    --muted-foreground: #64748b;
+    --muted-foreground: #5b6778;
     --accent: #ede9fe;
     --accent-foreground: #4c1d95;
     --card: #ffffff;
@@ -50,8 +81,127 @@
     scroll-behavior: smooth;
   }
   body {
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--background);
     color: var(--foreground);
   }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ── Animations ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dialog-overlay-show {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-content-show {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.35s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Card hover effect ── */
+.card-hover {
+  transition: all 0.2s ease-out;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -8px rgba(79, 70, 229, 0.15);
+  border-color: var(--primary);
+}
+
+/* ── Sidebar item glow ── */
+.sidebar-item {
+  position: relative;
+  transition: all 0.2s ease-out;
+}
+.sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 60%;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
+  transition: transform 0.2s ease-out;
+}
+.sidebar-item:hover::before,
+.sidebar-item.active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+.sidebar-item:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* ── Stagger animation for children ── */
+.stagger-children > * {
+  opacity: 0;
+  animation: slide-up 0.35s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+
+/* ── Button press effect ── */
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* ── Gradient accent glow (for active sidebar / stat cards) ── */
+.glow-primary {
+  box-shadow: 0 0 12px -2px rgba(79, 70, 229, 0.25);
+}
+
+/* ── Content entrance per section ── */
+.section-entrance {
+  opacity: 0;
+  animation: slide-up 0.4s ease-out forwards;
 }

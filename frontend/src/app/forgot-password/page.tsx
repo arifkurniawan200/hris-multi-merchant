@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('forgotPassword');
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,13 +32,13 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md card-hover transition-all duration-200">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Forgot Password</CardTitle>
+          <CardTitle className="text-2xl">{t('title')}</CardTitle>
           <CardDescription>
             {submitted
-              ? 'Check your email for the reset link'
-              : "Enter your email and we'll send you a reset link"}
+              ? t('checkEmail')
+              : t('description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -51,13 +53,13 @@ export default function ForgotPasswordPage() {
                 className="inline-flex items-center text-sm text-primary hover:underline"
               >
                 <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to login
+                {t('backToLogin')}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
+                <label htmlFor="email" className="text-sm font-medium">{t('email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -73,16 +75,16 @@ export default function ForgotPasswordPage() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-red-600 animate-slide-up">{error}</p>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Sending...' : 'Send Reset Link'}
+              <Button type="submit" className="w-full active:scale-95 transition-all duration-200" disabled={loading}>
+                {loading ? t('sending') : t('sendLink')}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
                 <Link href="/login" className="text-primary hover:underline">
-                  Back to login
+                  {t('backToLogin')}
                 </Link>
               </p>
             </form>
