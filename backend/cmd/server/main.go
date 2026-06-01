@@ -138,6 +138,8 @@ func main() {
 
 		// Current user
 		r.Get("/api/v1/auth/me", authH.Me)
+		r.Put("/api/v1/auth/me/profile", authH.UpdateProfile)
+		r.Put("/api/v1/auth/me/password", authH.ChangePassword)
 
 		// Tenant-scoped routes
 		r.Group(func(r chi.Router) {

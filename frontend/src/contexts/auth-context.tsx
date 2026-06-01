@@ -19,6 +19,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  setUser: (user: User | null) => void;
 }
 
 interface LoginResponse {
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!token && !!user,
         login,
         logout,
+        setUser,
       }}
     >
       {children}

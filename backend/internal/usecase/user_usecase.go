@@ -224,3 +224,55 @@ func (uc *UserUC) ResetPassword(ctx context.Context, token, password string) err
 	logger.Info(ctx, "password reset successful", "user_id", stored.UserID)
 	return nil
 }
+
+func (uc *UserUC) UpdateProfile(ctx context.Context, userID string, req *domain.UpdateProfileRequest) (*domain.User, error) {
+	if err := Validate().Struct(req); err != nil {
+		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
+	}
+
+	user, err := uc.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, domain.NewNotFound("user not found")
+	}
+
+	user.FullName = req.FullName
+	user.Phone = req.Phone
+
+	if err := uc.userRepo.Update(ctx, user); err != nil {
+		logger.Error(ctx, "update profile failed", "user_id", userID, "error", err)
+		return nil, domain.NewInternal(fmt.Sprintf("update profile: %v", err))
+	}
+
+	logger.Info(ctx, "profile updated", "user_id", userID)
+	user.PasswordHash = ""
+	return user, nil
+}
+
+func (uc *UserUC) ChangePassword(ctx context.Context, userID string, req *domain.ChangePasswordRequest) error {
+	if err := Validate().Struct(req); err != nil {
+		return domain.NewValidation(fmt.Sprintf("validation: %v", err))
+	}
+
+	user, err := uc.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.NewNotFound("user not found")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return domain.NewValidation("current password is incorrect")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), 12)
+	if err != nil {
+		logger.Error(ctx, "hash password failed", "error", err)
+		return domain.NewInternal(fmt.Sprintf("hash password: %v", err))
+	}
+
+	if err := uc.userRepo.UpdatePassword(ctx, userID, string(hash)); err != nil {
+		logger.Error(ctx, "change password failed", "user_id", userID, "error", err)
+		return domain.NewInternal(fmt.Sprintf("change password: %v", err))
+	}
+
+	logger.Info(ctx, "password changed", "user_id", userID)
+	return nil
+}

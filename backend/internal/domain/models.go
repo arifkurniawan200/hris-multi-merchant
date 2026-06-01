@@ -79,6 +79,8 @@ type UserUseCase interface {
 	FindUserTenant(ctx context.Context, userID string) (tenantID string, role UserTenantRole, err error)
 	ForgotPassword(ctx context.Context, email string) (string, error)
 	ResetPassword(ctx context.Context, token, password string) error
+	UpdateProfile(ctx context.Context, userID string, req *UpdateProfileRequest) (*User, error)
+	ChangePassword(ctx context.Context, userID string, req *ChangePasswordRequest) error
 }
 
 // ── Password Reset Token ─────────────────────────
