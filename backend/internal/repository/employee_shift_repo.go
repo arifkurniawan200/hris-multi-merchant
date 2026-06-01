@@ -206,3 +206,42 @@ func (r *EmployeeShiftRepo) SoftDelete(ctx context.Context, id string) error {
 		id)
 	return err
 }
+
+func (r *EmployeeShiftRepo) ListAllByTenant(ctx context.Context, tenantID string) ([]domain.EmployeeShift, error) {
+	query := `SELECT ` + empShiftJoinColumns + `,
+		COALESCE(e.first_name || ' ' || COALESCE(e.last_name, ''), ''),
+		COALESCE(e.employee_code, '')
+	FROM employee_shifts es
+	` + empShiftJoins + `
+	LEFT JOIN employees e ON e.id = es.employee_id AND e.deleted_at IS NULL
+	WHERE es.tenant_id=$1 AND es.deleted_at IS NULL
+	ORDER BY e.first_name ASC, es.effective_from DESC`
+
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var assignments []domain.EmployeeShift
+	for rows.Next() {
+		var es domain.EmployeeShift
+		var effectiveTo *string
+		var deletedAt *time.Time
+		if err := rows.Scan(
+			&es.ID, &es.TenantID, &es.EmployeeID, &es.ShiftID,
+			&es.EffectiveFrom, &effectiveTo,
+			&es.CreatedAt, &es.UpdatedAt, &deletedAt,
+			&es.ShiftName, &es.ShiftCode, &es.StartTime, &es.EndTime,
+			&es.GraceMinutes, &es.ClockinWindowBefore, &es.ClockoutWindowAfter,
+			&es.IsFlexible,
+			&es.EmployeeName, &es.EmployeeCode,
+		); err != nil {
+			return nil, err
+		}
+		es.EffectiveTo = effectiveTo
+		es.DeletedAt = deletedAt
+		assignments = append(assignments, es)
+	}
+	return assignments, rows.Err()
+}

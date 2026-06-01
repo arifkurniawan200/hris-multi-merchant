@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   List,
   ArrowLeftRight,
+  Link2,
   UserCircle,
   Users,
   Building2,
@@ -90,6 +91,12 @@ export function Sidebar() {
       href: '/manager/shifts',
       label: 'Shift Management',
       icon: ArrowLeftRight,
+      roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    {
+      href: '/manager/shift-assignments',
+      label: 'Shift Assignments',
+      icon: Link2,
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
