@@ -990,3 +990,57 @@ type EmployeeDocumentUseCase interface {
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}
+
+// ── Shift Swap (Tukar Shift) ───────────────────
+
+type ShiftSwapStatus string
+
+const (
+	ShiftSwapPending   ShiftSwapStatus = "pending"
+	ShiftSwapApproved  ShiftSwapStatus = "approved"
+	ShiftSwapRejected  ShiftSwapStatus = "rejected"
+	ShiftSwapCancelled ShiftSwapStatus = "cancelled"
+)
+
+type ShiftSwap struct {
+	ID                  string          `json:"id"`
+	TenantID            string          `json:"tenant_id"`
+	RequesterEmployeeID string          `json:"requester_employee_id"`
+	RequesterDate       string          `json:"requester_date"`
+	TargetEmployeeID    string          `json:"target_employee_id"`
+	TargetDate          string          `json:"target_date"`
+	Status              ShiftSwapStatus `json:"status"`
+	Reason              string          `json:"reason,omitempty"`
+	RejectionReason     string          `json:"rejection_reason,omitempty"`
+	ReviewedBy          *string         `json:"reviewed_by,omitempty"`
+	ReviewedAt          *time.Time      `json:"reviewed_at,omitempty"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	DeletedAt           *time.Time      `json:"deleted_at,omitempty"`
+
+	// Joined fields
+	RequesterName string `json:"requester_name,omitempty"`
+	RequesterCode string `json:"requester_code,omitempty"`
+	TargetName    string `json:"target_name,omitempty"`
+	TargetCode    string `json:"target_code,omitempty"`
+}
+
+type ShiftSwapRepository interface {
+	Create(ctx context.Context, s *ShiftSwap) error
+	GetByID(ctx context.Context, id string) (*ShiftSwap, error)
+	ListByTenant(ctx context.Context, tenantID string, status *ShiftSwapStatus) ([]ShiftSwap, error)
+	ListByEmployee(ctx context.Context, employeeID string) ([]ShiftSwap, error)
+	ListPendingForManager(ctx context.Context, tenantID string) ([]ShiftSwap, error)
+	UpdateStatus(ctx context.Context, id string, status ShiftSwapStatus, reviewedBy, rejectionReason *string) error
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type ShiftSwapUseCase interface {
+	RequestSwap(ctx context.Context, req *CreateShiftSwapRequest) (*ShiftSwap, error)
+	Approve(ctx context.Context, id, managerEmployeeID string) (*ShiftSwap, error)
+	Reject(ctx context.Context, id, managerEmployeeID, reason string) (*ShiftSwap, error)
+	Cancel(ctx context.Context, id, requesterEmployeeID string) error
+	ListMyRequests(ctx context.Context, employeeID string) ([]ShiftSwap, error)
+	ListPendingForApproval(ctx context.Context, tenantID string) ([]ShiftSwap, error)
+	ListAll(ctx context.Context, tenantID string, status *ShiftSwapStatus) ([]ShiftSwap, error)
+}

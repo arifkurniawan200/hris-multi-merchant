@@ -77,6 +77,7 @@ func main() {
 	assetCatRepo := repository.NewAssetCategoryRepo(dbpool)
 	assetRepo := repository.NewAssetRepo(dbpool)
 	assetAssignRepo := repository.NewAssetAssignmentRepo(dbpool)
+	shiftSwapRepo := repository.NewShiftSwapRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -99,6 +100,7 @@ func main() {
 	announcementUC := usecase.NewAnnouncementUC(announcementRepo, empRepo, notificationRepo)
 	assetCatUC := usecase.NewAssetCategoryUC(assetCatRepo)
 	assetUC := usecase.NewAssetUC(assetRepo, assetAssignRepo, empRepo)
+	shiftSwapUC := usecase.NewShiftSwapUC(shiftSwapRepo, empShiftRepo, empRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -126,6 +128,7 @@ func main() {
 	rosterH := handler.NewRosterHandler(rosterUC)
 	announcementH := handler.NewAnnouncementHandler(announcementUC)
 	assetH := handler.NewAssetHandler(assetCatUC, assetUC)
+	shiftSwapH := handler.NewShiftSwapHandler(shiftSwapUC, empRepo)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -296,6 +299,11 @@ func main() {
 
 				// Assets self-service (employee+)
 				r.Get("/api/v1/assets/mine", assetH.MyAssets)
+
+				// Shift Swap — employee self-service
+				r.Post("/api/v1/shift-swaps", shiftSwapH.RequestSwap)
+				r.Get("/api/v1/shift-swaps/my", shiftSwapH.ListMySwaps)
+				r.Put("/api/v1/shift-swaps/{id}/cancel", shiftSwapH.Cancel)
 			})
 
 			// Manager+ — Attendance report, Leave Management, Overtime approvals
@@ -363,6 +371,12 @@ func main() {
 				r.Post("/api/v1/assets/{id}/assign", assetH.Assign)
 				r.Put("/api/v1/assets/assignments/{id}/return", assetH.ReturnAsset)
 				r.Get("/api/v1/assets/assignments", assetH.ListAssignments)
+
+				// Shift Swap — manager management
+				r.Get("/api/v1/shift-swaps/pending", shiftSwapH.ListPending)
+				r.Get("/api/v1/shift-swaps", shiftSwapH.ListAll)
+				r.Put("/api/v1/shift-swaps/{id}/approve", shiftSwapH.Approve)
+				r.Put("/api/v1/shift-swaps/{id}/reject", shiftSwapH.Reject)
 			})
 		})
 
