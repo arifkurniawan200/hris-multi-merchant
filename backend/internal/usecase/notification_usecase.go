@@ -34,13 +34,6 @@ func (uc *NotificationUC) getEmployeeName(ctx context.Context, employeeID uuid.U
 	return emp.FirstName + " " + emp.LastName
 }
 
-func (uc *NotificationUC) getUserNameByID(ctx context.Context, userID uuid.UUID) string {
-	// Try finding by employee → userID reverse lookup
-	// We don't have GetByUserID without tenantID, but we can get the employee
-	// For reviewer name, we rely on what's passed from the handler
-	return ""
-}
-
 // ── Manager lookup ────────────────────────────────
 
 // notifyManager finds the employee's manager and sends a notification to the manager's user

@@ -28,14 +28,6 @@ func NewAnnouncementUC(
 	}
 }
 
-func (uc *AnnouncementUC) parseUUID(s string) (uuid.UUID, error) {
-	parsed, err := uuid.Parse(s)
-	if err != nil {
-		return uuid.Nil, domain.NewValidation("invalid uuid: " + s)
-	}
-	return parsed, nil
-}
-
 func (uc *AnnouncementUC) Create(ctx context.Context, tenantID, userID string, req *domain.CreateAnnouncementRequest) (*domain.Announcement, error) {
 	now := time.Now()
 	a := &domain.Announcement{
