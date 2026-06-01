@@ -33,23 +33,31 @@ export function NotifProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
       const [count, notifs] = await Promise.all([
         api.get<{ unread_count: number }>('/api/v1/notifications/unread-count'),
         api.get<Notification[]>('/api/v1/notifications?limit=20'),
       ]);
-      setUnreadCount(count.unread_count);
+      setUnreadCount(count?.unread_count ?? 0);
       setNotifications(notifs || []);
     } catch {
-      // silently fail on polling
+      // Notification API not available yet — silently ignore
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // Poll every 30s
+  // Poll every 30s, but delay first call to avoid immediate API blast
   useEffect(() => {
-    refresh();
+    const timer = setTimeout(() => {
+      refresh();
+    }, 2000);
     const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [refresh]);
 
   const markRead = useCallback(async (id: string) => {
