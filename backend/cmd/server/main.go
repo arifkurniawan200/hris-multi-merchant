@@ -57,6 +57,7 @@ func main() {
 	empShiftRepo := repository.NewEmployeeShiftRepo(dbpool)
 	leaveTypeRepo := repository.NewLeaveTypeRepo(dbpool)
 	leaveRequestRepo := repository.NewLeaveRequestRepo(dbpool)
+	notificationRepo := repository.NewNotificationRepo(dbpool)
 	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
@@ -67,6 +68,7 @@ func main() {
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave)
+	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 
@@ -85,6 +87,7 @@ func main() {
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
 	attendanceH := handler.NewAttendanceHandler(attendanceUC)
 	leaveH := handler.NewLeaveHandler(leaveUC)
+	notificationH := handler.NewNotificationHandler(notificationUC)
 	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
 
 	// ── Middleware ──────────────────────────
@@ -106,11 +109,11 @@ func main() {
 	r.Use(middleware.Logging)
 	r.Use(middleware.Recovery)
 	r.Use(chicors.Handler(chicors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Request-ID"},
-		ExposedHeaders:   []string{"Content-Length", "X-Request-ID"},
-		MaxAge:           300,
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "X-Request-ID"},
+		ExposedHeaders: []string{"Content-Length", "X-Request-ID"},
+		MaxAge:         300,
 	}))
 
 	// ── Health ──────────────────────────────
@@ -194,33 +197,39 @@ func main() {
 				// Employee self-service shift
 				r.Get("/api/v1/employee/me/shift", shiftH.MyShift)
 
+				// Notifications
+				r.Get("/api/v1/notifications/unread-count", notificationH.CountUnread)
+				r.Get("/api/v1/notifications", notificationH.List)
+				r.Put("/api/v1/notifications/read-all", notificationH.MarkAllRead)
+				r.Put("/api/v1/notifications/{id}/read", notificationH.MarkRead)
+
 				// Attendance routes
 				r.Post("/api/v1/attendance/clock-in", attendanceH.ClockIn)
-							r.Post("/api/v1/attendance/clock-out", attendanceH.ClockOut)
-							r.Get("/api/v1/attendance/history", attendanceH.History)
+				r.Post("/api/v1/attendance/clock-out", attendanceH.ClockOut)
+				r.Get("/api/v1/attendance/history", attendanceH.History)
 
 				// Leave routes (employee+)
 				r.Post("/api/v1/leaves", leaveH.SubmitLeave)
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
 				r.Get("/api/v1/leaves/balance", leaveH.Balance)
 				r.Put("/api/v1/leaves/{id}/cancel", leaveH.CancelLeave)
-				})
+			})
 
-				// Manager+ — Attendance report
-					r.Group(func(r chi.Router) {
-					r.Use(rbManager)
-					r.Get("/api/v1/attendance/report", attendanceH.Report)
+			// Manager+ — Attendance report
+			r.Group(func(r chi.Router) {
+				r.Use(rbManager)
+				r.Get("/api/v1/attendance/report", attendanceH.Report)
 
-					// Leave Management (manager+)
-					r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)
-					r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
-					r.Put("/api/v1/leaves-types/{id}", leaveH.UpdateLeaveType)
-					r.Get("/api/v1/leaves/pending", leaveH.ListPendingLeaves)
-					r.Get("/api/v1/leaves", leaveH.ListAllLeaves)
-					r.Put("/api/v1/leaves/{id}/approve", leaveH.ApproveLeave)
-					r.Put("/api/v1/leaves/{id}/reject", leaveH.RejectLeave)
-					})
-					})
+				// Leave Management (manager+)
+				r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)
+				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
+				r.Put("/api/v1/leaves-types/{id}", leaveH.UpdateLeaveType)
+				r.Get("/api/v1/leaves/pending", leaveH.ListPendingLeaves)
+				r.Get("/api/v1/leaves", leaveH.ListAllLeaves)
+				r.Put("/api/v1/leaves/{id}/approve", leaveH.ApproveLeave)
+				r.Put("/api/v1/leaves/{id}/reject", leaveH.RejectLeave)
+			})
+		})
 
 		// Super admin only
 		r.Group(func(r chi.Router) {
