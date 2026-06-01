@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,11 @@ import {
   Plus, FileText, Edit3, Trash2, X, Check, 
   AlertCircle, CheckCircle2, Palette 
 } from "lucide-react";
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SearchBar } from '@/components/ui/search-bar';
+import { Pagination } from '@/components/ui/pagination';
 
 interface LeaveType {
   id: string;
@@ -31,12 +37,21 @@ const defaultColors = [
 
 export default function LeaveTypesPage() {
   const { user } = useAuth();
+  const t = useTranslations('leave');
+  const tc = useTranslations('common');
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Search & Pagination
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const perPage = 10;
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -57,7 +72,7 @@ export default function LeaveTypesPage() {
     setLoading(true);
     try {
       const data = await api.get<LeaveType[]>("/api/v1/leaves-types");
-      setTypes(data);
+      setTypes(data || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load leave types");
     } finally {
@@ -149,46 +164,58 @@ export default function LeaveTypesPage() {
     }
   }
 
+  // Reset page on search change
+  useEffect(() => { setPage(1); }, [search]);
+
+  // Filter & Paginate
+  const filtered = types.filter((lt) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      lt.name.toLowerCase().includes(q) ||
+      lt.code.toLowerCase().includes(q) ||
+      (lt.description || "").toLowerCase().includes(q)
+    );
+  });
+  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(filtered.length / perPage);
+
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Access Denied</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">Manager role required</p>
+          <p className="font-medium text-foreground">Access Denied</p>
+          <p className="text-sm text-muted-foreground mt-1">Manager role required</p>
         </div>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Leave Types</h1>
-          <p className="text-[var(--muted-foreground)] mt-1">Manage leave types and allocations</p>
+          <h1 className="text-2xl font-bold text-foreground">Leave Types</h1>
+          <p className="text-muted-foreground mt-1">Manage leave types and allocations</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }}>
+        <Button onClick={() => { resetForm(); setShowForm(true); }} className="active:scale-95 transition-all duration-200">
           <Plus className="h-4 w-4 mr-1" /> Add Type
         </Button>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -196,10 +223,10 @@ export default function LeaveTypesPage() {
 
       {/* Create/Edit form */}
       {showForm && (
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{editingId ? "Edit Leave Type" : "New Leave Type"}</CardTitle>
-            <button onClick={resetForm} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+            <button onClick={resetForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-5 w-5" />
             </button>
           </CardHeader>
@@ -251,8 +278,8 @@ export default function LeaveTypesPage() {
                         key={c}
                         type="button"
                         onClick={() => setForm((f) => ({ ...f, color: c }))}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          form.color === c ? "border-[var(--foreground)] scale-110" : "border-transparent"
+                        className={`w-8 h-8 rounded-full border-2 transition-all active:scale-95 ${
+                          form.color === c ? "border-foreground scale-110" : "border-transparent"
                         }`}
                         style={{ backgroundColor: c }}
                       />
@@ -271,7 +298,7 @@ export default function LeaveTypesPage() {
                       type="checkbox"
                       checked={form.is_paid}
                       onChange={(e) => setForm((f) => ({ ...f, is_paid: e.target.checked }))}
-                      className="w-4 h-4 rounded border-[var(--border)]"
+                      className="w-4 h-4 rounded border-border"
                     />
                     <span className="text-sm font-medium">Paid Leave</span>
                   </label>
@@ -280,15 +307,15 @@ export default function LeaveTypesPage() {
               <div>
                 <label className="block text-sm font-medium mb-1.5">Description</label>
                 <textarea
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[80px] resize-y"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-y"
                   placeholder="Optional description..."
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
-                <Button type="submit">
+                <Button type="button" variant="outline" onClick={resetForm} className="active:scale-95 transition-all duration-200">Cancel</Button>
+                <Button type="submit" className="active:scale-95 transition-all duration-200">
                   {editingId ? "Update" : "Create"}
                 </Button>
               </div>
@@ -298,26 +325,35 @@ export default function LeaveTypesPage() {
       )}
 
       {/* Types list */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-[var(--primary)]" />
+            <FileText className="h-5 w-5 text-primary" />
             All Leave Types ({types.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {types.length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No leave types yet</p>
-              <p className="text-sm mt-1">Click "Add Type" to create one</p>
-            </div>
+            <EmptyState icon="inbox" title="No leave types yet" description='Click "Add Type" to create one' action={{ label: "Add Type", onClick: () => { resetForm(); setShowForm(true); }}} />
           ) : (
-            <div className="space-y-3">
-              {types.map((lt) => (
+            <>
+              {/* Search */}
+              <div className="mb-4">
+                <SearchBar
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search leave types by name, code, or description..."
+                />
+              </div>
+
+              {filtered.length === 0 ? (
+                <EmptyState icon="search" title="No matching leave types" description="Try adjusting your search" />
+              ) : (
+              <div className="space-y-3 stagger-children">
+                {paged.map((lt) => (
                 <div
                   key={lt.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card card-hover transition-all duration-200"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
@@ -332,7 +368,7 @@ export default function LeaveTypesPage() {
                           <Badge variant="success" className="text-xs">Paid</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {lt.default_days_per_year} days/year
                         {lt.max_consecutive_days > 0 && ` · max ${lt.max_consecutive_days} consecutive`}
                         {lt.description && ` · ${lt.description}`}
@@ -340,16 +376,29 @@ export default function LeaveTypesPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button variant="outline" size="sm" onClick={() => editType(lt)}>
+                    <Button variant="outline" size="sm" onClick={() => editType(lt)} className="active:scale-95 transition-all duration-200">
                       <Edit3 className="h-4 w-4" />
                     </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleDelete(lt.id, lt.name)}>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(lt.id, lt.name)} className="active:scale-95 transition-all duration-200">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               ))}
-            </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pt-4 border-t border-border">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
+              </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

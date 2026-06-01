@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { CheckCheck, Bell, ArrowLeft, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { CheckCheck, Bell, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Notification {
   id: string;
@@ -43,6 +46,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations('notifications');
   const router = useRouter();
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +82,7 @@ export default function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.is_read).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -88,9 +92,9 @@ export default function NotificationsPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 text-balance">
             <Bell className="h-6 w-6 text-primary" />
-            Notifications
+            {t('title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {unreadCount > 0
@@ -104,27 +108,18 @@ export default function NotificationsPage() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <CheckCheck className="h-4 w-4" />
-            Mark all read
+            {t('markAllRead')}
           </button>
         )}
       </div>
 
       {/* List */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
+        <LoadingState variant="fullscreen" />
       ) : notifs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <Bell className="h-12 w-12 mb-4 opacity-30" />
-          <p className="text-lg font-medium">No notifications yet</p>
-          <p className="text-sm mt-1">
-            You&apos;ll see notifications here when someone submits a leave request,
-            or when your requests are approved or rejected.
-          </p>
-        </div>
+        <EmptyState icon="inbox" title={t('empty')} description="You'll see notifications here when someone submits a leave request, or when your requests are approved or rejected." />
       ) : (
-        <div className="divide-y divide-border rounded-xl border border-border bg-card">
+        <div className="divide-y divide-border rounded-xl border border-border bg-card stagger-children">
           {notifs.map((n) => (
             <div
               key={n.id}

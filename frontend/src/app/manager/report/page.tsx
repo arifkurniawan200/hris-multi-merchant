@@ -10,6 +10,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, Users, UserCheck, Clock, UserX, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslations } from 'next-intl';
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface ReportRecord {
   id: string;
@@ -40,6 +44,8 @@ const statusVariant = (status: string) => {
 };
 
 export default function ReportPage() {
+  const ta = useTranslations('attendance');
+  const tc = useTranslations('common');
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -80,11 +86,7 @@ export default function ReportPage() {
   }, [date, fetchReport, isManager]);
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   if (!isManager) return null;
@@ -92,11 +94,11 @@ export default function ReportPage() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 text-balance">
           <BarChart3 className="h-6 w-6" />
-          Attendance Report
+          {ta('report')}
         </h2>
         <p className="text-muted-foreground mt-1">
           Daily attendance overview for your team
@@ -104,7 +106,7 @@ export default function ReportPage() {
       </div>
 
       {/* Date Picker */}
-      <Card>
+      <Card className="card-hover">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <label htmlFor="report-date" className="text-sm font-medium text-foreground">
@@ -132,7 +134,7 @@ export default function ReportPage() {
       </Card>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -140,14 +142,10 @@ export default function ReportPage() {
 
       {/* Summary Stats */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-card border border-border rounded-lg animate-pulse" />
-          ))}
-        </div>
+        <LoadingState variant="card" />
       ) : report ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
+          <Card className="card-hover">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Users className="h-6 w-6 text-primary" />
@@ -159,38 +157,38 @@ export default function ReportPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
                 <UserCheck className="h-6 w-6 text-emerald-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-emerald-600">{report.present}</p>
-                <p className="text-xs text-muted-foreground">Present</p>
+                <p className="text-xs text-muted-foreground">{ta('present')}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
                 <Clock className="h-6 w-6 text-amber-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-amber-600">{report.late}</p>
-                <p className="text-xs text-muted-foreground">Late</p>
+                <p className="text-xs text-muted-foreground">{ta('late')}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
                 <UserX className="h-6 w-6 text-red-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-red-600">{report.absent}</p>
-                <p className="text-xs text-muted-foreground">Absent</p>
+                <p className="text-xs text-muted-foreground">{ta('absent')}</p>
               </div>
             </CardContent>
           </Card>
@@ -198,32 +196,24 @@ export default function ReportPage() {
       ) : null}
 
       {/* Employee Table */}
-      <Card>
+      <Card className="card-hover">
         <CardHeader>
           <CardTitle className="text-base">
-            Employee Attendance — {format(new Date(date + 'T00:00:00'), 'MMMM d, yyyy')}
+            {ta('history')} — {format(new Date(date + 'T00:00:00'), 'MMMM d, yyyy')}
           </CardTitle>
           <CardDescription>
-            {report?.data ? `${report.data.length} employees` : 'Loading...'}
+            {report?.data ? `${report.data.length} ${ta('history').toLowerCase()}` : tc('loading')}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-8 space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
+            <LoadingState variant="table" />
           ) : !report || !report.data || report.data.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                No attendance data
-              </h3>
-              <p className="text-muted-foreground">
-                No attendance records found for this date.
-              </p>
-            </div>
+            <EmptyState
+              icon="inbox"
+              title="No attendance data"
+              description="No attendance records found for this date."
+            />
           ) : (
             <>
               {/* Desktop table */}
@@ -238,13 +228,13 @@ export default function ReportPage() {
                         Code
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock In
+                        {ta('clockIn')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock Out
+                        {ta('clockOut')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Status
+                        {tc('status')}
                       </th>
                     </tr>
                   </thead>

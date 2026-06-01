@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Clock, FileText, CheckCircle2, AlertCircle, Moon } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface OvertimeRequest {
   id: string;
@@ -20,13 +23,15 @@ interface OvertimeRequest {
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; variant: string }> = {
+const statusConfig: Record<string, { label: string; variant: "warning" | "success" | "danger" | "default" }> = {
   pending: { label: "Pending", variant: "warning" },
   approved: { label: "Approved", variant: "success" },
   rejected: { label: "Rejected", variant: "danger" },
 };
 
 export default function OvertimePage() {
+  const t = useTranslations('overtime');
+  const tc = useTranslations('common');
   const { user } = useAuth();
   const [myOT, setMyOT] = useState<OvertimeRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,9 +55,9 @@ export default function OvertimePage() {
   async function loadData() {
     try {
       const res = await api.get<OvertimeRequest[]>("/api/v1/overtime?limit=10&offset=0");
-      setMyOT(res);
-    } catch (err) {
-      // API mungkin belum ada, silent
+      setMyOT(res ?? []);
+    } catch {
+      // silent
     } finally {
       setLoading(false);
     }
@@ -95,60 +100,56 @@ export default function OvertimePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Overtime Request</h1>
-        <p className="text-[var(--muted-foreground)] mt-1">Submit and track your overtime requests</p>
+        <h1 className="text-2xl font-bold text-foreground text-balance">{t('title')}</h1>
+        <p className="text-muted-foreground mt-1">Submit and track your overtime requests</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[var(--accent)]">
-                <FileText className="h-5 w-5 text-[var(--primary)]" />
+              <div className="p-2 rounded-lg bg-accent">
+                <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Total Requests</p>
-                <p className="text-2xl font-bold">{myOT.length}</p>
+                <p className="text-sm text-muted-foreground">{t('title')}</p>
+                <p className="text-2xl font-bold">{(myOT ?? []).length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-50">
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Pending</p>
+                <p className="text-sm text-muted-foreground">{t('pending')}</p>
                 <p className="text-2xl font-bold">
-                  {myOT.filter((o) => o.status === "pending").length}
+                  {(myOT ?? []).filter((o: OvertimeRequest) => o.status === "pending").length}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Approved</p>
+                <p className="text-sm text-muted-foreground">{t('approved')}</p>
                 <p className="text-2xl font-bold">
-                  {myOT.filter((o) => o.status === "approved").length}
+                  {(myOT ?? []).filter((o: OvertimeRequest) => o.status === "approved").length}
                 </p>
               </div>
             </div>
@@ -158,31 +159,31 @@ export default function OvertimePage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger animate-slide-up">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error.startsWith("Overtime") ? "⚠️ " + error : error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success animate-slide-up">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
       )}
 
       {/* Submit Form */}
-      <Card>
+      <Card className="card-hover">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Moon className="h-5 w-5 text-indigo-500" />
-            New Overtime Request
+            {t('newRequest')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1">Date</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{t('date')}</label>
                 <Input
                   type="date"
                   value={form.date}
@@ -191,7 +192,7 @@ export default function OvertimePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1">Start Time</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{t('startTime')}</label>
                 <Input
                   type="time"
                   value={form.start_time}
@@ -200,7 +201,7 @@ export default function OvertimePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1">End Time</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{t('endTime')}</label>
                 <Input
                   type="time"
                   value={form.end_time}
@@ -210,23 +211,23 @@ export default function OvertimePage() {
               </div>
             </div>
             {totalHours && (
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Total: <span className="font-semibold text-[var(--foreground)]">{totalHours} hours</span>
+              <p className="text-sm text-muted-foreground">
+                {t('hours')}: <span className="font-semibold text-foreground">{totalHours} hours</span>
               </p>
             )}
             <div>
-              <label className="block text-sm font-medium text-[var(--foreground)] mb-1">Reason</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('reason')}</label>
               <textarea
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 required
                 rows={3}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 placeholder="Why do you need overtime?"
               />
             </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit Overtime Request"}
+            <Button type="submit" disabled={submitting} className="transition-all duration-200 active:scale-95">
+              {submitting ? tc('submitting') : t('submit')}
             </Button>
           </form>
         </CardContent>
@@ -236,31 +237,27 @@ export default function OvertimePage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-[var(--primary)]" />
-            My Overtime History
+            <Clock className="h-5 w-5 text-primary" />
+            {t('title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {myOT.length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <Moon className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No overtime requests</p>
-              <p className="text-sm mt-1">Submit your first overtime request above</p>
-            </div>
+          {!myOT || myOT.length === 0 ? (
+            <EmptyState icon="inbox" title={t('noOvertime')} description="Submit your first overtime request above" />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-children">
               {myOT.map((ot) => (
-                <div key={ot.id} className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                <div key={ot.id} className="p-4 rounded-lg border border-border bg-card card-hover">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-[var(--foreground)]">{ot.date}</p>
-                      <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
+                      <p className="font-medium text-foreground">{ot.date}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {ot.start_time} - {ot.end_time} ({ot.total_hours}h)
                       </p>
-                      <p className="text-sm text-[var(--muted-foreground)] mt-1">{ot.reason}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{ot.reason}</p>
                     </div>
-                    <Badge variant={statusConfig[ot.status]?.variant as any || "default"}>
-                      {statusConfig[ot.status]?.label || ot.status}
+                    <Badge variant={statusConfig[ot.status]?.variant || "default"}>
+                      {t(ot.status)}
                     </Badge>
                   </div>
                 </div>

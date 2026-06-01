@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
@@ -16,12 +17,17 @@ import {
   Loader2,
   ArrowLeft,
 } from 'lucide-react';
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface PreviewResponse {
   count: number;
 }
 
 export default function AttendanceExportPage() {
+  const t = useTranslations('attendance');
+  const tc = useTranslations('common');
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -126,26 +132,22 @@ export default function AttendanceExportPage() {
   }
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   if (!isManager) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="active:scale-95 transition-all duration-200">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-balance text-2xl font-bold text-foreground flex items-center gap-2">
             <Download className="h-6 w-6" />
-            Attendance Export
+            {t('export')}
           </h1>
           <p className="text-muted-foreground mt-1">
             Export attendance records for a date range in CSV or XLSX format
@@ -154,7 +156,7 @@ export default function AttendanceExportPage() {
       </div>
 
       {/* Configuration Card */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -292,7 +294,7 @@ export default function AttendanceExportPage() {
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+            <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -304,6 +306,7 @@ export default function AttendanceExportPage() {
               onClick={handleExport}
               disabled={!dateFrom || !dateTo || exporting || loadingPreview}
               size="lg"
+              className="active:scale-95 transition-all duration-200"
             >
               {exporting ? (
                 <>

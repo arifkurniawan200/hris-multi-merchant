@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CalendarCheck, Timer, LogIn, LogOut, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { LoadingState } from '@/components/ui/loading-state';
 
 interface Shift {
   id: string;
@@ -52,6 +54,7 @@ interface ClockOutResponse {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const t = useTranslations('dashboard');
   const [shift, setShift] = useState<Shift | null>(null);
   const [currentRecord, setCurrentRecord] = useState<AttendanceRecord | null>(null);
   const [lastRecord, setLastRecord] = useState<AttendanceRecord | null>(null);
@@ -138,28 +141,20 @@ export default function DashboardPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-card border border-border rounded-lg" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-48 bg-card border border-border rounded-lg" />
-          <div className="h-48 bg-card border border-border rounded-lg" />
-        </div>
-      </div>
-    );
+    return <LoadingState variant="card" rows={2} />;
   }
 
   const clockedIn = !!currentRecord;
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Greeting + Shift Info */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">
+              <h2 className="text-2xl font-bold text-foreground text-balance">
                 Welcome, {user?.name || user?.email?.split('@')[0] || 'Employee'}
               </h2>
               <p className="text-muted-foreground mt-1">{today}</p>
@@ -181,26 +176,26 @@ export default function DashboardPage() {
 
       {/* Feedback messages */}
       {error && (
-        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {successMessage && (
-        <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800">
+        <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 animate-slide-up">
           <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {/* Clock In / Out Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 stagger-children">
         {/* Clock In Card */}
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <LogIn className="h-5 w-5 text-success" />
-              Clock In
+              {t('clockIn')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -209,7 +204,7 @@ export default function DashboardPage() {
               disabled={isClocking || clockedIn}
               variant="success"
               size="2xl"
-              className="w-full"
+              className="w-full active:scale-95 transition-all duration-200"
             >
               {isClocking ? (
                 <span className="flex items-center gap-2">
@@ -219,24 +214,24 @@ export default function DashboardPage() {
               ) : (
                 <span className="flex items-center gap-2">
                   <LogIn className="h-6 w-6" />
-                  Clock In
+                  {t('clockIn')}
                 </span>
               )}
             </Button>
             <p className="text-xs text-center text-muted-foreground">
               {clockedIn
-                ? 'You are already clocked in'
+                ? t('alreadyClockedIn')
                 : 'Tap to record your start time'}
             </p>
           </CardContent>
         </Card>
 
         {/* Clock Out Card */}
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <LogOut className="h-5 w-5 text-warning" />
-              Clock Out
+              {t('clockOut')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -245,7 +240,7 @@ export default function DashboardPage() {
               disabled={isClocking || !clockedIn}
               variant="warning"
               size="2xl"
-              className="w-full"
+              className="w-full active:scale-95 transition-all duration-200"
             >
               {isClocking ? (
                 <span className="flex items-center gap-2">
@@ -255,7 +250,7 @@ export default function DashboardPage() {
               ) : (
                 <span className="flex items-center gap-2">
                   <LogOut className="h-6 w-6" />
-                  Clock Out
+                  {t('clockOut')}
                 </span>
               )}
             </Button>
@@ -270,7 +265,7 @@ export default function DashboardPage() {
 
       {/* Current Status */}
       {clockedIn && currentRecord && (
-        <Card className="border-success/30 bg-success/5">
+        <Card className="border-success/30 bg-success/5 card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Timer className="h-5 w-5 text-success" />
@@ -295,7 +290,7 @@ export default function DashboardPage() {
 
       {/* Last Clock-out Summary */}
       {lastRecord && !clockedIn && (
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <CalendarCheck className="h-5 w-5 text-muted-foreground" />
@@ -331,7 +326,7 @@ export default function DashboardPage() {
 
       {/* No records yet */}
       {!clockedIn && !lastRecord && (
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="p-12 text-center">
             <Clock className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">

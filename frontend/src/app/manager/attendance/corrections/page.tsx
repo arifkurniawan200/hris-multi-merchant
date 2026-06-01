@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,15 @@ import {
   type AttendanceRecord,
   type PendingCorrection,
 } from '@/lib/api-attendance-corrections';
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 type Tab = 'request' | 'pending';
 
 export default function AttendanceCorrectionsPage() {
+  const t = useTranslations('attendance');
+  const tc = useTranslations('common');
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -222,11 +228,7 @@ export default function AttendanceCorrectionsPage() {
 
   // --- Loading / Access Denied ---
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   if (!isManager) {
@@ -244,11 +246,11 @@ export default function AttendanceCorrectionsPage() {
   function getStatusBadge(status: string) {
     switch (status) {
       case 'pending':
-        return <Badge variant="warning">Pending</Badge>;
+        return <Badge variant="warning">{t('pending')}</Badge>;
       case 'approved':
-        return <Badge variant="success">Approved</Badge>;
+        return <Badge variant="success">{t('approved')}</Badge>;
       case 'rejected':
-        return <Badge variant="danger">Rejected</Badge>;
+        return <Badge variant="danger">{t('rejected')}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -265,16 +267,16 @@ export default function AttendanceCorrectionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="active:scale-95 transition-all duration-200">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-balance text-2xl font-bold text-foreground flex items-center gap-2">
             <PenLine className="h-6 w-6" />
-            Attendance Correction
+            {t('corrections')}
           </h1>
           <p className="text-muted-foreground mt-1">
             Request corrections to attendance records or review pending requests
@@ -284,13 +286,13 @@ export default function AttendanceCorrectionsPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-slide-up">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <span>{success}</span>
         </div>
@@ -326,11 +328,11 @@ export default function AttendanceCorrectionsPage() {
       {activeTab === 'request' && (
         <div className="space-y-6">
           {/* Date picker */}
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Select Date
+                {t('date')}
               </CardTitle>
               <CardDescription>
                 Choose a date to view attendance records and request corrections
@@ -348,7 +350,7 @@ export default function AttendanceCorrectionsPage() {
           </Card>
 
           {/* Attendance records table */}
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Clock className="h-5 w-5" />
@@ -362,17 +364,13 @@ export default function AttendanceCorrectionsPage() {
             </CardHeader>
             <CardContent>
               {loadingAttendance ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState variant="inline" />
               ) : attendanceRecords.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No attendance records</p>
-                  <p className="text-sm mt-1">
-                    No records found for {selectedDate}
-                  </p>
-                </div>
+                <EmptyState
+                  icon="inbox"
+                  title="No attendance records"
+                  description={`No records found for ${selectedDate}`}
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -414,6 +412,7 @@ export default function AttendanceCorrectionsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => openCorrectionModal(record)}
+                              className="active:scale-95 transition-all duration-200"
                             >
                               <PenLine className="h-3.5 w-3.5 mr-1" />
                               Request Correction
@@ -434,8 +433,8 @@ export default function AttendanceCorrectionsPage() {
       {activeTab === 'pending' && (
         <div className="space-y-6">
           {/* Stats cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+            <Card className="card-hover transition-all duration-200">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-amber-50">
@@ -448,7 +447,7 @@ export default function AttendanceCorrectionsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="card-hover transition-all duration-200">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-emerald-50">
@@ -463,7 +462,7 @@ export default function AttendanceCorrectionsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="card-hover transition-all duration-200">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-red-50">
@@ -481,7 +480,7 @@ export default function AttendanceCorrectionsPage() {
           </div>
 
           {/* Pending corrections list */}
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-amber-500" />
@@ -490,20 +489,18 @@ export default function AttendanceCorrectionsPage() {
             </CardHeader>
             <CardContent>
               {loadingPending ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState variant="inline" />
               ) : pendingError ? (
-                <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+                <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
                   <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>{pendingError}</span>
                 </div>
               ) : pendingCorrections.length === 0 && allCorrections.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No correction requests</p>
-                  <p className="text-sm mt-1">No attendance correction requests found</p>
-                </div>
+                <EmptyState
+                  icon="inbox"
+                  title="No correction requests"
+                  description="No attendance correction requests found"
+                />
               ) : (
                 <div className="space-y-4">
                   {/* Pending corrections */}
@@ -574,6 +571,7 @@ export default function AttendanceCorrectionsPage() {
                                 size="sm"
                                 onClick={() => handleApprove(correction.id)}
                                 disabled={processing === correction.id}
+                                className="active:scale-95 transition-all duration-200"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
                                 Approve
@@ -588,6 +586,7 @@ export default function AttendanceCorrectionsPage() {
                                   })
                                 }
                                 disabled={processing === correction.id}
+                                className="active:scale-95 transition-all duration-200"
                               >
                                 <XCircle className="h-4 w-4 mr-1" />
                                 Reject
@@ -657,7 +656,7 @@ export default function AttendanceCorrectionsPage() {
       {/* Correction Request Modal */}
       {showCorrectionModal && selectedRecord && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
+          <Card className="card-hover transition-all duration-200 w-full max-w-lg">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Request Correction</CardTitle>
               <button
@@ -761,6 +760,7 @@ export default function AttendanceCorrectionsPage() {
                     setShowCorrectionModal(false);
                     setSelectedRecord(null);
                   }}
+                  className="active:scale-95 transition-all duration-200"
                 >
                   Cancel
                 </Button>
@@ -769,6 +769,7 @@ export default function AttendanceCorrectionsPage() {
                   disabled={
                     submittingCorrection || !correctionReason.trim()
                   }
+                  className="active:scale-95 transition-all duration-200"
                 >
                   {submittingCorrection ? (
                     <>
@@ -791,7 +792,7 @@ export default function AttendanceCorrectionsPage() {
       {/* Reject Modal */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
+          <Card className="card-hover transition-all duration-200 w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Reject Correction Request</CardTitle>
               <button
@@ -826,6 +827,7 @@ export default function AttendanceCorrectionsPage() {
                     setRejectModal(null);
                     setRejectReason('');
                   }}
+                  className="active:scale-95 transition-all duration-200"
                 >
                   Cancel
                 </Button>
@@ -836,6 +838,7 @@ export default function AttendanceCorrectionsPage() {
                     rejectReason.trim().length < 10 ||
                     processing === rejectModal.id
                   }
+                  className="active:scale-95 transition-all duration-200"
                 >
                   {processing === rejectModal.id ? 'Rejecting...' : 'Reject'}
                 </Button>

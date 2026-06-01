@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,12 @@ import {
   Link2,
 } from "lucide-react";
 import Link from "next/link";
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SearchBar } from '@/components/ui/search-bar'
+import { Pagination } from '@/components/ui/pagination'
+import { FilterDropdown } from '@/components/ui/filter-dropdown'
 
 interface Shift {
   id: string;
@@ -75,6 +82,8 @@ const EMPTY_SHIFT_FORM: ShiftFormValues = {
 };
 
 export default function ShiftManagementPage() {
+  const t = useTranslations('shifts');
+  const tc = useTranslations('common');
   const { user } = useAuth();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -82,6 +91,12 @@ export default function ShiftManagementPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Search & Pagination
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 10;
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -243,13 +258,41 @@ export default function ShiftManagementPage() {
     }
   }
 
+  // Reset page on search/filter change
+  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPage(1); }, [typeFilter]);
+
+  // Determine shift type from shift data
+  function getShiftType(shift: Shift): string {
+    if (shift.is_flexible) return 'flexible';
+    const hour = parseInt(shift.start_time.substring(0, 2), 10);
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'night';
+  }
+
+  // Filter & Paginate
+  const filtered = shifts.filter((s) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.code.toLowerCase().includes(q)
+    );
+  }).filter((s) => {
+    if (!typeFilter) return true;
+    return getShiftType(s) === typeFilter;
+  });
+  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(filtered.length / perPage);
+
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Access Denied</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">
+          <p className="font-medium text-foreground">Access Denied</p>
+          <p className="text-sm text-muted-foreground mt-1">
             Manager role required
           </p>
         </div>
@@ -258,25 +301,21 @@ export default function ShiftManagementPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">
-            Shift Management
+          <h1 className="text-2xl font-bold text-foreground">
+            {t('management')}
           </h1>
-          <p className="text-[var(--muted-foreground)] mt-1">
+          <p className="text-muted-foreground mt-1">
             Create and manage shift templates for employees
           </p>
         </div>
-        <Button onClick={() => { resetForm(); setShowCreateModal(true); }}>
+        <Button onClick={() => { resetForm(); setShowCreateModal(true); }} className="active:scale-95 transition-all duration-200">
           <Plus className="h-4 w-4 mr-2" />
           Create Shift
         </Button>
@@ -284,27 +323,27 @@ export default function ShiftManagementPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[var(--accent)]">
-                <ArrowLeftRight className="h-5 w-5 text-[var(--primary)]" />
+              <div className="p-2 rounded-lg bg-accent">
+                <ArrowLeftRight className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Total Shifts</p>
+                <p className="text-sm text-muted-foreground">Total Shifts</p>
                 <p className="text-2xl font-bold">{shifts.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50">
                 <Clock className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Flexible</p>
+                <p className="text-sm text-muted-foreground">{t('flexible')}</p>
                 <p className="text-2xl font-bold">
                   {shifts.filter((s) => s.is_flexible).length}
                 </p>
@@ -312,14 +351,14 @@ export default function ShiftManagementPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-50">
                 <Users className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Employees</p>
+                <p className="text-sm text-muted-foreground">Employees</p>
                 <p className="text-2xl font-bold">{employees.length}</p>
               </div>
             </div>
@@ -329,36 +368,50 @@ export default function ShiftManagementPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
       )}
 
       {/* Shift list */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle>Shift Templates</CardTitle>
         </CardHeader>
         <CardContent>
-          {shifts.length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <ArrowLeftRight className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No shifts defined</p>
-              <p className="text-sm mt-1">Create your first shift template to get started</p>
+          {/* Search & Filter */}
+          <div className="mb-4 flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search shifts by name or code..."
+              />
             </div>
+            <FilterDropdown label="Type" options={[
+              {value:'morning',label:'Morning'},{value:'afternoon',label:'Afternoon'},{value:'night',label:'Night'},{value:'flexible',label:'Flexible'}
+            ]} value={typeFilter} onChange={setTypeFilter} />
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon="inbox"
+              title="No shifts defined"
+              description="Create your first shift template to get started"
+            />
           ) : (
-            <div className="space-y-3">
-              {shifts.map((shift) => (
+            <div className="space-y-3 stagger-children">
+              {paged.map((shift) => (
                 <div
                   key={shift.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card card-hover transition-all duration-200"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -368,7 +421,7 @@ export default function ShiftManagementPage() {
                       />
                       <Link
                         href={`/manager/shifts/${shift.id}`}
-                        className="font-medium hover:text-[var(--primary)] transition-colors"
+                        className="font-medium hover:text-primary transition-all duration-200"
                       >
                         {shift.name}
                       </Link>
@@ -381,7 +434,7 @@ export default function ShiftManagementPage() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 mt-1.5 text-sm text-[var(--muted-foreground)]">
+                    <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
                       <span>
                         {shift.start_time.substring(0, 5)} →{" "}
                         {shift.end_time.substring(0, 5)}
@@ -394,6 +447,7 @@ export default function ShiftManagementPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => openEdit(shift)}
+                      className="active:scale-95 transition-all duration-200"
                     >
                       <Edit3 className="h-4 w-4 mr-1" />
                       Edit
@@ -402,6 +456,7 @@ export default function ShiftManagementPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAssignModal(shift)}
+                      className="active:scale-95 transition-all duration-200"
                     >
                       <Link2 className="h-4 w-4 mr-1" />
                       Assign
@@ -410,13 +465,24 @@ export default function ShiftManagementPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowDeleteConfirm(shift)}
-                      className="text-[var(--danger)] border-red-200 hover:bg-red-50"
+                      className="text-danger border-red-200 hover:bg-red-50 active:scale-95 transition-all duration-200"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               ))}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pt-4 border-t border-border">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -449,13 +515,13 @@ export default function ShiftManagementPage() {
       {/* ── Assign Modal ── */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto card-hover transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
                 Assign: {showAssignModal.name}
               </CardTitle>
               <button onClick={() => setShowAssignModal(null)}>
-                <X className="h-5 w-5 text-[var(--muted-foreground)]" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </CardHeader>
             <CardContent>
@@ -499,24 +565,24 @@ export default function ShiftManagementPage() {
                     Select Employees ({assignForm.employee_ids.length} selected)
                   </label>
                   {employees.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-[var(--muted-foreground)]">
+                    <div className="text-center py-6 text-sm text-muted-foreground">
                       No employees found
                     </div>
                   ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-[var(--border)] rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
                       {employees.map((emp) => (
                         <label
                           key={emp.id}
-                          className="flex items-center gap-3 p-2 rounded-md hover:bg-[var(--secondary)] cursor-pointer"
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary cursor-pointer"
                         >
                           <input
                             type="checkbox"
                             checked={assignForm.employee_ids.includes(emp.id)}
                             onChange={() => toggleEmployee(emp.id)}
-                            className="rounded border-[var(--border)]"
+                            className="rounded border-border"
                           />
                           <span className="text-sm font-medium">{emp.first_name} {emp.last_name}</span>
-                          <span className="text-xs text-[var(--muted-foreground)]">
+                          <span className="text-xs text-muted-foreground">
                             {emp.employee_code}
                           </span>
                         </label>
@@ -530,6 +596,7 @@ export default function ShiftManagementPage() {
                     type="button"
                     variant="outline"
                     onClick={() => setShowAssignModal(null)}
+                    className="active:scale-95 transition-all duration-200"
                   >
                     Cancel
                   </Button>
@@ -538,6 +605,7 @@ export default function ShiftManagementPage() {
                     disabled={
                       submitting || assignForm.employee_ids.length === 0
                     }
+                    className="active:scale-95 transition-all duration-200"
                   >
                     {submitting
                       ? "Assigning..."
@@ -551,40 +619,16 @@ export default function ShiftManagementPage() {
       )}
 
       {/* ── Delete Confirm ── */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-sm">
-            <CardHeader>
-              <CardTitle className="text-danger flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Delete Shift
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Are you sure you want to delete{" "}
-                <strong>{showDeleteConfirm.name}</strong> ({showDeleteConfirm.code})?
-                This action cannot be undone.
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteConfirm(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={handleDelete}
-                  disabled={submitting}
-                >
-                  {submitting ? "Deleting..." : "Delete Shift"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <ConfirmDialog
+        variant="danger"
+        open={!!showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(null)}
+        onConfirm={() => {
+          handleDelete().then(() => setShowDeleteConfirm(null));
+        }}
+        title="Delete Shift"
+        message={`Are you sure you want to delete ${showDeleteConfirm?.name} (${showDeleteConfirm?.code})? This action cannot be undone.`}
+      />
     </div>
   );
 }
@@ -605,21 +649,21 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto card-hover transition-all duration-200">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">{title}</CardTitle>
           <button onClick={onClose}>
-            <X className="h-5 w-5 text-[var(--muted-foreground)]" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             {children}
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} className="active:scale-95 transition-all duration-200">
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="active:scale-95 transition-all duration-200">
                 {submitting ? "Saving..." : "Save"}
               </Button>
             </div>
@@ -715,7 +759,7 @@ function ShiftForm({
               onChange={(e) =>
                 setForm((f) => ({ ...f, is_flexible: e.target.checked }))
               }
-              className="rounded border-[var(--border)]"
+              className="rounded border-border"
             />
             <span className="text-sm font-medium">Flexible Shift</span>
           </label>
@@ -770,7 +814,7 @@ function ShiftForm({
             }
             className="w-16 h-10 p-1"
           />
-          <span className="text-sm text-[var(--muted-foreground)]">
+          <span className="text-sm text-muted-foreground">
             {form.color}
           </span>
         </div>

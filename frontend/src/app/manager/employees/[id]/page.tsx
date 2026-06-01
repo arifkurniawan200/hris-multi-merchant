@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   FileText,
   FileImage,
@@ -147,6 +151,7 @@ function getDocumentIcon(type: string) {
 
 // ── Page Component ─────────────────────────
 export default function EmployeeDetailPage() {
+  const t = useTranslations('employees');
   const params = useParams();
   const id = params.id as string;
 
@@ -284,30 +289,26 @@ export default function EmployeeDetailPage() {
 
   // ── Loading State ──
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   // ── Error State ──
   if (error && !employee) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <Link
           href="/manager/employees"
-          className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Employees
         </Link>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <AlertCircle className="h-12 w-12 mx-auto mb-3 text-red-500" />
-            <p className="font-medium text-[var(--foreground)]">Failed to load employee</p>
-            <p className="text-sm text-[var(--muted-foreground)] mt-1">{error}</p>
-            <Button variant="outline" className="mt-4" onClick={loadData}>
+            <AlertCircle className="h-12 w-12 mx-auto mb-3 text-danger" />
+            <p className="font-medium text-foreground">Failed to load employee</p>
+            <p className="text-sm text-muted-foreground mt-1">{error}</p>
+            <Button variant="outline" className="mt-4 active:scale-95 transition-all duration-200" onClick={loadData}>
               Retry
             </Button>
           </div>
@@ -319,18 +320,18 @@ export default function EmployeeDetailPage() {
   if (!employee) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Back button + header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
             href="/manager/employees"
-            className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] mb-2"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Employees
           </Link>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">
+          <h1 className="text-2xl font-bold text-foreground">
             {employee.first_name} {employee.last_name}
           </h1>
           <div className="flex items-center gap-2 mt-1">
@@ -340,28 +341,28 @@ export default function EmployeeDetailPage() {
             {statusBadge(employee.employment_status)}
           </div>
         </div>
-        <Button variant="outline" onClick={() => setActiveTab("documents")}>
+        <Button variant="outline" onClick={() => setActiveTab("documents")} className="active:scale-95 transition-all duration-200">
           <FileText className="h-4 w-4 mr-2" />
-          View Documents
+          {t('detail')}
         </Button>
       </div>
 
       {/* Alert */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-[var(--border)]">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab("profile")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
             activeTab === "profile"
-              ? "border-[var(--primary)] text-[var(--primary)]"
-              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <User className="h-4 w-4 inline mr-1.5" />
@@ -369,16 +370,16 @@ export default function EmployeeDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("documents")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
             activeTab === "documents"
-              ? "border-[var(--primary)] text-[var(--primary)]"
-              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <FileText className="h-4 w-4 inline mr-1.5" />
           Documents
           {documents.length > 0 && (
-            <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">
+            <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs rounded-full bg-primary/10 text-primary">
               {documents.length}
             </span>
           )}
@@ -410,11 +411,11 @@ export default function EmployeeDetailPage() {
       {/* ── Upload Modal ── */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
+          <Card className="w-full max-w-lg card-hover transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Upload Document</CardTitle>
               <button onClick={() => setShowUploadModal(false)}>
-                <svg className="h-5 w-5 text-[var(--muted-foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -431,7 +432,7 @@ export default function EmployeeDetailPage() {
                     onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                   />
                   {uploadFile && (
-                    <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {uploadFile.name} ({formatFileSize(uploadFile.size)})
                     </p>
                   )}
@@ -443,7 +444,7 @@ export default function EmployeeDetailPage() {
                   <select
                     value={uploadType}
                     onChange={(e) => setUploadType(e.target.value)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     required
                   >
                     {DOCUMENT_TYPES.map((t) => (
@@ -470,21 +471,22 @@ export default function EmployeeDetailPage() {
                   <textarea
                     value={uploadNotes}
                     onChange={(e) => setUploadNotes(e.target.value)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm min-h-[60px]"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm min-h-[60px]"
                     placeholder="Optional notes about this document"
                   />
                 </div>
 
                 {/* Buttons */}
-                <div className="flex gap-3 justify-end pt-2 border-t border-[var(--border)]">
+                <div className="flex gap-3 justify-end pt-2 border-t border-border">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowUploadModal(false)}
+                    className="active:scale-95 transition-all duration-200"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={uploading || !uploadFile}>
+                  <Button type="submit" disabled={uploading || !uploadFile} className="active:scale-95 transition-all duration-200">
                     {uploading ? "Uploading..." : "Upload"}
                   </Button>
                 </div>
@@ -495,35 +497,16 @@ export default function EmployeeDetailPage() {
       )}
 
       {/* ── Delete Confirm ── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Confirm Delete</CardTitle>
-              <button onClick={() => setDeleteTarget(null)}>
-                <svg className="h-5 w-5 text-[var(--muted-foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-[var(--muted-foreground)] mb-4">
-                Are you sure you want to delete{" "}
-                <strong>{deleteTarget.document_name || deleteTarget.file_name}</strong>? This action
-                cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                  Cancel
-                </Button>
-                <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Confirm Delete"
+        message={`Are you sure you want to delete ${deleteTarget?.document_name || deleteTarget?.file_name}? This action cannot be undone.`}
+        variant="danger"
+        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        loading={deleting}
+      />
     </div>
   );
 }
@@ -534,64 +517,64 @@ function ProfileTab({ employee }: { employee: Employee }) {
     {
       label: "Employee Code",
       value: employee.employee_code,
-      icon: <Hash className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Hash className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Email",
       value: employee.email,
-      icon: <Mail className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Mail className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Phone",
       value: employee.phone || "-",
-      icon: <Phone className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Phone className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Gender",
       value: employee.gender ? employee.gender.charAt(0).toUpperCase() + employee.gender.slice(1) : "-",
-      icon: <User className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <User className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Birth Date",
       value: employee.birth_date ? formatDate(employee.birth_date) : "-",
-      icon: <Calendar className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Calendar className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Birth Place",
       value: employee.birth_place || "-",
-      icon: <MapPin className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Address",
       value: employee.address || "-",
-      icon: <MapPin className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Department",
       value: employee.department_name || "-",
-      icon: <Building2 className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Position",
       value: employee.position_name || "-",
-      icon: <Briefcase className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Briefcase className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Manager",
       value: employee.manager_name || "-",
-      icon: <User className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <User className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Employment Type",
       value: employee.employment_type
         ? employee.employment_type.charAt(0).toUpperCase() + employee.employment_type.slice(1)
         : "-",
-      icon: <Briefcase className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Briefcase className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Join Date",
       value: employee.join_date ? formatDate(employee.join_date) : "-",
-      icon: <Calendar className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Calendar className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Contract Period",
@@ -599,68 +582,68 @@ function ProfileTab({ employee }: { employee: Employee }) {
         employee.contract_start && employee.contract_end
           ? `${formatDate(employee.contract_start)} - ${formatDate(employee.contract_end)}`
           : "-",
-      icon: <Calendar className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Calendar className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "National ID (KTP)",
       value: employee.national_id || "-",
-      icon: <FileSignature className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <FileSignature className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Tax ID (NPWP)",
       value: employee.tax_id || "-",
-      icon: <FileSignature className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <FileSignature className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "BPJS Kesehatan",
       value: employee.bpjs_health || "-",
-      icon: <FileText className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "BPJS Ketenagakerjaan",
       value: employee.bpjs_labor || "-",
-      icon: <FileText className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Base Salary",
       value: employee.base_salary
         ? `Rp ${employee.base_salary.toLocaleString("id-ID")}`
         : "-",
-      icon: <DollarSign className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Bank",
       value: employee.bank_name || "-",
-      icon: <Banknote className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Banknote className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Bank Account",
       value: employee.bank_account || "-",
-      icon: <Hash className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <Hash className="h-4 w-4 text-muted-foreground" />,
     },
     {
       label: "Notes",
       value: employee.notes || "-",
-      icon: <FileText className="h-4 w-4 text-[var(--muted-foreground)]" />,
+      icon: <FileText className="h-4 w-4 text-muted-foreground" />,
     },
   ];
 
   return (
-    <Card>
+    <Card className="card-hover transition-all duration-200">
       <CardHeader>
         <CardTitle className="text-lg">Employee Information</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
           {fields.map((f, i) => (
             <div
               key={i}
-              className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+              className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card"
             >
               <div className="mt-0.5 flex-shrink-0">{f.icon}</div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--muted-foreground)]">{f.label}</p>
-                <p className="text-sm font-medium text-[var(--foreground)] truncate">
+                <p className="text-xs text-muted-foreground">{f.label}</p>
+                <p className="text-sm font-medium text-foreground truncate">
                   {f.value}
                 </p>
               </div>
@@ -689,31 +672,23 @@ function DocumentsTab({
   verifyingId: string | null;
 }) {
   return (
-    <Card>
+    <Card className="card-hover transition-all duration-200">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Documents ({documents.length})</CardTitle>
-        <Button onClick={onUpload}>
+        <Button onClick={onUpload} className="active:scale-95 transition-all duration-200">
           <Upload className="h-4 w-4 mr-2" />
           Upload Document
         </Button>
       </CardHeader>
       <CardContent>
         {documents.length === 0 ? (
-          <div className="text-center py-12 text-[var(--muted-foreground)]">
-            <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No documents uploaded</p>
-            <p className="text-sm mt-1">Upload employee documents to get started</p>
-            <Button variant="outline" className="mt-4" onClick={onUpload}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
-          </div>
+          <EmptyState icon="inbox" title="No documents uploaded" description="Upload employee documents to get started" action={{ label: "Upload Document", onClick: onUpload }} />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-children">
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-start gap-4 p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                className="flex items-start gap-4 p-4 rounded-lg border border-border bg-card card-hover transition-all duration-200"
               >
                 {/* Icon */}
                 <div className="flex-shrink-0 mt-1">
@@ -723,7 +698,7 @@ function DocumentsTab({
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-[var(--foreground)]">
+                    <span className="font-medium text-foreground">
                       {doc.document_name || doc.file_name}
                     </span>
                     <Badge variant="info" className="text-xs">
@@ -741,7 +716,7 @@ function DocumentsTab({
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-[var(--muted-foreground)]">
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     <span>{formatFileSize(doc.file_size)}</span>
                     <span>•</span>
                     <span>{formatDate(doc.created_at)}</span>
@@ -761,6 +736,7 @@ function DocumentsTab({
                     size="sm"
                     onClick={() => onDownload(doc)}
                     title="Download"
+                    className="active:scale-95 transition-all duration-200"
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -772,8 +748,8 @@ function DocumentsTab({
                     title={doc.is_verified ? "Mark as unverified" : "Verify document"}
                     className={
                       doc.is_verified
-                        ? "text-amber-600 border-amber-200 hover:bg-amber-50"
-                        : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                        ? "text-amber-600 border-amber-200 hover:bg-amber-50 active:scale-95 transition-all duration-200"
+                        : "text-emerald-600 border-emerald-200 hover:bg-emerald-50 active:scale-95 transition-all duration-200"
                     }
                   >
                     {verifyingId === doc.id ? (
@@ -789,7 +765,7 @@ function DocumentsTab({
                     size="sm"
                     onClick={() => onDelete(doc)}
                     title="Delete"
-                    className="text-red-500 border-red-200 hover:bg-red-50"
+                    className="text-danger border-red-200 hover:bg-red-50 active:scale-95 transition-all duration-200"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

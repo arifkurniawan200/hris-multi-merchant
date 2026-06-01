@@ -8,8 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Users, AlertCircle, Search, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
 
 export default function AdminUsersPage() {
+  const t = useTranslations('admin');
+  const tc = useTranslations('common');
+  const ta = useTranslations('accessDenied');
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
 
@@ -19,6 +27,17 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [tenantFilter, setTenantFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  const pagedUsers = filteredUsers.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(filteredUsers.length / perPage);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, tenantFilter, roleFilter]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -39,7 +58,7 @@ export default function AdminUsersPage() {
   }, [isSuperAdmin, loadUsers]);
 
   useEffect(() => {
-    let result = users;
+    let result = users ?? [];
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -51,14 +70,17 @@ export default function AdminUsersPage() {
     if (tenantFilter) {
       result = result.filter((u) => u.tenant_name === tenantFilter);
     }
+    if (roleFilter) {
+      result = result.filter((u) => u.role === roleFilter);
+    }
     setFilteredUsers(result);
-  }, [search, tenantFilter, users]);
+  }, [search, tenantFilter, roleFilter, users]);
 
-  const uniqueTenants = [...new Set(users.map((u) => u.tenant_name))];
+  const uniqueTenants = [...new Set((users ?? []).map((u) => u.tenant_name))];
 
   const roleConfig: Record<string, { label: string; variant: string }> = {
-    super_admin: { label: "Super Admin", variant: "danger" },
-    tenant_admin: { label: "Tenant Admin", variant: "info" },
+    super_admin: { label: t('superAdmin'), variant: "danger" },
+    tenant_admin: { label: t('tenantAdmin'), variant: "info" },
     manager: { label: "Manager", variant: "success" },
     employee: { label: "Employee", variant: "default" },
   };
@@ -68,40 +90,40 @@ export default function AdminUsersPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Access Denied</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">Super admin role required</p>
+          <p className="font-medium text-foreground">{ta('title')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{ta('requiredRole', { role: 'Super Admin' })}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">All Users</h1>
-        <p className="text-[var(--muted-foreground)] mt-1">
-          View all users across all tenants ({users.length} total)
+        <h1 className="text-2xl font-bold text-foreground">{t('users')}</h1>
+        <p className="text-muted-foreground mt-1">
+          {tc('totalItems', { count: users.length })}
         </p>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Search</label>
+              <label className="block text-sm font-medium mb-1.5">{tc('search')}</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search by email or name..."
+                  placeholder={t('search')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground active:scale-95 transition-all duration-200"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -109,21 +131,27 @@ export default function AdminUsersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Tenant</label>
+              <label className="block text-sm font-medium mb-1.5">{t('tenantName')}</label>
               <select
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
                 value={tenantFilter}
                 onChange={(e) => setTenantFilter(e.target.value)}
               >
-                <option value="">All Tenants</option>
-                {uniqueTenants.map((tn) => (
+                <option value="">{tc('all')} {t('tenants')}</option>
+                {(uniqueTenants ?? []).map((tn) => (
                   <option key={tn} value={tn}>{tn}</option>
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">{t('role')}</label>
+              <FilterDropdown label={t('role')} options={[
+                {value:'super_admin',label:t('superAdmin')},{value:'tenant_admin',label:t('tenantAdmin')},{value:'manager',label:'Manager'},{value:'employee',label:'Employee'}
+              ]} value={roleFilter} onChange={setRoleFilter} />
+            </div>
             <div className="flex items-end">
-              <Button variant="outline" onClick={() => { setSearch(""); setTenantFilter(""); }}>
-                Clear Filters
+              <Button variant="outline" onClick={() => { setSearch(""); setTenantFilter(""); setRoleFilter(""); }} className="active:scale-95 transition-all duration-200">
+                {tc('clear')} {tc('filter')}
               </Button>
             </div>
           </div>
@@ -131,53 +159,48 @@ export default function AdminUsersPage() {
       </Card>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger transition-all duration-200">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
 
       {/* Users table */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[var(--primary)]" />
-            {filteredUsers.length} Users
+            <Users className="h-5 w-5 text-primary" />
+            {filteredUsers.length} {t('users')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-            </div>
+            <LoadingState variant="fullscreen" />
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No users found</p>
-              <p className="text-sm mt-1">Try adjusting your search filters</p>
-            </div>
+            <EmptyState icon="search" title={t('noUsers')} description={tc('tryDifferentSearch')} />
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Name</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Email</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Tenant</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Role</th>
-                    <th className="text-center py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-[var(--muted-foreground)]">Joined</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{tc('name')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{tc('email')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('tenantName')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('role')}</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{tc('status')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Joined</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u) => {
+                  {pagedUsers.map((u) => {
                     const rc = roleConfig[u.role] || { label: u.role, variant: "default" };
                     return (
-                      <tr key={`${u.id}-${u.tenant_slug}`} className="border-b border-[var(--border)] hover:bg-[var(--muted)]/50">
+                      <tr key={`${u.id}-${u.tenant_slug}`} className="border-b border-border hover:bg-muted/50 transition-all duration-200">
                         <td className="py-3 px-4">
                           <span className="font-medium">{u.full_name}</span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-[var(--muted-foreground)]">{u.email}</td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">{u.email}</td>
                         <td className="py-3 px-4 text-sm">{u.tenant_name}</td>
                         <td className="py-3 px-4">
                           <Badge variant={rc.variant as "default" | "success" | "warning" | "danger" | "info"}>
@@ -189,10 +212,10 @@ export default function AdminUsersPage() {
                             className={`inline-block h-2.5 w-2.5 rounded-full ${
                               u.is_active ? "bg-green-500" : "bg-red-500"
                             }`}
-                            title={u.is_active ? "Active" : "Inactive"}
+                            title={u.is_active ? tc('active') : tc('inactive')}
                           />
                         </td>
-                        <td className="py-3 px-4 text-sm text-[var(--muted-foreground)]">
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                       </tr>
@@ -201,6 +224,8 @@ export default function AdminUsersPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-4" />
+            </>
           )}
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from 'next-intl';
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, FileText, Clock, AlertCircle, CheckCircle2, Percent } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface LeaveType {
   id: string;
@@ -48,6 +51,8 @@ const statusConfig: Record<string, { label: string; variant: string }> = {
 
 export default function LeavePage() {
   const { user } = useAuth();
+  const t = useTranslations('leave');
+  const tc = useTranslations('common');
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
@@ -146,33 +151,29 @@ export default function LeavePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Leave Management</h1>
-        <p className="text-[var(--muted-foreground)] mt-1">Submit and track your leave requests</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="text-muted-foreground mt-1">{t('all')}</p>
       </div>
 
       {/* Balance cards */}
-      {balances.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {balances.map((b) => (
-            <Card key={b.leave_type_id} className={`${b.remaining <= 0 ? "opacity-60" : ""}`}>
+      {(balances?.length ?? 0) > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 stagger-children">
+          {(balances ?? []).map((b) => (
+            <Card key={b.leave_type_id} className={`card-hover ${b.remaining <= 0 ? "opacity-60" : "transition-all duration-200"}`}>
               <CardContent className="pt-4 pb-3 px-3">
-                <p className="text-xs text-[var(--muted-foreground)] truncate">{b.leave_type_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{b.leave_type_name}</p>
                 <div className="flex items-baseline gap-1 mt-1">
-                  <span className={`text-xl font-bold ${b.remaining <= 0 ? "text-red-500" : "text-[var(--foreground)]"}`}>
+                  <span className={`text-xl font-bold ${b.remaining <= 0 ? "text-danger" : "text-foreground"}`}>
                     {b.remaining}
                   </span>
-                  <span className="text-xs text-[var(--muted-foreground)]">/ {b.total_allocated}</span>
+                  <span className="text-xs text-muted-foreground">/ {b.total_allocated}</span>
                 </div>
               </CardContent>
             </Card>
@@ -182,13 +183,13 @@ export default function LeavePage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -198,23 +199,23 @@ export default function LeavePage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-[var(--primary)]" />
-            Submit Leave Request
+            <CalendarDays className="h-5 w-5 text-primary" />
+            {t('newRequest')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Leave Type</label>
+                <label className="block text-sm font-medium mb-1.5">{t('leaveType')}</label>
                 <select
-                  className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
                   value={form.leave_type_id}
                   onChange={(e) => setForm((f) => ({ ...f, leave_type_id: e.target.value }))}
                   required
                 >
                   <option value="">Select leave type...</option>
-                  {leaveTypes.map((lt) => {
+                  {(leaveTypes ?? []).map((lt) => {
                     const bal = getBalanceForType(lt.id);
                     return (
                       <option key={lt.id} value={lt.id}>
@@ -225,12 +226,12 @@ export default function LeavePage() {
                 </select>
                 {selectedBalance && (
                   <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${
-                    selectedBalance.remaining <= 0 ? "text-red-500" : "text-[var(--muted-foreground)]"
+                    selectedBalance.remaining <= 0 ? "text-danger" : "text-muted-foreground"
                   }`}>
                     <Percent className="h-3 w-3" />
                     {selectedBalance.remaining} of {selectedBalance.total_allocated} days remaining
                     {exceedsBalance && (
-                      <span className="text-red-500 font-medium"> — Exceeds balance!</span>
+                      <span className="text-danger font-medium"> — Exceeds balance!</span>
                     )}
                   </div>
                 )}
@@ -248,7 +249,7 @@ export default function LeavePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Start Date</label>
+                <label className="block text-sm font-medium mb-1.5">{t('startDate')}</label>
                 <Input
                   type="date"
                   value={form.start_date}
@@ -258,7 +259,7 @@ export default function LeavePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">End Date</label>
+                <label className="block text-sm font-medium mb-1.5">{t('endDate')}</label>
                 <Input
                   type="date"
                   value={form.end_date}
@@ -269,9 +270,9 @@ export default function LeavePage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Reason</label>
+              <label className="block text-sm font-medium mb-1.5">{t('reason')}</label>
               <textarea
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[100px] resize-y"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200 min-h-[100px] resize-y"
                 placeholder="Describe your reason for leave (min 10 characters)..."
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
@@ -280,8 +281,8 @@ export default function LeavePage() {
               />
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={submitting || exceedsBalance} className="min-w-[160px]">
-                {submitting ? "Submitting..." : "Submit Request"}
+              <Button type="submit" disabled={submitting || exceedsBalance} className="min-w-[160px] active:scale-95 transition-all duration-200">
+                {submitting ? t('submitting') : t('submit')}
               </Button>
             </div>
           </form>
@@ -289,28 +290,28 @@ export default function LeavePage() {
       </Card>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[var(--accent)]">
-                <FileText className="h-5 w-5 text-[var(--primary)]" />
+              <div className="p-2 rounded-lg bg-secondary">
+                <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Total Requests</p>
+                <p className="text-sm text-muted-foreground">Total Requests</p>
                 <p className="text-2xl font-bold">{myLeaves?.length ?? 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-50">
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Pending</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-bold">
                   {(myLeaves ?? []).filter((l) => l.status === "pending").length}
                 </p>
@@ -318,14 +319,14 @@ export default function LeavePage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">Approved</p>
+                <p className="text-sm text-muted-foreground">Approved</p>
                 <p className="text-2xl font-bold">
                   {(myLeaves ?? []).filter((l) => l.status === "approved").length}
                 </p>
@@ -336,25 +337,21 @@ export default function LeavePage() {
       </div>
 
       {/* Recent requests */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle>Recent Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
           {(myLeaves ?? []).length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No leave requests yet</p>
-              <p className="text-sm mt-1">Submit your first request using the form above</p>
-            </div>
+            <EmptyState icon="inbox" title="No leave requests yet" description="Submit your first request using the form above" />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-children">
               {(myLeaves ?? []).map((leave) => {
                 const sc = statusConfig[leave.status] || { label: leave.status, variant: "default" };
                 return (
                   <div
                     key={leave.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card transition-all duration-200"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -363,11 +360,11 @@ export default function LeavePage() {
                           {sc.label}
                         </Badge>
                       </div>
-                      <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {leave.start_date} → {leave.end_date} · {leave.total_days} day{leave.total_days > 1 ? "s" : ""}
                       </p>
                       {leave.reason && (
-                        <p className="text-sm text-[var(--muted-foreground)] mt-1 truncate">{leave.reason}</p>
+                        <p className="text-sm text-muted-foreground mt-1 truncate">{leave.reason}</p>
                       )}
                     </div>
                     {(leave.status === "pending" || leave.status === "approved") && (
@@ -375,7 +372,7 @@ export default function LeavePage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleCancel(leave.id)}
-                        className="flex-shrink-0"
+                        className="flex-shrink-0 active:scale-95 transition-all duration-200"
                       >
                         Cancel
                       </Button>
