@@ -100,6 +100,12 @@ export function Sidebar() {
       roles: ['manager', 'tenant_admin', 'super_admin'],
     },
     {
+      href: '/manager/tenant',
+      label: 'Tenant Settings',
+      icon: Building2,
+      roles: ['tenant_admin', 'super_admin'],
+    },
+    {
       href: '/manager/report',
       label: 'Attendance Report',
       icon: BarChart3,
