@@ -92,6 +92,7 @@ func main() {
 	notificationH := handler.NewNotificationHandler(notificationUC)
 	shiftH := handler.NewShiftHandler(shiftUC, empShiftUC, empRepo)
 	overtimeH := handler.NewOvertimeHandler(overtimeUC)
+	dashboardH := handler.NewDashboardHandler(leaveUC, attendanceUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -218,6 +219,9 @@ func main() {
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
 				r.Get("/api/v1/leaves/balance", leaveH.Balance)
 				r.Put("/api/v1/leaves/{id}/cancel", leaveH.CancelLeave)
+
+				// Dashboard
+				r.Get("/api/v1/employee/dashboard", dashboardH.Dashboard)
 
 				// Overtime routes (employee+)
 				r.Post("/api/v1/overtime", overtimeH.SubmitOvertime)

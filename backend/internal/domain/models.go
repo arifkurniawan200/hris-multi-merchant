@@ -627,6 +627,22 @@ type NotificationUseCase interface {
 	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 }
 
+// ── Dashboard ───────────────────────────────────
+
+type AttendanceSummary struct {
+	Total   int `json:"total"`
+	Present int `json:"present"`
+	Late    int `json:"late"`
+	Absent  int `json:"absent"`
+}
+
+type DashboardResponse struct {
+	LeaveBalances     []LeaveBalance    `json:"leave_balances"`
+	PendingLeaveCount int               `json:"pending_leave_count"`
+	AttendanceSummary AttendanceSummary `json:"attendance_summary"`
+	UpcomingLeaves    []LeaveRequest    `json:"upcoming_leaves"`
+}
+
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}
