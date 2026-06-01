@@ -1,0 +1,36 @@
+database:
+  dsn: "${DB_DSN}"
+  max_open: 25
+  max_idle: 5
+  max_lifetime: "5m"
+
+jwt:
+  access_secret: "${JWT_ACCESS_SECRET}"
+  refresh_secret: "${JWT_REFRESH_SECRET}"
+  access_expiry: "15m"
+  refresh_expiry: "168h"
+
+server:
+  port: 3000
+  read_timeout: "10s"
+  write_timeout: "15s"
+  shutdown_timeout: "30s"
+
+plans:
+  free:
+    max_employees: 5
+  pro:
+    max_employees: 50
+  enterprise:
+    max_employees: 10000
+
+attendance:
+  default_cutoff: "08:00"
+  default_grace_minutes: 15
+  default_clockin_window_before: 60
+  default_clockout_window_after: 60
+
+leave:
+  default_annual_days: 12
+  allow_negative_balance: false
+
