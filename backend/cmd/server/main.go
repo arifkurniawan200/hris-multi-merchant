@@ -63,13 +63,13 @@ func main() {
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
-	userUC := usecase.NewUserUC(userRepo, userTenantRepo, resetTokenRepo, jwtMgr, txMgr)
+	userUC := usecase.NewUserUC(userRepo, userTenantRepo, tenantRepo, resetTokenRepo, jwtMgr, txMgr)
 	deptUC := usecase.NewDepartmentUC(deptRepo)
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
-	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave)
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
+	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
@@ -222,6 +222,9 @@ func main() {
 				// Overtime routes (employee+)
 				r.Post("/api/v1/overtime", overtimeH.SubmitOvertime)
 				r.Get("/api/v1/overtime", overtimeH.MyOvertime)
+
+				// Leave types (employee+ needs to see types when submitting)
+				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
 			})
 
 			// Manager+ — Attendance report, Leave Management, Overtime approvals
@@ -231,8 +234,8 @@ func main() {
 
 				// Leave Management (manager+)
 				r.Post("/api/v1/leaves-types", leaveH.CreateLeaveType)
-				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
 				r.Put("/api/v1/leaves-types/{id}", leaveH.UpdateLeaveType)
+				r.Delete("/api/v1/leaves-types/{id}", leaveH.DeleteLeaveType)
 				r.Get("/api/v1/leaves/pending", leaveH.ListPendingLeaves)
 				r.Get("/api/v1/leaves", leaveH.ListAllLeaves)
 				r.Put("/api/v1/leaves/{id}/approve", leaveH.ApproveLeave)

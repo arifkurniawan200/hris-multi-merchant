@@ -526,6 +526,7 @@ type LeaveUseCase interface {
 	CreateLeaveType(ctx context.Context, req *CreateLeaveTypeRequest) (*LeaveType, error)
 	ListLeaveTypes(ctx context.Context, tenantID uuid.UUID) ([]LeaveType, error)
 	UpdateLeaveType(ctx context.Context, req *LeaveType) error
+	SoftDeleteLeaveType(ctx context.Context, id, tenantID uuid.UUID) error
 }
 
 // ── Overtime Request ────────────────────────────

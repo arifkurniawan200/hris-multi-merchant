@@ -18,17 +18,36 @@ interface Shift {
 
 interface AttendanceRecord {
   id: string;
-  clock_in_time: string;
-  clock_out_time: string | null;
+  clock_in: string;
+  clock_out: string | null;
+  clock_date: string;
   status: string;
+  employee_name?: string;
+  employee_code?: string;
 }
 
 interface ClockInResponse {
-  attendance: AttendanceRecord;
+  id: string;
+  employee_id: string;
+  tenant_id: string;
+  clock_in: string;
+  clock_out: string | null;
+  clock_date: string;
+  status: string;
+  employee_name: string;
+  employee_code: string;
 }
 
 interface ClockOutResponse {
-  attendance: AttendanceRecord;
+  id: string;
+  employee_id: string;
+  tenant_id: string;
+  clock_in: string;
+  clock_out: string | null;
+  clock_date: string;
+  status: string;
+  employee_name: string;
+  employee_code: string;
 }
 
 export default function DashboardPage() {
@@ -65,7 +84,7 @@ export default function DashboardPage() {
       const data = await api.get<AttendanceRecord[]>('/api/v1/attendance/history?limit=1&offset=0');
       if (data && data.length > 0) {
         const latest = data[0];
-        if (!latest.clock_out_time) {
+        if (!latest.clock_out) {
           // Currently clocked in
           setCurrentRecord(latest);
         } else {
@@ -91,12 +110,10 @@ export default function DashboardPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await api.post<ClockInResponse>('/api/v1/attendance/clock-in', {
-        tenant_id: user?.tenant_id,
-      });
-      setCurrentRecord(response.attendance);
+      const response = await api.post<ClockInResponse>('/api/v1/attendance/clock-in', {});
+      setCurrentRecord(response);
       setLastRecord(null);
-      setSuccessMessage(`Clocked in successfully at ${format(new Date(response.attendance.clock_in_time), 'h:mm a')}`);
+      setSuccessMessage(`Clocked in successfully at ${format(new Date(response.clock_in), 'h:mm a')}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Clock-in failed');
     } finally {
@@ -109,12 +126,10 @@ export default function DashboardPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await api.post<ClockOutResponse>('/api/v1/attendance/clock-out', {
-        tenant_id: user?.tenant_id,
-      });
-      setLastRecord(response.attendance);
+      const response = await api.post<ClockOutResponse>('/api/v1/attendance/clock-out', {});
+      setLastRecord(response);
       setCurrentRecord(null);
-      setSuccessMessage(`Clocked out at ${format(new Date(response.attendance.clock_out_time!), 'h:mm a')}`);
+      setSuccessMessage(`Clocked out at ${format(new Date(response.clock_out!), 'h:mm a')}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Clock-out failed');
     } finally {
@@ -267,7 +282,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 rounded-lg bg-card px-4 py-3 border border-border">
                 <span className="text-sm text-muted-foreground">Clock-in time:</span>
                 <span className="text-sm font-semibold text-foreground">
-                  {format(new Date(currentRecord.clock_in_time), 'h:mm:ss a')}
+                  {format(new Date(currentRecord.clock_in), 'h:mm:ss a')}
                 </span>
               </div>
               <Badge variant="success" className="text-sm px-3 py-1">
@@ -292,14 +307,14 @@ export default function DashboardPage() {
               <div className="rounded-lg bg-muted px-4 py-3">
                 <p className="text-xs text-muted-foreground">Clock In</p>
                 <p className="text-sm font-semibold text-foreground">
-                  {format(new Date(lastRecord.clock_in_time), 'h:mm:ss a')}
+                  {format(new Date(lastRecord.clock_in), 'h:mm:ss a')}
                 </p>
               </div>
               <div className="rounded-lg bg-muted px-4 py-3">
                 <p className="text-xs text-muted-foreground">Clock Out</p>
                 <p className="text-sm font-semibold text-foreground">
-                  {lastRecord.clock_out_time
-                    ? format(new Date(lastRecord.clock_out_time), 'h:mm:ss a')
+                  {lastRecord.clock_out
+                    ? format(new Date(lastRecord.clock_out), 'h:mm:ss a')
                     : '—'}
                 </p>
               </div>

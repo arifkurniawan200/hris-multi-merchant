@@ -38,8 +38,9 @@ interface Shift {
 
 interface Employee {
   id: string;
-  name: string;
-  code: string;
+  first_name: string;
+  last_name: string;
+  employee_code: string;
 }
 
 interface BulkAssignRequest {
@@ -114,7 +115,7 @@ export default function ShiftManagementPage() {
     setError("");
     try {
       const data = await api.get<Shift[]>("/api/v1/shifts");
-      setShifts(data);
+      setShifts(data || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load shifts");
     } finally {
@@ -124,8 +125,9 @@ export default function ShiftManagementPage() {
 
   async function loadEmployees() {
     try {
-      const data = await api.get<Employee[]>("/api/v1/employees");
-      setEmployees(data);
+      const data = await api.get<any>("/api/v1/employees");
+      const empList = data?.data || data || [];
+      setEmployees(Array.isArray(empList) ? empList : []);
     } catch {
       // Employees endpoint might not exist yet or have different path
     }
@@ -513,9 +515,9 @@ export default function ShiftManagementPage() {
                             onChange={() => toggleEmployee(emp.id)}
                             className="rounded border-[var(--border)]"
                           />
-                          <span className="text-sm font-medium">{emp.name}</span>
+                          <span className="text-sm font-medium">{emp.first_name} {emp.last_name}</span>
                           <span className="text-xs text-[var(--muted-foreground)]">
-                            {emp.code}
+                            {emp.employee_code}
                           </span>
                         </label>
                       ))}

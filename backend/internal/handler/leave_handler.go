@@ -67,9 +67,18 @@ func (h *LeaveHandler) MyLeaves(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 
-	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	offset, _ := strconv.Atoi(q.Get("offset"))
+	limit := 10
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
 
 	leaves, err := h.uc.ListMyLeaves(r.Context(), uuid.MustParse(tenantID), uuid.MustParse(userID), limit, offset)
 	if err != nil {
@@ -84,44 +93,15 @@ func (h *LeaveHandler) MyLeaves(w http.ResponseWriter, r *http.Request) {
 func (h *LeaveHandler) CancelLeave(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
-	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
-	if tenantID == "" {
-		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
-		return
-	}
-	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
-
 	leaveID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid leave ID", reqID)
 		return
 	}
 
-	// Resolve employee ID for ownership check
-	// The usecase will check ownership, we just pass userID
-	// Actually cancel takes employeeID, so we need to resolve here or pass userID
-	// Looking at the usecase signature: Cancel(ctx, leaveID, employeeID) - 
-	// but we need to resolve employeeID first. Let's just pass the userID
-	// Actually, I need to revisit the usecase. The cancel usecase takes employeeID.
-	// For now, we resolve via employeeRepo... but handler doesn't have it.
-	// The simplest fix: let the handler pass userID as a string and usecase resolves internally.
-	// But the interface uses employeeID uuid.UUID.
-	// We'll just do a quick workaround: use userID directly since the usecase checks ownership anyway.
-	
-	// Actually, the cancel checks lr.EmployeeID == employeeID, and employeeID is the UUID of the employee record.
-	// We need the employee UUID, not the user UUID. We need to resolve.
-	// The handler doesn't have access to employeeRepo. We need to fix the usecase interface.
-	// Let me adjust: usecase Cancel accepts userID uuid.UUID instead and resolves employee internally.
-	// But that would mean changing the interface we just defined...
-	// Actually, let me just resolve it using the uc. I'll change the usecase Cancel signature to accept userID
-	// instead. But the interface is already defined. Let me just make the handler pass the right stuff.
-	// Simpler: just pass userID and have usecase resolve - but need to change Cancel signature.
-	
-	// Let me fix this properly: pass userID and tenantID to Cancel, and have usecase resolve employee.
-	// I'll adjust the usecase later. For now, just pass the userID directly.
-	
-	err = h.uc.Cancel(r.Context(), leaveID, uuid.MustParse(userID))
-	if err != nil {
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+
+	if err := h.uc.Cancel(r.Context(), leaveID, uuid.MustParse(userID)); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -138,19 +118,10 @@ func (h *LeaveHandler) Balance(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
 		return
 	}
+
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 
-	year := time.Now().Year()
-	if yq := r.URL.Query().Get("year"); yq != "" {
-		if parsed, err := strconv.Atoi(yq); err == nil {
-			year = parsed
-		}
-	}
-
-	// Need to resolve employeeID from userID. The usecase GetBalance uses employeeID uuid.UUID.
-	// Again, same issue - handler doesn't have employeeRepo.
-	// I'll fix the usecase to accept userID too, but for now pass userID.
-	balances, err := h.uc.GetBalance(r.Context(), uuid.MustParse(userID), year)
+	balances, err := h.uc.GetBalance(r.Context(), uuid.MustParse(userID), time.Now().Year())
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
@@ -159,7 +130,7 @@ func (h *LeaveHandler) Balance(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, "Success", balances, reqID)
 }
 
-// ── Manager routes ───────────────────────────────
+// ── Manager+ routes ──────────────────────────────
 
 // ListPendingLeaves handles GET /api/v1/leaves/pending
 func (h *LeaveHandler) ListPendingLeaves(w http.ResponseWriter, r *http.Request) {
@@ -171,9 +142,18 @@ func (h *LeaveHandler) ListPendingLeaves(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	offset, _ := strconv.Atoi(q.Get("offset"))
+	limit := 50
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
 
 	leaves, err := h.uc.ListPending(r.Context(), uuid.MustParse(tenantID), limit, offset)
 	if err != nil {
@@ -194,28 +174,43 @@ func (h *LeaveHandler) ListAllLeaves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	offset, _ := strconv.Atoi(q.Get("offset"))
-
-	filter := domain.LeaveFilter{
-		Status:     q.Get("status"),
-		EmployeeID: q.Get("employee_id"),
-		DateFrom:   q.Get("date_from"),
-		DateTo:     q.Get("date_to"),
+	limit := 10
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
 	}
 
-	leaves, total, err := h.uc.ListAll(r.Context(), uuid.MustParse(tenantID), filter, limit, offset)
+	// Filters
+	filter := domain.LeaveFilter{}
+	if s := r.URL.Query().Get("status"); s != "" {
+		filter.Status = s
+	}
+	if e := r.URL.Query().Get("employee_id"); e != "" {
+		filter.EmployeeID = e
+	}
+	if d := r.URL.Query().Get("date_from"); d != "" {
+		filter.DateFrom = d
+	}
+	if d := r.URL.Query().Get("date_to"); d != "" {
+		filter.DateTo = d
+	}
+
+	requests, total, err := h.uc.ListAll(r.Context(), uuid.MustParse(tenantID), filter, limit, offset)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, "Success", map[string]interface{}{
-		"data":   leaves,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
+		"total": total,
+		"data":  requests,
 	}, reqID)
 }
 
@@ -230,19 +225,8 @@ func (h *LeaveHandler) ApproveLeave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
-	if userID == "" {
-		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "User ID not found in context", reqID)
-		return
-	}
 
-	parsedUserID, err := uuid.Parse(userID)
-	if err != nil {
-		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in context", reqID)
-		return
-	}
-
-	err = h.uc.Approve(r.Context(), leaveID, parsedUserID)
-	if err != nil {
+	if err := h.uc.Approve(r.Context(), leaveID, uuid.MustParse(userID)); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -260,31 +244,17 @@ func (h *LeaveHandler) RejectLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
-	if userID == "" {
-		response.Err(w, http.StatusUnauthorized, response.ErrUnauthorized, "User ID not found in context", reqID)
-		return
+	var body struct {
+		Reason string `json:"reason"`
 	}
-
-	parsedUserID, err := uuid.Parse(userID)
-	if err != nil {
-		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in context", reqID)
-		return
-	}
-
-	var body domain.RejectLeaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
 		return
 	}
 
-	if body.Reason == "" || len(body.Reason) < 10 {
-		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Rejection reason required (min 10 chars)", reqID)
-		return
-	}
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 
-	err = h.uc.Reject(r.Context(), leaveID, parsedUserID, body.Reason)
-	if err != nil {
+	if err := h.uc.Reject(r.Context(), leaveID, uuid.MustParse(userID), body.Reason); err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
@@ -292,7 +262,7 @@ func (h *LeaveHandler) RejectLeave(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, "Leave rejected", nil, reqID)
 }
 
-// ── Leave Types ──────────────────────────────────
+// ── Leave Type Management (manager+) ─────────────
 
 // CreateLeaveType handles POST /api/v1/leaves-types
 func (h *LeaveHandler) CreateLeaveType(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +332,6 @@ func (h *LeaveHandler) UpdateLeaveType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build LeaveType from body
 	lt := &domain.LeaveType{
 		ID:       typeID,
 		TenantID: uuid.MustParse(tenantID),
@@ -396,4 +365,28 @@ func (h *LeaveHandler) UpdateLeaveType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, "Leave type updated", nil, reqID)
+}
+
+// DeleteLeaveType handles DELETE /api/v1/leaves-types/{id}
+func (h *LeaveHandler) DeleteLeaveType(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	typeID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid leave type ID", reqID)
+		return
+	}
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
+	if err := h.uc.SoftDeleteLeaveType(r.Context(), typeID, uuid.MustParse(tenantID)); err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Leave type deleted", nil, reqID)
 }
