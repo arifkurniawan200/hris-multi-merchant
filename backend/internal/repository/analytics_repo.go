@@ -49,7 +49,7 @@ func (r *AnalyticsRepo) GetDepartmentDistribution(ctx context.Context, tenantID 
 
 func (r *AnalyticsRepo) GetEmploymentTypeDistribution(ctx context.Context, tenantID string) ([]domain.EmploymentTypeDistribution, error) {
 	query := `
-		SELECT employment_type, COUNT(*)
+		SELECT COALESCE(employment_type, 'unknown'), COUNT(*)
 		FROM employees
 		WHERE deleted_at IS NULL AND tenant_id = $1
 		GROUP BY employment_type
@@ -73,7 +73,7 @@ func (r *AnalyticsRepo) GetEmploymentTypeDistribution(ctx context.Context, tenan
 
 func (r *AnalyticsRepo) GetGenderDistribution(ctx context.Context, tenantID string) ([]domain.GenderDistribution, error) {
 	query := `
-		SELECT gender, COUNT(*)
+		SELECT COALESCE(gender, 'unknown'), COUNT(*)
 		FROM employees
 		WHERE deleted_at IS NULL AND tenant_id = $1
 		GROUP BY gender
@@ -95,6 +95,19 @@ func (r *AnalyticsRepo) GetGenderDistribution(ctx context.Context, tenantID stri
 	return items, rows.Err()
 }
 
+func (r *AnalyticsRepo) GetTotalEmployees(ctx context.Context, tenantID string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM employees
+		WHERE deleted_at IS NULL AND tenant_id = $1
+	`
+	var total int
+	if err := r.dbQuerier(ctx).QueryRow(ctx, query, tenantID).Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (r *AnalyticsRepo) GetAttendanceTrend(ctx context.Context, tenantID string, sinceDate string) ([]domain.AttendanceTrendItem, error) {
 	query := `
 		SELECT clock_date::text,
@@ -102,7 +115,7 @@ func (r *AnalyticsRepo) GetAttendanceTrend(ctx context.Context, tenantID string,
 			COUNT(*) FILTER (WHERE status = 'late') as late,
 			COUNT(*) FILTER (WHERE status = 'absent') as absent,
 			COUNT(*) FILTER (WHERE status = 'half_day') as half_day
-		FROM attendance
+		FROM attendances
 		WHERE tenant_id = $1 AND clock_date >= $2::date
 		GROUP BY clock_date
 		ORDER BY clock_date

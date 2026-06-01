@@ -28,10 +28,11 @@ type AttendanceTrendItem struct {
 }
 
 type AnalyticsSummary struct {
-	DepartmentDistribution      []DepartmentDistribution      `json:"department_distribution"`
+	TotalEmployees              int                        `json:"total_employees"`
+	DepartmentDistribution      []DepartmentDistribution   `json:"department_distribution"`
 	EmploymentTypeDistribution  []EmploymentTypeDistribution  `json:"employment_type_distribution"`
-	GenderDistribution          []GenderDistribution          `json:"gender_distribution"`
-	AttendanceTrend             []AttendanceTrendItem         `json:"attendance_trend"`
+	GenderDistribution          []GenderDistribution       `json:"gender_distribution"`
+	AttendanceTrend             []AttendanceTrendItem      `json:"attendance_trend"`
 }
 
 // ── Analytics Repository ───────────────────────────
@@ -41,6 +42,7 @@ type AnalyticsRepository interface {
 	GetEmploymentTypeDistribution(ctx context.Context, tenantID string) ([]EmploymentTypeDistribution, error)
 	GetGenderDistribution(ctx context.Context, tenantID string) ([]GenderDistribution, error)
 	GetAttendanceTrend(ctx context.Context, tenantID string, sinceDate string) ([]AttendanceTrendItem, error)
+	GetTotalEmployees(ctx context.Context, tenantID string) (int, error)
 }
 
 // ── Analytics UseCase ──────────────────────────────
