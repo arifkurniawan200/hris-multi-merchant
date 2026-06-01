@@ -86,7 +86,7 @@ func (r *ReimbursementTypeRepo) List(ctx context.Context, tenantID string) ([]do
 	}
 	defer rows.Close()
 
-	var types []domain.ReimbursementType
+	types := make([]domain.ReimbursementType, 0)
 	for rows.Next() {
 		var rt domain.ReimbursementType
 		var deletedAt *time.Time
@@ -238,7 +238,7 @@ func (r *ReimbursementRepo) ListByEmployee(ctx context.Context, employeeID strin
 	}
 	defer rows.Close()
 
-	var reimbursements []domain.Reimbursement
+	reimbursements := make([]domain.Reimbursement, 0)
 	for rows.Next() {
 		var rb domain.Reimbursement
 		var deletedAt, approvedAt *time.Time
@@ -301,7 +301,7 @@ func (r *ReimbursementRepo) ListByTenant(ctx context.Context, tenantID, status s
 	}
 	defer rows.Close()
 
-	var reimbursements []domain.Reimbursement
+	reimbursements := make([]domain.Reimbursement, 0)
 	for rows.Next() {
 		var rb domain.Reimbursement
 		var deletedAt, approvedAt *time.Time

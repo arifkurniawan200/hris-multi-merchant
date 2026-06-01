@@ -51,41 +51,49 @@ export function Sidebar() {
       href: '/dashboard',
       label: 'Dashboard',
       icon: Clock,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/leave',
       label: 'Leave Request',
       icon: FileText,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/leave/history',
       label: 'Leave History',
       icon: CalendarDays,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/shifts',
       label: 'My Shift',
       icon: Clock,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/overtime',
       label: 'Overtime Request',
       icon: Clock,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/employee/reimbursement',
       label: 'Reimbursement',
       icon: DollarSign,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/history',
       label: 'Attendance History',
       icon: History,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/dashboard/notifications',
       label: 'Notifications',
       icon: Bell,
+      roles: ['employee', 'manager', 'tenant_admin'],
     },
     {
       href: '/manager/dashboard',
@@ -206,6 +214,7 @@ export function Sidebar() {
       href: '/dashboard/profile',
       label: 'Profile',
       icon: UserCircle,
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
     },
   ];
 
