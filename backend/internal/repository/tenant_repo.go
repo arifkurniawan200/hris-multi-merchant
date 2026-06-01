@@ -105,6 +105,47 @@ func (r *TenantRepo) List(ctx context.Context, limit, offset int) ([]domain.Tena
 	return tenants, rows.Err()
 }
 
+// ── List with employee counts ─────────────────
+
+func (r *TenantRepo) ListWithCounts(ctx context.Context, limit, offset int) ([]domain.TenantWithCount, error) {
+	query := `
+		SELECT t.id, t.name, t.slug, t.plan, t.plan_price_per_employee, t.subscription_expires_at,
+		       t.is_active, t.max_employees, t.settings, t.logo_url, t.created_at, t.deleted_at, t.updated_at,
+		       COALESCE(COUNT(e.id) FILTER (WHERE e.deleted_at IS NULL), 0) as employee_count
+		FROM tenants t
+		LEFT JOIN employees e ON e.tenant_id = t.id
+		WHERE t.deleted_at IS NULL
+		GROUP BY t.id
+		ORDER BY t.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tenants []domain.TenantWithCount
+	for rows.Next() {
+		t, err := scanTenantWithCount(rows)
+		if err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, *t)
+	}
+	return tenants, rows.Err()
+}
+
+func (r *TenantRepo) CountByTenant(ctx context.Context, tenantID string) (int, error) {
+	query := `SELECT COUNT(*) FROM employees WHERE tenant_id = $1 AND deleted_at IS NULL`
+	var count int
+	err := r.dbQuerier(ctx).QueryRow(ctx, query, tenantID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // ── Subscription / lifecycle ────────────────────
 
 func (r *TenantRepo) Activate(ctx context.Context, id string) error {
@@ -166,4 +207,30 @@ func scanTenant(scanner pgx.Row) (*domain.Tenant, error) {
 	}
 	t.DeletedAt = deletedAt
 	return &t, nil
+}
+
+// scanTenantWithCount scans a TenantWithCount (13 tenant columns + 1 count = 14)
+func scanTenantWithCount(scanner pgx.Row) (*domain.TenantWithCount, error) {
+	var twc domain.TenantWithCount
+	var expiresAt *time.Time
+	var deletedAt *time.Time
+	var logoURL *string
+	err := scanner.Scan(
+		&twc.ID, &twc.Name, &twc.Slug, &twc.Plan, &twc.PlanPricePerEmployee,
+		&expiresAt, &twc.IsActive, &twc.MaxEmployees, &twc.Settings,
+		&logoURL, &twc.CreatedAt, &deletedAt, &twc.UpdatedAt,
+		&twc.EmployeeCount,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("tenant not found")
+		}
+		return nil, err
+	}
+	twc.SubscriptionExpiresAt = expiresAt
+	if logoURL != nil {
+		twc.LogoURL = *logoURL
+	}
+	twc.DeletedAt = deletedAt
+	return &twc, nil
 }

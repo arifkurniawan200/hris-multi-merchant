@@ -28,6 +28,7 @@ import {
   DollarSign,
   LayoutDashboard,
   Wallet,
+  Shield,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -181,6 +182,25 @@ export function Sidebar() {
       label: 'Payroll',
       icon: Wallet,
       roles: ['manager', 'tenant_admin', 'super_admin'],
+    },
+    // ── Admin section (super_admin only) ──
+    {
+      href: '/admin',
+      label: 'Admin Panel',
+      icon: Shield,
+      roles: ['super_admin'],
+    },
+    {
+      href: '/admin/tenants',
+      label: 'Tenants',
+      icon: Building2,
+      roles: ['super_admin'],
+    },
+    {
+      href: '/admin/users',
+      label: 'Users',
+      icon: Users,
+      roles: ['super_admin'],
     },
     {
       href: '/dashboard/profile',

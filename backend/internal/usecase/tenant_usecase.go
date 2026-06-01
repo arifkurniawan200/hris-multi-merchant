@@ -76,6 +76,31 @@ func (uc *TenantUC) ListTenants(ctx context.Context) ([]domain.Tenant, error) {
 	return tenants, nil
 }
 
+func (uc *TenantUC) ListTenantsWithCounts(ctx context.Context, limit, offset int) ([]domain.TenantWithCount, error) {
+	tenants, err := uc.tenantRepo.ListWithCounts(ctx, limit, offset)
+	if err != nil {
+		logger.Error(ctx, "list tenants with counts failed", "error", err)
+		return nil, domain.NewInternal(fmt.Sprintf("list tenants with counts: %v", err))
+	}
+	return tenants, nil
+}
+
+func (uc *TenantUC) GetTenantDetail(ctx context.Context, id string) (*domain.TenantWithCount, error) {
+	tenant, err := uc.tenantRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, domain.NewNotFound("tenant not found")
+	}
+	count, err := uc.tenantRepo.CountByTenant(ctx, id)
+	if err != nil {
+		logger.Error(ctx, "count employees by tenant failed", "tenant_id", id, "error", err)
+		count = 0
+	}
+	return &domain.TenantWithCount{
+		Tenant:        *tenant,
+		EmployeeCount: count,
+	}, nil
+}
+
 func (uc *TenantUC) ActivateTenant(ctx context.Context, id string) error {
 	if err := uc.tenantRepo.Activate(ctx, id); err != nil {
 		logger.Error(ctx, "activate tenant failed", "tenant_id", id, "error", err)

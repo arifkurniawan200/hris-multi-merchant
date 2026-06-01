@@ -30,6 +30,8 @@ type TenantRepository interface {
 	GetBySlug(ctx context.Context, slug string) (*Tenant, error)
 	Update(ctx context.Context, tenant *Tenant) error
 	List(ctx context.Context, limit, offset int) ([]Tenant, error)
+	ListWithCounts(ctx context.Context, limit, offset int) ([]TenantWithCount, error)
+	CountByTenant(ctx context.Context, tenantID string) (int, error)
 	Activate(ctx context.Context, id string) error
 	Deactivate(ctx context.Context, id string) error
 	Extend(ctx context.Context, id string, months int) error
@@ -37,11 +39,18 @@ type TenantRepository interface {
 	SoftDelete(ctx context.Context, id string) error
 }
 
+type TenantWithCount struct {
+	Tenant
+	EmployeeCount int `json:"employee_count"`
+}
+
 type TenantUseCase interface {
 	CreateTenant(ctx context.Context, req *CreateTenantRequest) (*Tenant, error)
 	GetTenant(ctx context.Context, id string) (*Tenant, error)
 	UpdateTenant(ctx context.Context, t *Tenant) error
 	ListTenants(ctx context.Context) ([]Tenant, error)
+	ListTenantsWithCounts(ctx context.Context, limit, offset int) ([]TenantWithCount, error)
+	GetTenantDetail(ctx context.Context, id string) (*TenantWithCount, error)
 	ActivateTenant(ctx context.Context, id string) error
 	DeactivateTenant(ctx context.Context, id string) error
 	ExtendTenant(ctx context.Context, id string, months int) error
@@ -120,10 +129,23 @@ type UserTenant struct {
 	DeletedAt *time.Time     `json:"deleted_at,omitempty"`
 }
 
+// UserWithTenant joins user info with their tenant membership
+type UserWithTenant struct {
+	ID         string         `json:"id"`
+	Email      string         `json:"email"`
+	FullName   string         `json:"full_name"`
+	IsActive   bool           `json:"is_active"`
+	CreatedAt  time.Time      `json:"created_at"`
+	Role       UserTenantRole `json:"role"`
+	TenantName string         `json:"tenant_name"`
+	TenantSlug string         `json:"tenant_slug"`
+}
+
 type UserTenantRepository interface {
 	Add(ctx context.Context, userTenant *UserTenant) error
 	GetUserTenants(ctx context.Context, userID string) ([]UserTenant, error)
 	GetTenantUsers(ctx context.Context, tenantID string, limit, offset int) ([]UserTenant, error)
+	ListAllUsers(ctx context.Context) ([]UserWithTenant, error)
 	UpdateRole(ctx context.Context, userID, tenantID string, role UserTenantRole) error
 	Remove(ctx context.Context, userID, tenantID string) error
 }

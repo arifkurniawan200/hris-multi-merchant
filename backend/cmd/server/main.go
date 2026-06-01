@@ -98,7 +98,7 @@ func main() {
 	// ── Handlers ────────────────────────────
 	authH := handler.NewAuthHandler(userUC, jwtMgr, refreshStore)
 	tenantH := handler.NewTenantHandler(tenantUC)
-	adminH := handler.NewAdminHandler(tenantUC)
+	adminH := handler.NewAdminHandler(tenantUC, userTenantRepo)
 	deptH := handler.NewDepartmentHandler(deptUC)
 	posH := handler.NewPositionHandler(posUC)
 	empH := handler.NewEmployeeHandler(empUC, deptUC, posUC)
@@ -313,6 +313,8 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(rbAdmin)
 			r.Get("/api/v1/admin/tenants", adminH.ListTenants)
+			r.Get("/api/v1/admin/tenants/{id}", adminH.GetTenantDetail)
+			r.Get("/api/v1/admin/users", adminH.ListAllUsers)
 			r.Post("/api/v1/admin/tenants", tenantH.CreateByAdmin)
 			r.Put("/api/v1/admin/tenants/{id}/activate", adminH.ActivateTenant)
 			r.Put("/api/v1/admin/tenants/{id}/deactivate", adminH.DeactivateTenant)
