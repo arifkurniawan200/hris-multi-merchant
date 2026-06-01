@@ -10,13 +10,13 @@ type DepartmentDistribution struct {
 }
 
 type EmploymentTypeDistribution struct {
-	Type  string `json:"type"`
-	Count int    `json:"count"`
+	Type  *string `json:"type"`
+	Count int     `json:"count"`
 }
 
 type GenderDistribution struct {
-	Gender string `json:"gender"`
-	Count  int    `json:"count"`
+	Gender *string `json:"gender"`
+	Count  int     `json:"count"`
 }
 
 type AttendanceTrendItem struct {

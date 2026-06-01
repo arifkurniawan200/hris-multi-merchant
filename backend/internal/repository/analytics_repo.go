@@ -102,7 +102,7 @@ func (r *AnalyticsRepo) GetAttendanceTrend(ctx context.Context, tenantID string,
 			COUNT(*) FILTER (WHERE status = 'late') as late,
 			COUNT(*) FILTER (WHERE status = 'absent') as absent,
 			COUNT(*) FILTER (WHERE status = 'half_day') as half_day
-		FROM attendance
+		FROM attendances
 		WHERE tenant_id = $1 AND clock_date >= $2::date
 		GROUP BY clock_date
 		ORDER BY clock_date
