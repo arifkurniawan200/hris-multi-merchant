@@ -12,6 +12,7 @@
       "group": "Cuti & Izin",
       "leaveRequest": "Pengajuan Cuti",
       "leaveHistory": "Riwayat Cuti",
+      "leaveCalendar": "Kalender Cuti",
       "allLeaves": "Semua Cuti",
       "leaveApprovals": "Persetujuan Cuti",
       "leaveTypes": "Jenis Cuti",
@@ -32,8 +33,10 @@
     },
     "finance": {
       "group": "Keuangan",
-      "reimbursement": "Reimbursement",
-      "payroll": "Penggajian"
+      "reimbursement": "Pengajuan",
+      "reimbursementManage": "Kelola Reimbursement",
+      "payroll": "Penggajian",
+      "payslip": "Slip Gaji"
     },
     "admin": {
       "group": "Admin",
@@ -45,6 +48,8 @@
       "group": "Pengaturan",
       "tenant": "Pengaturan Penyewa"
     },
+    "analytics": "Analisis SDM",
+    "roster": "Jadwal Shift",
     "account": {
       "group": "Akun",
       "profile": "Profil",
@@ -167,7 +172,11 @@
     "noBalance": "Sisa jatah cuti tidak mencukupi",
     "createSuccess": "Pengajuan cuti berhasil",
     "approveConfirm": "Setujui pengajuan cuti ini?",
-    "rejectConfirm": "Tolak pengajuan cuti ini?"
+    "rejectConfirm": "Tolak pengajuan cuti ini?",
+    "calendar": "Kalender Cuti",
+    "calendarDesc": "Lihat jadwal cuti anggota tim",
+    "requests": "pengajuan",
+    "employees": "karyawan"
   },
   "overtime": {
     "title": "Pengajuan Lembur",
@@ -222,6 +231,45 @@
     "noShifts": "Tidak ada shift",
     "noAssignments": "Tidak ada penugasan shift",
     "noActiveShift": "Tidak ada shift aktif"
+  },
+  "analytics": {
+    "title": "Analisis SDM",
+    "totalEmployees": "Total Karyawan",
+    "totalDepartments": "Departemen",
+    "attendanceRate": "Tingkat Kehadiran",
+    "departmentDistribution": "Distribusi Departemen",
+    "employmentType": "Jenis Kepegawaian",
+    "genderDistribution": "Distribusi Gender",
+    "attendanceTrend": "Tren Kehadiran (30 Hari)",
+    "date": "Tanggal",
+    "present": "Hadir",
+    "late": "Terlambat",
+    "absent": "Absen",
+    "halfDay": "Setengah Hari",
+    "male": "Laki-laki",
+    "female": "Perempuan",
+    "permanent": "Tetap",
+    "contract": "Kontrak",
+    "intern": "Magang",
+    "daily": "Harian",
+    "freelancer": "Freelance",
+    "employees": "karyawan",
+    "noData": "Data analisis tidak tersedia"
+  },
+  "roster": {
+    "title": "Jadwal Shift",
+    "employee": "Karyawan",
+    "department": "Departemen",
+    "noRoster": "Tidak ada data roster untuk periode ini",
+    "prevWeek": "Minggu Sebelumnya",
+    "nextWeek": "Minggu Berikutnya",
+    "thisWeek": "Minggu Ini",
+    "customRange": "Kustom",
+    "dateFrom": "Dari",
+    "dateTo": "Ke",
+    "apply": "Terapkan",
+    "assigned": "Terjadwal",
+    "noShift": "Tidak Ada Shift"
   },
   "employees": {
     "title": "Kelola Karyawan",
@@ -325,6 +373,29 @@
     "approve": "Setujui",
     "pay": "Tandai Dibayar",
     "noPayrolls": "Tidak ada data penggajian"
+  },
+  "payslip": {
+    "title": "Slip Gaji",
+    "subtitle": "Riwayat slip gaji Anda",
+    "history": "Riwayat Slip Gaji",
+    "period": "Periode",
+    "baseSalary": "Gaji Pokok",
+    "overtime": "Lembur",
+    "deductions": "Potongan",
+    "netSalary": "Gaji Bersih",
+    "reimbursement": "Reimbursement",
+    "lateDeduction": "Potongan Telat",
+    "absentDeduction": "Potongan Absen",
+    "leaveDeduction": "Potongan Cuti",
+    "totalPayslips": "Total Slip",
+    "paidCount": "Sudah Dibayar",
+    "approvedCount": "Disetujui",
+    "noPayslips": "Belum ada slip gaji",
+    "noPayslipsDesc": "Slip gaji Anda akan muncul setelah payroll digenerate oleh admin.",
+    "statusDraft": "Draft",
+    "statusApproved": "Disetujui",
+    "statusPaid": "Dibayar",
+    "download": "Download PDF"
   },
   "notifications": {
     "title": "Notifikasi",
