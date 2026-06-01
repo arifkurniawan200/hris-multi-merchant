@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
@@ -11,24 +12,62 @@ import (
 )
 
 type AdminHandler struct {
-	tenantUC domain.TenantUseCase
+	tenantUC      domain.TenantUseCase
+	userTenantRepo domain.UserTenantRepository
 }
 
-func NewAdminHandler(tenantUC domain.TenantUseCase) *AdminHandler {
-	return &AdminHandler{tenantUC: tenantUC}
+func NewAdminHandler(tenantUC domain.TenantUseCase, userTenantRepo domain.UserTenantRepository) *AdminHandler {
+	return &AdminHandler{tenantUC: tenantUC, userTenantRepo: userTenantRepo}
 }
 
 // ListTenants GET /api/v1/admin/tenants (super_admin only)
 func (h *AdminHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
-	tenants, err := h.tenantUC.ListTenants(r.Context())
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	tenants, err := h.tenantUC.ListTenantsWithCounts(r.Context(), limit, offset)
 	if err != nil {
 		logger.Error(r.Context(), "admin list tenants failed", "error", err)
 		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to list tenants", reqID)
 		return
 	}
 	response.JSON(w, http.StatusOK, "Success", tenants, reqID)
+}
+
+// GetTenantDetail GET /api/v1/admin/tenants/{id}
+func (h *AdminHandler) GetTenantDetail(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+	tenantID := r.PathValue("id")
+
+	detail, err := h.tenantUC.GetTenantDetail(r.Context(), tenantID)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, "Success", detail, reqID)
+}
+
+// ListAllUsers GET /api/v1/admin/users
+func (h *AdminHandler) ListAllUsers(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	users, err := h.userTenantRepo.ListAllUsers(r.Context())
+	if err != nil {
+		logger.Error(r.Context(), "admin list all users failed", "error", err)
+		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to list users", reqID)
+		return
+	}
+	response.JSON(w, http.StatusOK, "Success", users, reqID)
 }
 
 // ActivateTenant PUT /api/v1/admin/tenants/:id/activate

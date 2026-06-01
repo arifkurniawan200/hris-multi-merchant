@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -21,6 +22,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Shift {
   id: string;
@@ -53,6 +57,8 @@ interface Employee {
 }
 
 export default function ShiftDetailPage() {
+  const t = useTranslations('shifts');
+  const tc = useTranslations('common');
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -72,6 +78,9 @@ export default function ShiftDetailPage() {
     effective_to: "",
   });
 
+  // Confirm dialog for remove
+  const [removeConfirm, setRemoveConfirm] = useState<{ id: string; employeeName: string } | null>(null);
+
   const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
@@ -87,7 +96,7 @@ export default function ShiftDetailPage() {
         api.get<EmployeeShift[]>(`/api/v1/shifts/${params.id}/employees`),
       ]);
       setShift(shiftData);
-      setAssignments(assignmentsData);
+      setAssignments(assignmentsData || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load shift details");
     } finally {
@@ -98,7 +107,7 @@ export default function ShiftDetailPage() {
   async function loadEmployees() {
     try {
       const data = await api.get<Employee[]>("/api/v1/employees");
-      setEmployees(data);
+      setEmployees(data || []);
     } catch {
       // silent
     }
@@ -138,13 +147,9 @@ export default function ShiftDetailPage() {
   }
 
   async function handleRemoveAssignment(assignmentId: string, employeeName: string) {
-    if (!confirm(`Remove shift assignment for ${employeeName}?`)) return;
     setError("");
     setSuccess("");
     try {
-      // We need the employee_id; iterate to find it
-      // The endpoint is DELETE /api/v1/employees/{id}/shifts/{sid}
-      // But we don't have the format here — use the assignment ID lookup
       const assignment = assignments.find((a) => a.id === assignmentId);
       if (!assignment) return;
       await api.del(`/api/v1/employees/${assignment.employee_id}/shifts/${assignmentId}`);
@@ -170,25 +175,21 @@ export default function ShiftDetailPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Access Denied</p>
+          <p className="font-medium text-foreground">Access Denied</p>
         </div>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   if (!shift) {
     return (
       <div className="text-center py-12">
-        <p className="text-[var(--muted-foreground)]">Shift not found</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.push("/manager/shifts")}>
+        <p className="text-muted-foreground">Shift not found</p>
+        <Button variant="outline" className="mt-4 active:scale-95 transition-all duration-200" onClick={() => router.push("/manager/shifts")}>
           Back to Shifts
         </Button>
       </div>
@@ -198,32 +199,32 @@ export default function ShiftDetailPage() {
   const assignedIds = assignments.map((a) => a.employee_id);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Back button */}
       <Link
         href="/manager/shifts"
-        className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Shifts
+        {tc('back')}
       </Link>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
       )}
 
       {/* Shift header */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -233,35 +234,35 @@ export default function ShiftDetailPage() {
               />
               <CardTitle>{shift.name}</CardTitle>
               <Badge variant="info">{shift.code}</Badge>
-              {shift.is_flexible && <Badge variant="warning">Flexible</Badge>}
+              {shift.is_flexible && <Badge variant="warning">{t('flexible')}</Badge>}
             </div>
-            <p className="text-sm text-[var(--muted-foreground)] mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               Created: {new Date(shift.created_at).toLocaleDateString()}
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={openAssignModal}>
+            <Button variant="outline" size="sm" onClick={openAssignModal} className="active:scale-95 transition-all duration-200">
               <Link2 className="h-4 w-4 mr-1" />
-              Assign Employees
+              {t('assign')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-3 rounded-lg bg-[var(--secondary)]">
-              <p className="text-xs text-[var(--muted-foreground)]">Start</p>
+            <div className="p-3 rounded-lg bg-secondary">
+              <p className="text-xs text-muted-foreground">Start</p>
               <p className="text-lg font-bold">{shift.start_time.substring(0, 5)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-[var(--secondary)]">
-              <p className="text-xs text-[var(--muted-foreground)]">End</p>
+            <div className="p-3 rounded-lg bg-secondary">
+              <p className="text-xs text-muted-foreground">End</p>
               <p className="text-lg font-bold">{shift.end_time.substring(0, 5)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-[var(--secondary)]">
-              <p className="text-xs text-[var(--muted-foreground)]">Grace</p>
+            <div className="p-3 rounded-lg bg-secondary">
+              <p className="text-xs text-muted-foreground">Grace</p>
               <p className="text-lg font-bold">{shift.grace_minutes} min</p>
             </div>
-            <div className="p-3 rounded-lg bg-[var(--secondary)]">
-              <p className="text-xs text-[var(--muted-foreground)]">Employees</p>
+            <div className="p-3 rounded-lg bg-secondary">
+              <p className="text-xs text-muted-foreground">Employees</p>
               <p className="text-lg font-bold">{assignments.length}</p>
             </div>
           </div>
@@ -269,44 +270,44 @@ export default function ShiftDetailPage() {
       </Card>
 
       {/* Assigned Employees */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Assigned Employees ({assignments.length})
+          <Users className="h-5 w-5" />
+          {t('assignments')} ({assignments.length})
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={openAssignModal}>
+          <Button variant="outline" size="sm" onClick={openAssignModal} className="active:scale-95 transition-all duration-200">
             <Link2 className="h-4 w-4 mr-1" />
-            Assign
+            {t('assign')}
           </Button>
         </CardHeader>
         <CardContent>
           {assignments.length === 0 ? (
-            <div className="text-center py-8 text-[var(--muted-foreground)]">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No employees assigned</p>
-              <p className="text-sm mt-1">Assign employees to this shift to get started</p>
-            </div>
+            <EmptyState
+              icon="inbox"
+              title={t('noAssignments')}
+              description="Assign employees to this shift to get started"
+            />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-children">
               {assignments.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)]"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border card-hover transition-all duration-200"
                 >
                   <div>
                     <p className="font-medium text-sm">
                       {a.employee_name || "Employee"}
                     </p>
-                    <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {a.effective_from} → {a.effective_to || "Indefinite"}
                     </p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-[var(--danger)] border-red-200 hover:bg-red-50"
-                    onClick={() => handleRemoveAssignment(a.id, a.employee_name || "this employee")}
+                    className="text-danger border-red-200 hover:bg-red-50 active:scale-95 transition-all duration-200"
+                    onClick={() => setRemoveConfirm({ id: a.id, employeeName: a.employee_name || "this employee" })}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -320,11 +321,11 @@ export default function ShiftDetailPage() {
       {/* Assign Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto card-hover transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Assign: {shift.name}</CardTitle>
               <button onClick={() => setShowAssignModal(false)}>
-                <X className="h-5 w-5 text-[var(--muted-foreground)]" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </CardHeader>
             <CardContent>
@@ -344,26 +345,26 @@ export default function ShiftDetailPage() {
                     Select Employees ({assignForm.employee_ids.length} selected)
                   </label>
                   {employees.length === 0 ? (
-                    <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">
+                    <p className="text-sm text-muted-foreground py-4 text-center">
                       No employees found
                     </p>
                   ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-[var(--border)] rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
                       {employees
                         .filter((emp) => !assignedIds.includes(emp.id))
                         .map((emp) => (
-                          <label key={emp.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-[var(--secondary)] cursor-pointer">
-                            <input type="checkbox" checked={assignForm.employee_ids.includes(emp.id)} onChange={() => toggleEmployee(emp.id)} className="rounded border-[var(--border)]" />
+                          <label key={emp.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary cursor-pointer">
+                            <input type="checkbox" checked={assignForm.employee_ids.includes(emp.id)} onChange={() => toggleEmployee(emp.id)} className="rounded border-border" />
                             <span className="text-sm font-medium">{emp.name}</span>
-                            <span className="text-xs text-[var(--muted-foreground)]">{emp.code}</span>
+                            <span className="text-xs text-muted-foreground">{emp.code}</span>
                           </label>
                         ))}
                     </div>
                   )}
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)}>Cancel</Button>
-                  <Button type="submit" disabled={submitting || assignForm.employee_ids.length === 0}>
+                  <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)} className="active:scale-95 transition-all duration-200">Cancel</Button>
+                  <Button type="submit" disabled={submitting || assignForm.employee_ids.length === 0} className="active:scale-95 transition-all duration-200">
                     {submitting ? "Assigning..." : `Assign to ${assignForm.employee_ids.length}`}
                   </Button>
                 </div>
@@ -372,6 +373,20 @@ export default function ShiftDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Confirm Remove */}
+      <ConfirmDialog
+        variant="danger"
+        open={!!removeConfirm}
+        onClose={() => setRemoveConfirm(null)}
+        onConfirm={() => {
+          if (removeConfirm) {
+            handleRemoveAssignment(removeConfirm.id, removeConfirm.employeeName).then(() => setRemoveConfirm(null));
+          }
+        }}
+        title="Remove Shift Assignment"
+        message={`Remove shift assignment for ${removeConfirm?.employeeName}?`}
+      />
     </div>
   );
 }

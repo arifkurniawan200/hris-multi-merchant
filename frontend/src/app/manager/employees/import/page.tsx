@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { LoadingState } from '@/components/ui/loading-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -25,6 +27,8 @@ interface ImportResult {
 export default function BulkImportPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const t = useTranslations('employees');
+  const tc = useTranslations('common');
 
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -130,23 +134,21 @@ export default function BulkImportPage() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <LoadingState variant="fullscreen" />
     );
   }
 
   if (!isManager) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="active:scale-95 transition-all duration-200">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-balance text-2xl font-bold text-foreground flex items-center gap-2">
             <Upload className="h-6 w-6" />
             Bulk Employee Import
           </h1>
@@ -157,7 +159,7 @@ export default function BulkImportPage() {
       </div>
 
       {/* Upload Area */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="text-base">Select File</CardTitle>
           <CardDescription>
@@ -204,7 +206,7 @@ export default function BulkImportPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="mt-3 text-muted-foreground"
+                  className="mt-3 text-muted-foreground active:scale-95 transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setFile(null);
@@ -221,7 +223,7 @@ export default function BulkImportPage() {
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger mt-4">
+            <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger mt-4 animate-slide-up">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -233,6 +235,7 @@ export default function BulkImportPage() {
               onClick={handleUpload}
               disabled={!file || uploading}
               size="lg"
+              className="active:scale-95 transition-all duration-200"
             >
               {uploading ? (
                 <>
@@ -252,7 +255,7 @@ export default function BulkImportPage() {
 
       {/* Result Summary */}
       {result && (
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-emerald-500" />
@@ -260,7 +263,7 @@ export default function BulkImportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 stagger-children">
               <div className="rounded-lg border border-border p-4 text-center">
                 <p className="text-2xl font-bold text-foreground">{result.total_rows}</p>
                 <p className="text-xs text-muted-foreground mt-1">Total Rows</p>
@@ -298,10 +301,10 @@ export default function BulkImportPage() {
             )}
 
             <div className="mt-4 flex gap-3">
-              <Button variant="outline" onClick={() => { setResult(null); setFile(null); }}>
+              <Button variant="outline" onClick={() => { setResult(null); setFile(null); }} className="active:scale-95 transition-all duration-200">
                 Import Another File
               </Button>
-              <Button onClick={() => router.push('/manager/employees')}>
+              <Button onClick={() => router.push('/manager/employees')} className="active:scale-95 transition-all duration-200">
                 View Employees
               </Button>
             </div>

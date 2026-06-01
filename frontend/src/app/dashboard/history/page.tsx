@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { History, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
+import { FilterDropdown } from '@/components/ui/filter-dropdown';
 
 interface AttendanceRecord {
   id: string;
@@ -35,20 +39,23 @@ const statusVariant = (status: string) => {
 };
 
 export default function HistoryPage() {
+  const t = useTranslations('attendance');
+  const tc = useTranslations('common');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const limit = 20;
 
   const fetchHistory = useCallback(async (currentOffset: number) => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await api.get<HistoryResponse>(
-        `/api/v1/attendance/history?limit=${limit}&offset=${currentOffset}`
-      );
+      let url = `/api/v1/attendance/history?limit=${limit}&offset=${currentOffset}`;
+      if (statusFilter) url += `&status=${statusFilter}`;
+      const data = await api.get<HistoryResponse>(url);
       setRecords((data as HistoryResponse)?.records || []);
       setTotal((data as HistoryResponse)?.total || 0);
     } catch (err) {
@@ -56,11 +63,15 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchHistory(offset);
   }, [offset, fetchHistory]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [statusFilter]);
 
   const totalPages = Math.ceil(total / limit);
   const currentPage = Math.floor(offset / limit) + 1;
@@ -74,11 +85,11 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 text-balance">
           <History className="h-6 w-6" />
-          Attendance History
+          {t('history')}
         </h2>
         <p className="text-muted-foreground mt-1">
           View your past attendance records
@@ -86,15 +97,23 @@ export default function HistoryPage() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+        <div className="rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
           {error}
         </div>
       )}
 
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
-            <span>Records</span>
+            <div className="flex items-center gap-3">
+              <span>Records</span>
+              <FilterDropdown label={t('status')} options={[
+                {value: 'present', label: t('present')},
+                {value: 'late', label: t('late')},
+                {value: 'half_day', label: t('halfDay')},
+                {value: 'absent', label: t('absent')}
+              ]} value={statusFilter} onChange={setStatusFilter} />
+            </div>
             {!isLoading && (
               <span className="text-sm font-normal text-muted-foreground">
                 {total} total record{total !== 1 ? 's' : ''}
@@ -104,21 +123,11 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-8 space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-              ))}
+            <div className="p-8">
+              <LoadingState variant="list" rows={5} />
             </div>
           ) : records.length === 0 ? (
-            <div className="p-12 text-center">
-              <Calendar className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                No attendance records
-              </h3>
-              <p className="text-muted-foreground">
-                Your attendance history will appear here once you start clocking in and out.
-              </p>
-            </div>
+            <EmptyState icon="inbox" title={t('noRecords')} description="Your attendance history will appear here once you start clocking in and out." />
           ) : (
             <>
               {/* Desktop table */}
@@ -127,16 +136,16 @@ export default function HistoryPage() {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Date
+                        {t('date')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock In
+                        {t('clockIn')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock Out
+                        {t('clockOut')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Status
+                        {t('status')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Notes
@@ -210,25 +219,27 @@ export default function HistoryPage() {
       {total > limit && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
+            {tc('page', { current: currentPage, total: totalPages })}
           </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
+              className="active:scale-95 transition-all duration-200"
               onClick={handlePrevious}
               disabled={offset === 0}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
+              {tc('prev')}
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="active:scale-95 transition-all duration-200"
               onClick={handleNext}
               disabled={offset + limit >= total}
             >
-              Next
+              {tc('next')}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

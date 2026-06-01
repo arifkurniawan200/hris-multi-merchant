@@ -23,6 +23,10 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { useTranslations } from 'next-intl';
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Tenant {
   id: string;
@@ -39,6 +43,8 @@ interface Tenant {
 }
 
 export default function TenantSettingsPage() {
+  const t = useTranslations('settings');
+  const tc = useTranslations('common');
   const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +135,7 @@ export default function TenantSettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
+        <LoadingState variant="fullscreen" />
       </div>
     );
   }
@@ -139,34 +145,34 @@ export default function TenantSettingsPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Tenant not found</p>
+          <p className="font-medium text-foreground">{tc('noData')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-[var(--accent)]">
-          <Building2 className="h-6 w-6 text-[var(--primary)]" />
+        <div className="p-2.5 rounded-xl bg-accent">
+          <Building2 className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Tenant Settings</h1>
-          <p className="text-[var(--muted-foreground)] mt-0.5">Manage your company profile and preferences</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('tenant')}</h1>
+          <p className="text-muted-foreground mt-0.5">Manage your company profile and preferences</p>
         </div>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -175,7 +181,7 @@ export default function TenantSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Edit form */}
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
@@ -209,7 +215,7 @@ export default function TenantSettingsPage() {
                       />
                     </div>
                     {logoUrl && (
-                      <div className="w-10 h-10 rounded-lg border border-[var(--border)] overflow-hidden flex-shrink-0 bg-white p-1">
+                      <div className="w-10 h-10 rounded-lg border border-border overflow-hidden flex-shrink-0 bg-white p-1">
                         <img
                           src={logoUrl}
                           alt="Logo preview"
@@ -221,13 +227,13 @@ export default function TenantSettingsPage() {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Upload your logo to a public URL (e.g. ImgBB, Cloudinary) and paste the link here
                   </p>
                 </div>
 
                 {/* Settings section */}
-                <div className="pt-4 border-t border-[var(--border)]">
+                <div className="pt-4 border-t border-border">
                   <h3 className="font-medium text-sm mb-4">General Settings</h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -237,7 +243,7 @@ export default function TenantSettingsPage() {
                         value={settings.timezone}
                         onChange={(e) => updateSetting("timezone", e.target.value)}
                         disabled={!isTenantAdmin}
-                        className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
                         <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
@@ -255,7 +261,7 @@ export default function TenantSettingsPage() {
                         value={settings.date_format}
                         onChange={(e) => updateSetting("date_format", e.target.value)}
                         disabled={!isTenantAdmin}
-                        className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -269,7 +275,7 @@ export default function TenantSettingsPage() {
                         value={settings.currency}
                         onChange={(e) => updateSetting("currency", e.target.value)}
                         disabled={!isTenantAdmin}
-                        className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="IDR">IDR (Rp)</option>
                         <option value="USD">USD ($)</option>
@@ -292,43 +298,43 @@ export default function TenantSettingsPage() {
 
                   {/* Toggles */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-                    <label className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] cursor-pointer hover:bg-[var(--secondary)] transition-colors">
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary transition-all duration-200">
                       <input
                         type="checkbox"
                         checked={settings.enable_selfie_clockin}
                         onChange={(e) => updateSetting("enable_selfie_clockin", e.target.checked)}
                         disabled={!isTenantAdmin}
-                        className="rounded border-[var(--border)]"
+                        className="rounded border-border"
                       />
                       <div>
                         <p className="text-sm font-medium">Selfie Clock-In</p>
-                        <p className="text-xs text-[var(--muted-foreground)]">Require selfie on clock-in</p>
+                        <p className="text-xs text-muted-foreground">Require selfie on clock-in</p>
                       </div>
                     </label>
-                    <label className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] cursor-pointer hover:bg-[var(--secondary)] transition-colors">
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary transition-all duration-200">
                       <input
                         type="checkbox"
                         checked={settings.enable_location_tracking}
                         onChange={(e) => updateSetting("enable_location_tracking", e.target.checked)}
                         disabled={!isTenantAdmin}
-                        className="rounded border-[var(--border)]"
+                        className="rounded border-border"
                       />
                       <div>
                         <p className="text-sm font-medium">Location Tracking</p>
-                        <p className="text-xs text-[var(--muted-foreground)]">Record GPS on clock-in/out</p>
+                        <p className="text-xs text-muted-foreground">Record GPS on clock-in/out</p>
                       </div>
                     </label>
-                    <label className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] cursor-pointer hover:bg-[var(--secondary)] transition-colors">
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary transition-all duration-200">
                       <input
                         type="checkbox"
                         checked={settings.enable_overtime}
                         onChange={(e) => updateSetting("enable_overtime", e.target.checked)}
                         disabled={!isTenantAdmin}
-                        className="rounded border-[var(--border)]"
+                        className="rounded border-border"
                       />
                       <div>
                         <p className="text-sm font-medium">Overtime</p>
-                        <p className="text-xs text-[var(--muted-foreground)]">Enable overtime requests</p>
+                        <p className="text-xs text-muted-foreground">Enable overtime requests</p>
                       </div>
                     </label>
                   </div>
@@ -339,7 +345,7 @@ export default function TenantSettingsPage() {
                   <button
                     type="button"
                     onClick={() => { setUseRawJson(!useRawJson); setRawJson(JSON.stringify(settings, null, 2)); }}
-                    className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                   >
                     {useRawJson ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     {useRawJson ? "Use form fields instead" : "Edit raw JSON settings"}
@@ -350,7 +356,7 @@ export default function TenantSettingsPage() {
                       onChange={(e) => setRawJson(e.target.value)}
                       disabled={!isTenantAdmin}
                       rows={10}
-                      className="w-full mt-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                      className="w-full mt-2 px-3 py-2 rounded-lg border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   )}
                 </div>
@@ -358,9 +364,9 @@ export default function TenantSettingsPage() {
                 {/* Save button */}
                 {isTenantAdmin && (
                   <div className="flex justify-end pt-2">
-                    <Button type="submit" disabled={saving}>
+                    <Button type="submit" disabled={saving} className="active:scale-95 transition-all duration-200">
                       <Save className="h-4 w-4 mr-2" />
-                      {saving ? "Saving..." : "Save Settings"}
+                      {saving ? tc('saving') : tc('save')}
                     </Button>
                   </div>
                 )}
@@ -372,7 +378,7 @@ export default function TenantSettingsPage() {
         {/* Right sidebar: Info cards */}
         <div className="space-y-6">
           {/* Plan Info */}
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <CreditCard className="h-4 w-4" />
@@ -381,11 +387,11 @@ export default function TenantSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted-foreground)]">Plan</span>
+                <span className="text-sm text-muted-foreground">Plan</span>
                 {planBadge(tenant.plan)}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted-foreground)]">Status</span>
+                <span className="text-sm text-muted-foreground">Status</span>
                 {tenant.is_active ? (
                   <Badge variant="success">Active</Badge>
                 ) : (
@@ -393,18 +399,18 @@ export default function TenantSettingsPage() {
                 )}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted-foreground)]">Max Employees</span>
+                <span className="text-sm text-muted-foreground">Max Employees</span>
                 <span className="font-medium">{tenant.max_employees}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted-foreground)]">Price/Employee</span>
+                <span className="text-sm text-muted-foreground">Price/Employee</span>
                 <span className="font-medium">
                   {tenant.plan_price_per_employee > 0 ? `Rp ${tenant.plan_price_per_employee.toLocaleString()}` : "Free"}
                 </span>
               </div>
               {tenant.subscription_expires_at && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[var(--muted-foreground)]">Expires</span>
+                  <span className="text-sm text-muted-foreground">Expires</span>
                   <span className="font-medium text-sm">
                     {new Date(tenant.subscription_expires_at).toLocaleDateString()}
                   </span>
@@ -414,7 +420,7 @@ export default function TenantSettingsPage() {
           </Card>
 
           {/* Company Stats */}
-          <Card>
+          <Card className="card-hover transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="h-4 w-4" />
@@ -423,21 +429,21 @@ export default function TenantSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-xs text-[var(--muted-foreground)]">Name</p>
+                <p className="text-xs text-muted-foreground">Name</p>
                 <p className="font-medium">{tenant.name}</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--muted-foreground)]">Slug</p>
+                <p className="text-xs text-muted-foreground">Slug</p>
                 <p className="font-mono text-sm">{tenant.slug}</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--muted-foreground)]">Tenant ID</p>
-                <p className="font-mono text-xs text-[var(--muted-foreground)] break-all">
+                <p className="text-xs text-muted-foreground">Tenant ID</p>
+                <p className="font-mono text-xs text-muted-foreground break-all">
                   {tenant.id}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-[var(--muted-foreground)]">Created</p>
+                <p className="text-xs text-muted-foreground">Created</p>
                 <p className="font-medium text-sm">
                   {new Date(tenant.created_at).toLocaleDateString("en-GB", {
                     year: "numeric",
@@ -448,8 +454,8 @@ export default function TenantSettingsPage() {
               </div>
               {tenant.logo_url && (
                 <div>
-                  <p className="text-xs text-[var(--muted-foreground)]">Current Logo</p>
-                  <div className="mt-1 w-16 h-16 rounded-lg border border-[var(--border)] overflow-hidden bg-white p-1">
+                  <p className="text-xs text-muted-foreground">Current Logo</p>
+                  <div className="mt-1 w-16 h-16 rounded-lg border border-border overflow-hidden bg-white p-1">
                     <img
                       src={tenant.logo_url}
                       alt="Company logo"

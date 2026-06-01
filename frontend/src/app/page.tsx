@@ -3,8 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { useTranslations } from 'next-intl';
+import { LoadingState } from '@/components/ui/loading-state';
 
 export default function HomePage() {
+  const t = useTranslations('common');
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
@@ -17,12 +20,5 @@ export default function HomePage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <div
-        className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"
-        role="status"
-      />
-    </div>
-  );
+  return <LoadingState variant="fullscreen" />;
 }

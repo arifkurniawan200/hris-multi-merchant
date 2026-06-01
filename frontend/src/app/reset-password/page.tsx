@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Lock, CheckCircle } from 'lucide-react';
+import { LoadingState } from '@/components/ui/loading-state';
 
 interface ResetPasswordFormProps {
   token: string;
@@ -15,6 +17,7 @@ interface ResetPasswordFormProps {
 
 function ResetPasswordForm({ token, onSuccess }: ResetPasswordFormProps) {
   const router = useRouter();
+  const t = useTranslations('resetPassword');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,7 +51,7 @@ function ResetPasswordForm({ token, onSuccess }: ResetPasswordFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium">New Password</label>
+        <label htmlFor="password" className="text-sm font-medium">{t('newPassword')}</label>
         <div className="relative">
           <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -64,7 +67,7 @@ function ResetPasswordForm({ token, onSuccess }: ResetPasswordFormProps) {
         </div>
       </div>
       <div className="space-y-2">
-        <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</label>
+        <label htmlFor="confirmPassword" className="text-sm font-medium">{t('confirmPassword')}</label>
         <Input
           id="confirmPassword"
           type="password"
@@ -76,17 +79,18 @@ function ResetPasswordForm({ token, onSuccess }: ResetPasswordFormProps) {
       </div>
 
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600 animate-slide-up">{error}</p>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Resetting...' : 'Reset Password'}
+      <Button type="submit" className="w-full active:scale-95 transition-all duration-200" disabled={loading}>
+        {loading ? t('submitting') : t('submit')}
       </Button>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('resetPassword');
   const [searchParamsLoaded, setSearchParamsLoaded] = React.useState(false);
   const [token, setToken] = React.useState('');
   const [success, setSuccess] = React.useState(false);
@@ -100,9 +104,9 @@ export default function ResetPasswordPage() {
   if (!searchParamsLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md card-hover transition-all duration-200">
           <CardContent className="py-8">
-            <p className="text-center text-sm text-muted-foreground">Loading...</p>
+            <LoadingState variant="inline" />
           </CardContent>
         </Card>
       </div>
@@ -112,15 +116,15 @@ export default function ResetPasswordPage() {
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md card-hover transition-all duration-200">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Password Reset</CardTitle>
-            <CardDescription>Your password has been reset successfully</CardDescription>
+            <CardTitle className="text-2xl">{t('title')}</CardTitle>
+            <CardDescription>{t('success')}</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <Button onClick={() => window.location.href = '/login'} className="w-full">
-              Go to Login
+            <Button onClick={() => window.location.href = '/login'} className="w-full active:scale-95 transition-all duration-200">
+              {t('backToLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -131,13 +135,13 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md card-hover transition-all duration-200">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Invalid Link</CardTitle>
             <CardDescription>This password reset link is invalid or has expired</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <Button variant="outline" onClick={() => window.location.href = '/forgot-password'} className="w-full">
+            <Button variant="outline" onClick={() => window.location.href = '/forgot-password'} className="w-full active:scale-95 transition-all duration-200">
               Request a new reset link
             </Button>
           </CardContent>
@@ -148,7 +152,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md card-hover transition-all duration-200">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Reset Password</CardTitle>
           <CardDescription>Enter your new password below</CardDescription>

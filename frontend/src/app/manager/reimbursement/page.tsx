@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,9 @@ import {
   type ReimbursementType,
   type Reimbursement,
 } from "@/lib/api-reimbursement";
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 function formatRupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -54,13 +58,15 @@ const emptyTypeForm: TypeFormData = {
   description: "",
 };
 
-const statusConfig: Record<string, { label: string; variant: string }> = {
+const statusConfig: Record<string, { label: string; variant: "warning" | "success" | "danger" | "default" }> = {
   pending: { label: "Pending", variant: "warning" },
   approved: { label: "Approved", variant: "success" },
   rejected: { label: "Rejected", variant: "danger" },
 };
 
 export default function ManagerReimbursementPage() {
+  const tr = useTranslations('reimbursement');
+  const tc = useTranslations('common');
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"types" | "pending">("types");
 
@@ -86,6 +92,9 @@ export default function ManagerReimbursementPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
 
+  // Confirm delete type
+  const [deleteTypeConfirm, setDeleteTypeConfirm] = useState<{ id: string; name: string } | null>(null);
+
   const isManager =
     user?.role === "manager" ||
     user?.role === "tenant_admin" ||
@@ -105,7 +114,7 @@ export default function ManagerReimbursementPage() {
     setError("");
     try {
       const data = await fetchReimbursementTypes(user?.tenant_id || "");
-      setTypes(data);
+      setTypes(data ?? []);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load reimbursement types"
@@ -124,8 +133,8 @@ export default function ManagerReimbursementPage() {
         fetchPendingReimbursements(tenant, 50, 0),
         fetchAllReimbursements(tenant, undefined, 50, 0),
       ]);
-      setPendingReims(pendingRes.items || []);
-      setHistoryReims((historyRes.items || []).filter((r) => r.status !== "pending"));
+      setPendingReims(pendingRes?.items ?? []);
+      setHistoryReims((historyRes?.items ?? []).filter((r) => r.status !== "pending"));
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load reimbursements"
@@ -195,7 +204,6 @@ export default function ManagerReimbursementPage() {
   }
 
   async function handleDeleteType(id: string, name: string) {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     setError("");
     setSuccess("");
     try {
@@ -247,8 +255,8 @@ export default function ManagerReimbursementPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-amber-500" />
-          <p className="font-medium text-[var(--foreground)]">Access Denied</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">
+          <p className="font-medium text-foreground">{tc('error')}</p>
+          <p className="text-sm text-muted-foreground mt-1">
             Manager role required
           </p>
         </div>
@@ -257,49 +265,49 @@ export default function ManagerReimbursementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          Reimbursement Management
+        <h1 className="text-2xl font-bold text-foreground text-balance">
+          {tr('title')}
         </h1>
-        <p className="text-[var(--muted-foreground)] mt-1">
+        <p className="text-muted-foreground mt-1">
           Manage reimbursement types and approve/reject employee requests
         </p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-[var(--border)]">
+      <div className="flex gap-1 border-b border-border">
         <button
           onClick={() => setActiveTab("types")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
             activeTab === "types"
-              ? "border-[var(--primary)] text-[var(--foreground)]"
-              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          Reimbursement Types
+          {tr('title')} Types
         </button>
         <button
           onClick={() => setActiveTab("pending")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
             activeTab === "pending"
-              ? "border-[var(--primary)] text-[var(--foreground)]"
-              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          Pending Reimbursements
+          {tr('pending')} {tr('title')}
         </button>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger animate-slide-up">
           <XCircle className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success animate-slide-up">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -309,29 +317,30 @@ export default function ManagerReimbursementPage() {
       {activeTab === "types" && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-[var(--muted-foreground)]">
-              {types.length} type(s) configured
+            <p className="text-sm text-muted-foreground">
+              {(types ?? []).length} {tc('name')}(s) configured
             </p>
             <Button
               onClick={() => {
                 resetTypeForm();
                 setShowTypeForm(true);
               }}
+              className="transition-all duration-200 active:scale-95"
             >
-              <Plus className="h-4 w-4 mr-1" /> Add Type
+              <Plus className="h-4 w-4 mr-1" /> {tr('title')}
             </Button>
           </div>
 
           {/* Create/Edit Type Form */}
           {showTypeForm && (
-            <Card>
+            <Card className="card-hover">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>
-                  {editingTypeId ? "Edit Reimbursement Type" : "New Reimbursement Type"}
+                  {editingTypeId ? `${tc('edit')} ${tr('title')}` : `${tc('create')} ${tr('title')}`}
                 </CardTitle>
                 <button
                   onClick={resetTypeForm}
-                  className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -340,8 +349,8 @@ export default function ManagerReimbursementPage() {
                 <form onSubmit={handleTypeSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Name *
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {tc('name')} *
                       </label>
                       <Input
                         placeholder="e.g. Medical Reimbursement"
@@ -353,7 +362,7 @@ export default function ManagerReimbursementPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1.5">
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
                         Code *
                       </label>
                       <Input
@@ -370,8 +379,8 @@ export default function ManagerReimbursementPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Max Amount (IDR)
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {tr('amount')} (IDR)
                       </label>
                       <Input
                         type="number"
@@ -388,11 +397,11 @@ export default function ManagerReimbursementPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">
-                      Description
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      {tr('description')}
                     </label>
                     <textarea
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[80px] resize-y"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-y placeholder:text-muted-foreground"
                       placeholder="Optional description..."
                       value={typeForm.description}
                       onChange={(e) =>
@@ -405,10 +414,10 @@ export default function ManagerReimbursementPage() {
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={resetTypeForm}>
-                      Cancel
+                      {tc('cancel')}
                     </Button>
                     <Button type="submit">
-                      {editingTypeId ? "Update" : "Create"}
+                      {editingTypeId ? tc('edit') : tc('create')}
                     </Button>
                   </div>
                 </form>
@@ -420,39 +429,37 @@ export default function ManagerReimbursementPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-[var(--primary)]" />
-                All Reimbursement Types ({types.length})
+                <Receipt className="h-5 w-5 text-primary" />
+                {tr('title')} ({(types ?? []).length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {typesLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-                </div>
-              ) : types.length === 0 ? (
-                <div className="text-center py-12 text-[var(--muted-foreground)]">
-                  <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No reimbursement types yet</p>
-                  <p className="text-sm mt-1">Click "Add Type" to create one</p>
-                </div>
+                <LoadingState variant="inline" />
+              ) : (types ?? []).length === 0 ? (
+                <EmptyState
+                  icon="inbox"
+                  title={tr('noReimbursements')}
+                  description='Click "Add Type" to create one'
+                />
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 stagger-children">
                   {types.map((rt) => (
                     <div
                       key={rt.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card card-hover"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-emerald-500" />
-                          <span className="font-medium">{rt.name}</span>
+                          <span className="font-medium text-foreground">{rt.name}</span>
                           <Badge variant="default" className="text-xs">
                             {rt.code}
                           </Badge>
                         </div>
-                        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
+                        <p className="text-sm text-muted-foreground mt-0.5">
                           {rt.max_amount
-                            ? `Max: ${formatRupiah(rt.max_amount)}`
+                            ? `${tr('amount')}: ${formatRupiah(rt.max_amount)}`
                             : "No max amount"}
                           {rt.description && ` · ${rt.description}`}
                         </p>
@@ -468,7 +475,7 @@ export default function ManagerReimbursementPage() {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleDeleteType(rt.id, rt.name)}
+                          onClick={() => setDeleteTypeConfirm({ id: rt.id, name: rt.name })}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -490,57 +497,53 @@ export default function ManagerReimbursementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-amber-500" />
-                Pending Reimbursements ({pendingReims.length})
+                {tr('pending')} {tr('title')} ({(pendingReims ?? []).length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {pendingLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-                </div>
-              ) : pendingReims.length === 0 ? (
-                <div className="text-center py-12 text-[var(--muted-foreground)]">
-                  <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">All caught up!</p>
-                  <p className="text-sm mt-1">
-                    No pending reimbursement requests to review
-                  </p>
-                </div>
+                <LoadingState variant="inline" />
+              ) : (pendingReims ?? []).length === 0 ? (
+                <EmptyState
+                  icon="inbox"
+                  title="All caught up!"
+                  description="No pending reimbursement requests to review"
+                />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 stagger-children">
                   {pendingReims.map((r) => (
                     <div
                       key={r.id}
-                      className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)] space-y-3"
+                      className="p-4 rounded-lg border border-border bg-card card-hover space-y-3"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-[var(--foreground)]">
+                            <span className="font-semibold text-foreground">
                               {r.employee_name || "Unknown"}
                             </span>
-                            <Badge variant="warning">Pending</Badge>
+                            <Badge variant="warning">{tr('pending')}</Badge>
                           </div>
                           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             <div>
-                              <span className="text-[var(--muted-foreground)]">
-                                Type:{" "}
+                              <span className="text-muted-foreground">
+                                {tr('category')}:{" "}
                               </span>
-                              <span className="font-medium">
+                              <span className="font-medium text-foreground">
                                 {r.type_name || "-"}
                               </span>
                             </div>
                             <div>
-                              <span className="text-[var(--muted-foreground)]">
-                                Amount:{" "}
+                              <span className="text-muted-foreground">
+                                {tr('amount')}:{" "}
                               </span>
-                              <span className="font-medium">
+                              <span className="font-medium text-foreground">
                                 {formatRupiah(r.amount)}
                               </span>
                             </div>
                           </div>
                           {r.description && (
-                            <p className="text-sm text-[var(--muted-foreground)] mt-2">
+                            <p className="text-sm text-muted-foreground mt-2">
                               {r.description}
                             </p>
                           )}
@@ -553,7 +556,7 @@ export default function ManagerReimbursementPage() {
                             disabled={processing === r.id}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Approve
+                            {tr('approved')}
                           </Button>
                           <Button
                             variant="danger"
@@ -567,7 +570,7 @@ export default function ManagerReimbursementPage() {
                             disabled={processing === r.id}
                           >
                             <XCircle className="h-4 w-4 mr-1" />
-                            Reject
+                            {tr('rejected')}
                           </Button>
                         </div>
                       </div>
@@ -582,62 +585,50 @@ export default function ManagerReimbursementPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-[var(--primary)]" />
-                Approved / Rejected History
+                <Receipt className="h-5 w-5 text-primary" />
+                {tr('approved')} / {tr('rejected')} History
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {historyReims.length === 0 ? (
-                <div className="text-center py-12 text-[var(--muted-foreground)]">
-                  <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No history yet</p>
-                  <p className="text-sm mt-1">
-                    Approved and rejected reimbursements will appear here
-                  </p>
-                </div>
+              {(historyReims ?? []).length === 0 ? (
+                <EmptyState
+                  icon="inbox"
+                  title="No history yet"
+                  description="Approved and rejected reimbursements will appear here"
+                />
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 stagger-children">
                   {historyReims.map((r) => {
-                    const sc =
-                      statusConfig[r.status] || {
-                        label: r.status,
-                        variant: "default",
-                      };
+                    const sc = statusConfig[r.status] || {
+                      label: r.status,
+                      variant: "default" as const,
+                    };
                     return (
                       <div
                         key={r.id}
-                        className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                        className="p-4 rounded-lg border border-border bg-card card-hover"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium">
+                              <span className="font-medium text-foreground">
                                 {r.employee_name || "Unknown"}
                               </span>
-                              <Badge
-                                variant={
-                                  sc.variant as
-                                    | "default"
-                                    | "success"
-                                    | "warning"
-                                    | "danger"
-                                    | "info"
-                                }
-                              >
+                              <Badge variant={sc.variant}>
                                 {sc.label}
                               </Badge>
                             </div>
-                            <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                               {r.type_name || "-"} ·{" "}
                               {formatRupiah(r.amount)}
                             </p>
                             {r.description && (
-                              <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                              <p className="text-sm text-muted-foreground mt-1">
                                 {r.description}
                               </p>
                             )}
                             {r.reject_reason && (
-                              <p className="text-sm text-red-600 mt-1">
+                              <p className="text-sm text-danger mt-1">
                                 Reason: {r.reject_reason}
                               </p>
                             )}
@@ -655,30 +646,31 @@ export default function ManagerReimbursementPage() {
 
       {/* Reject Modal */}
       {rejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <Card className="w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Reject Reimbursement</CardTitle>
+              <CardTitle>{tr('rejected')} {tr('title')}</CardTitle>
               <button
                 onClick={() => {
                   setRejectModal(null);
                   setRejectReason("");
                 }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                <X className="h-5 w-5 text-[var(--muted-foreground)]" />
+                <X className="h-5 w-5" />
               </button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Rejecting reimbursement request from{" "}
-                <strong>{rejectModal.name}</strong>
+              <p className="text-sm text-muted-foreground">
+                {tr('rejected')} request from{" "}
+                <strong className="text-foreground">{rejectModal.name}</strong>
               </p>
               <div>
-                <label className="block text-sm font-medium mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Rejection Reason (min 10 chars)
                 </label>
                 <textarea
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[100px] resize-y"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[100px] resize-y placeholder:text-muted-foreground"
                   placeholder="Provide a reason for rejection..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
@@ -693,7 +685,7 @@ export default function ManagerReimbursementPage() {
                     setRejectReason("");
                   }}
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
                 <Button
                   variant="danger"
@@ -703,13 +695,27 @@ export default function ManagerReimbursementPage() {
                     processing === rejectModal.id
                   }
                 >
-                  {processing === rejectModal.id ? "Rejecting..." : "Reject"}
+                  {processing === rejectModal.id ? tc('submitting') : tr('rejected')}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
+
+      {/* Confirm Delete Type */}
+      <ConfirmDialog
+        variant="danger"
+        open={!!deleteTypeConfirm}
+        onClose={() => setDeleteTypeConfirm(null)}
+        onConfirm={() => {
+          if (deleteTypeConfirm) {
+            handleDeleteType(deleteTypeConfirm.id, deleteTypeConfirm.name).then(() => setDeleteTypeConfirm(null));
+          }
+        }}
+        title={tc('delete')}
+        message={`Delete "${deleteTypeConfirm?.name}"? This cannot be undone.`}
+      />
     </div>
   );
 }

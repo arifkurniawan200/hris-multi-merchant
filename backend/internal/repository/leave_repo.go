@@ -92,7 +92,7 @@ func (r *LeaveTypeRepo) List(ctx context.Context, tenantID uuid.UUID) ([]domain.
 	}
 	defer rows.Close()
 
-	var types []domain.LeaveType
+	types := make([]domain.LeaveType, 0)
 	for rows.Next() {
 		var lt domain.LeaveType
 		var deletedAt *time.Time
@@ -258,7 +258,7 @@ func (r *LeaveRequestRepo) ListByEmployee(ctx context.Context, employeeID uuid.U
 	}
 	defer rows.Close()
 
-	var requests []domain.LeaveRequest
+	requests := make([]domain.LeaveRequest, 0)
 	for rows.Next() {
 		var lr domain.LeaveRequest
 		var deletedAt, reviewedAt, cancelledAt *time.Time
@@ -295,7 +295,7 @@ func (r *LeaveRequestRepo) ListPending(ctx context.Context, tenantID uuid.UUID, 
 	}
 	defer rows.Close()
 
-	var requests []domain.LeaveRequest
+	requests := make([]domain.LeaveRequest, 0)
 	for rows.Next() {
 		var lr domain.LeaveRequest
 		var deletedAt, reviewedAt, cancelledAt *time.Time
@@ -357,7 +357,7 @@ func (r *LeaveRequestRepo) ListByTenant(ctx context.Context, tenantID uuid.UUID,
 	}
 	defer rows.Close()
 
-	var requests []domain.LeaveRequest
+	requests := make([]domain.LeaveRequest, 0)
 	for rows.Next() {
 		var lr domain.LeaveRequest
 		var deletedAt, reviewedAt, cancelledAt *time.Time

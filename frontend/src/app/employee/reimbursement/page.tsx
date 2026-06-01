@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
 import {
   Plus,
   X,
@@ -32,7 +36,7 @@ function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-const statusConfig: Record<string, { label: string; variant: string }> = {
+const statusConfig: Record<string, { label: string; variant: "warning" | "success" | "danger" | "default" }> = {
   pending: { label: "Pending", variant: "warning" },
   approved: { label: "Approved", variant: "success" },
   rejected: { label: "Rejected", variant: "danger" },
@@ -40,6 +44,8 @@ const statusConfig: Record<string, { label: string; variant: string }> = {
 
 export default function EmployeeReimbursementPage() {
   const { user } = useAuth();
+  const t = useTranslations('reimbursement');
+  const tc = useTranslations('common');
   const [types, setTypes] = useState<ReimbursementType[]>([]);
   const [myReims, setMyReims] = useState<Reimbursement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +62,12 @@ export default function EmployeeReimbursementPage() {
     receipt_url: "",
   });
 
+  // Client-side filter
+  const [statusFilter, setStatusFilter] = useState("");
+  const filteredReims = statusFilter
+    ? (myReims ?? []).filter((r) => r.status === statusFilter)
+    : (myReims ?? []);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -69,11 +81,11 @@ export default function EmployeeReimbursementPage() {
         fetchReimbursementTypes(tenant),
         fetchMyReimbursements(tenant, 50, 0),
       ]);
-      setTypes(typesRes);
-      setMyReims(myRes.items || []);
+      setTypes(typesRes ?? []);
+      setMyReims(myRes?.items ?? []);
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to load data"
+        err instanceof Error ? err.message : tc("somethingWentWrong")
       );
     } finally {
       setLoading(false);
@@ -92,13 +104,13 @@ export default function EmployeeReimbursementPage() {
     setSuccess("");
 
     if (!form.type_id || !form.amount || !form.description.trim()) {
-      setError("Type, amount, and description are required");
+      setError(tc("error"));
       return;
     }
 
     const amountNum = parseInt(form.amount, 10);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setError("Amount must be a positive number");
+      setError(tc("error"));
       return;
     }
 
@@ -110,12 +122,12 @@ export default function EmployeeReimbursementPage() {
         description: form.description.trim(),
         receipt_url: form.receipt_url.trim() || undefined,
       });
-      setSuccess("Reimbursement submitted successfully!");
+      setSuccess(tc("success"));
       resetForm();
       loadData();
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to submit reimbursement"
+        err instanceof Error ? err.message : tc("somethingWentWrong")
       );
     } finally {
       setSubmitting(false);
@@ -123,70 +135,64 @@ export default function EmployeeReimbursementPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-      </div>
-    );
+    return <LoadingState variant="fullscreen" />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          Reimbursement
-        </h1>
-        <p className="text-[var(--muted-foreground)] mt-1">
-          Submit and track your reimbursement requests
+        <h1 className="text-2xl font-bold text-foreground text-balance">{t('title')}</h1>
+        <p className="text-muted-foreground mt-1">
+          {t('title')}
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[var(--accent)]">
-                <FileText className="h-5 w-5 text-[var(--primary)]" />
+              <div className="p-2 rounded-lg bg-accent">
+                <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Total Requests
+                <p className="text-sm text-muted-foreground">
+                  {t('title')}
                 </p>
-                <p className="text-2xl font-bold">{myReims.length}</p>
+                <p className="text-2xl font-bold">{(myReims ?? []).length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-50">
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Pending
+                <p className="text-sm text-muted-foreground">
+                  {t('pending')}
                 </p>
                 <p className="text-2xl font-bold">
-                  {myReims.filter((r) => r.status === "pending").length}
+                  {(myReims ?? []).filter((r) => r.status === "pending").length}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Approved
+                <p className="text-sm text-muted-foreground">
+                  {t('approved')}
                 </p>
                 <p className="text-2xl font-bold">
-                  {myReims.filter((r) => r.status === "approved").length}
+                  {(myReims ?? []).filter((r) => r.status === "approved").length}
                 </p>
               </div>
             </div>
@@ -196,13 +202,13 @@ export default function EmployeeReimbursementPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-danger/10 border border-danger/20 text-danger animate-slide-up">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+          <p className="text-sm">{error.startsWith("Failed") ? "⚠️ " + error : error}</p>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-success/10 border border-success/20 text-success animate-slide-up">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
           <p className="text-sm">{success}</p>
         </div>
@@ -215,20 +221,21 @@ export default function EmployeeReimbursementPage() {
             resetForm();
             setShowForm(true);
           }}
+          className="transition-all duration-200 active:scale-95"
         >
-          <Plus className="h-4 w-4 mr-1" /> New Reimbursement
+          <Plus className="h-4 w-4 mr-1" /> {t('submit')}
         </Button>
       </div>
 
       {/* New Reimbursement Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <Card className="w-full max-w-lg">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>New Reimbursement Request</CardTitle>
+              <CardTitle>{t('submit')}</CardTitle>
               <button
                 onClick={resetForm}
-                className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -236,18 +243,18 @@ export default function EmployeeReimbursementPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    Reimbursement Type *
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    {t('title')} *
                   </label>
                   <select
-                    className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     value={form.type_id}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, type_id: e.target.value }))
                     }
                     required
                   >
-                    <option value="">Select type...</option>
+                    <option value="">{t('search')}...</option>
                     {types.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name} ({t.code})
@@ -260,8 +267,8 @@ export default function EmployeeReimbursementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    Amount (IDR) *
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    {t('amount')} (IDR) *
                   </label>
                   <Input
                     type="number"
@@ -274,7 +281,7 @@ export default function EmployeeReimbursementPage() {
                     required
                   />
                   {form.amount && (
-                    <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {formatRupiah(parseInt(form.amount) || 0)}
                     </p>
                   )}
@@ -288,7 +295,7 @@ export default function EmployeeReimbursementPage() {
                       amountNum > selectedType.max_amount
                     ) {
                       return (
-                        <p className="text-xs text-red-500 mt-1">
+                        <p className="text-xs text-danger mt-1">
                           Exceeds max amount of{" "}
                           {formatRupiah(selectedType.max_amount)}
                         </p>
@@ -299,12 +306,12 @@ export default function EmployeeReimbursementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    Description *
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    {t('description')} *
                   </label>
                   <textarea
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[80px] resize-y"
-                    placeholder="Describe what this reimbursement is for..."
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-y placeholder:text-muted-foreground"
+                    placeholder={t('description')}
                     value={form.description}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, description: e.target.value }))
@@ -314,8 +321,8 @@ export default function EmployeeReimbursementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    Receipt URL (optional)
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    {t('receipt')} (optional)
                   </label>
                   <Input
                     type="url"
@@ -329,10 +336,10 @@ export default function EmployeeReimbursementPage() {
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancel
+                    {tc('cancel')}
                   </Button>
                   <Button type="submit" disabled={submitting}>
-                    {submitting ? "Submitting..." : "Submit Reimbursement"}
+                    {submitting ? tc('submitting') : t('submit')}
                   </Button>
                 </div>
               </form>
@@ -344,60 +351,55 @@ export default function EmployeeReimbursementPage() {
       {/* My Reimbursement History */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-[var(--primary)]" />
-            My Reimbursement History
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              {t('title')}
+            </CardTitle>
+            <FilterDropdown label={tc('status')} options={[
+              {value:'pending',label:t('pending')},{value:'approved',label:t('approved')},{value:'rejected',label:t('rejected')}
+            ]} value={statusFilter} onChange={setStatusFilter} />
+          </div>
         </CardHeader>
         <CardContent>
-          {myReims.length === 0 ? (
-            <div className="text-center py-12 text-[var(--muted-foreground)]">
-              <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No reimbursement requests yet</p>
-              <p className="text-sm mt-1">
-                Click "New Reimbursement" to submit your first request
-              </p>
-            </div>
+          {!myReims || myReims.length === 0 ? (
+            <EmptyState
+              icon="inbox"
+              title={t('noReimbursements')}
+              description={tc('noData')}
+            />
+          ) : filteredReims.length === 0 ? (
+            <EmptyState icon="search" title={tc('noResults')} description={tc('tryDifferentSearch')} />
           ) : (
-            <div className="space-y-3">
-              {myReims.map((r) => {
-                const sc =
-                  statusConfig[r.status] || {
-                    label: r.status,
-                    variant: "default",
-                  };
+            <div className="space-y-3 stagger-children">
+              {filteredReims.map((r) => {
+                const sc = statusConfig[r.status] || {
+                  label: r.status,
+                  variant: "default" as const,
+                };
                 return (
                   <div
                     key={r.id}
-                    className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+                    className="p-4 rounded-lg border border-border bg-card card-hover"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">
-                            {r.type_name || "Reimbursement"}
+                          <span className="font-medium text-foreground">
+                            {r.type_name || t('title')}
                           </span>
-                          <Badge
-                            variant={
-                              sc.variant as
-                                | "default"
-                                | "success"
-                                | "warning"
-                                | "danger"
-                                | "info"
-                            }
-                          >
+                          <Badge variant={sc.variant}>
                             {sc.label}
                           </Badge>
                         </div>
-                        <p className="text-sm text-[var(--muted-foreground)] mt-1">
-                          Amount:{" "}
-                          <span className="font-semibold text-[var(--foreground)]">
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t('amount')}:{" "}
+                          <span className="font-semibold text-foreground">
                             {formatRupiah(r.amount)}
                           </span>
                         </p>
                         {r.description && (
-                          <p className="text-sm text-[var(--muted-foreground)] mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {r.description}
                           </p>
                         )}
@@ -406,14 +408,14 @@ export default function EmployeeReimbursementPage() {
                             href={r.receipt_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-blue-500 hover:underline mt-1 inline-block"
+                            className="text-sm text-primary hover:underline mt-1 inline-block"
                           >
-                            View Receipt
+                            {t('receipt')}
                           </a>
                         )}
                         {r.reject_reason && (
-                          <p className="text-sm text-red-600 mt-1">
-                            Rejected: {r.reject_reason}
+                          <p className="text-sm text-danger mt-1">
+                            {t('rejected')}: {r.reject_reason}
                           </p>
                         )}
                       </div>

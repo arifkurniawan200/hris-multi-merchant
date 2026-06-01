@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   LayoutDashboard,
   Users,
@@ -94,6 +97,8 @@ function formatTime(iso: string | null): string {
 export default function ManagerDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const t = useTranslations('dashboard');
+  const tl = useTranslations('leave');
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [attendanceToday, setAttendanceToday] = useState<TodayAttendanceRecord[]>([]);
@@ -169,15 +174,15 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 text-balance">
           <LayoutDashboard className="h-6 w-6" />
-          Dashboard
+          {t('title')}
         </h2>
         <p className="text-muted-foreground mt-1">
-          Executive overview of your organization
+          {t('title')}
         </p>
       </div>
 
@@ -197,9 +202,9 @@ export default function ManagerDashboardPage() {
           ))}
         </div>
       ) : summary ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
           {/* Total Employees */}
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Users className="h-6 w-6 text-primary" />
@@ -209,14 +214,14 @@ export default function ManagerDashboardPage() {
                   {summary.employeeCount}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  Total Employees
+                  {t('title')}
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Today Present */}
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
                 <UserCheck className="h-6 w-6 text-emerald-600" />
@@ -226,17 +231,17 @@ export default function ManagerDashboardPage() {
                   {summary.todayPresent}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  Today Present
+                  {t('todayStats')}
                 </p>
                 <p className="text-[10px] text-muted-foreground/60">
-                  {summary.todayLate} late &middot; {summary.todayAbsent} absent
+                  {summary.todayLate} {t('late')} &middot; {summary.todayAbsent} {t('absent')}
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Pending Approvals */}
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="h-6 w-6 text-amber-600" />
@@ -246,18 +251,18 @@ export default function ManagerDashboardPage() {
                   {summary.pendingApprovalsTotal}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  Pending Approvals
+                  {t('todayStats')}
                 </p>
                 <p className="text-[10px] text-muted-foreground/60">
-                  {summary.pendingLeaves} leaves &middot; {summary.pendingOvertime} OT &middot;{' '}
-                  {summary.pendingReimbursements} reimb.
+                  {summary.pendingLeaves} {tl('pending')} &middot; {summary.pendingOvertime} OT &middot;{' '}
+                  {summary.pendingReimbursements} {t('title')}
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* This Month Payroll */}
-          <Card>
+          <Card className="card-hover">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                 <DollarSign className="h-6 w-6 text-blue-600" />
@@ -267,10 +272,10 @@ export default function ManagerDashboardPage() {
                   ${summary.thisMonthPayroll.toLocaleString()}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  This Month Payroll
+                  {t('todayStats')}
                 </p>
                 <p className="text-[10px] text-muted-foreground/60">
-                  {summary.payrollCount} employees
+                  {summary.payrollCount} {t('status')}
                 </p>
               </div>
             </CardContent>
@@ -284,7 +289,7 @@ export default function ManagerDashboardPage() {
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Attendance Today — {format(new Date(), 'MMMM d, yyyy')}
+              {t('todayStats')} — {format(new Date(), 'MMMM d, yyyy')}
             </CardTitle>
             <CardDescription>
               {isLoading
@@ -298,7 +303,7 @@ export default function ManagerDashboardPage() {
             onClick={() => router.push('/manager/report')}
           >
             <BarChart3 className="h-4 w-4 mr-1" />
-            Full Report
+            {t('title')}
           </Button>
         </CardHeader>
         <CardContent className="p-0">
@@ -312,10 +317,10 @@ export default function ManagerDashboardPage() {
             <div className="p-12 text-center">
               <UserCheck className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                No attendance data
+                {t('status')}
               </h3>
               <p className="text-muted-foreground">
-                No attendance records found for today.
+                {t('todayStats')}
               </p>
             </div>
           ) : (
@@ -326,19 +331,19 @@ export default function ManagerDashboardPage() {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Employee
+                        {t('status')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Code
+                        {t('title')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock In
+                        {t('clockIn')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Clock Out
+                        {t('clockOut')}
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Status
+                        {t('status')}
                       </th>
                     </tr>
                   </thead>
@@ -408,8 +413,8 @@ export default function ManagerDashboardPage() {
                         </span>
                       </div>
                       <div className="flex gap-4 text-xs text-muted-foreground">
-                        <span>In: {formatTime(record.clock_in_time)}</span>
-                        <span>Out: {formatTime(record.clock_out_time)}</span>
+                        <span>{t('clockIn')}: {formatTime(record.clock_in_time)}</span>
+                        <span>{t('clockOut')}: {formatTime(record.clock_out_time)}</span>
                       </div>
                     </div>
                   );
@@ -421,18 +426,18 @@ export default function ManagerDashboardPage() {
       </Card>
 
       {/* ── Row 3: Pending Approvals Summary ───────────────────────────────*/}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-children">
         {/* Pending Leaves */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-blue-600" />
-              Leaves
+              {tl('all')}
             </CardTitle>
             <CardDescription>
               {isLoading
                 ? 'Loading...'
-                : `${pendingApprovals?.leaves.count ?? 0} pending`}
+                : `${pendingApprovals?.leaves.count ?? 0} ${tl('pending')}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-4">
@@ -449,7 +454,7 @@ export default function ManagerDashboardPage() {
                       {item.employee_name}
                     </span>
                     <Badge variant="info">
-                      {item.days ? `${item.days}d` : 'Pending'}
+                      {item.days ? `${item.days}d` : tl('pending')}
                     </Badge>
                   </div>
                 ))}
@@ -462,7 +467,7 @@ export default function ManagerDashboardPage() {
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                No pending leaves
+                {tl('approvals')}
               </div>
             )}
             <div className="mt-3">
@@ -472,7 +477,7 @@ export default function ManagerDashboardPage() {
                 className="w-full justify-between text-xs"
                 onClick={() => router.push('/manager/leaves/pending')}
               >
-                View All Leaves
+                {tl('all')}
                 <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
@@ -480,7 +485,7 @@ export default function ManagerDashboardPage() {
         </Card>
 
         {/* Pending Overtime */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-amber-600" />
@@ -506,7 +511,7 @@ export default function ManagerDashboardPage() {
                       {item.employee_name}
                     </span>
                     <Badge variant="warning">
-                      {item.reason ? item.reason.substring(0, 12) : 'Pending'}
+                      {item.reason ? item.reason.substring(0, 12) : tl('pending')}
                     </Badge>
                   </div>
                 ))}
@@ -519,7 +524,7 @@ export default function ManagerDashboardPage() {
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                No pending overtime
+                {tl('approvals')}
               </div>
             )}
             <div className="mt-3">
@@ -529,7 +534,7 @@ export default function ManagerDashboardPage() {
                 className="w-full justify-between text-xs"
                 onClick={() => router.push('/manager/overtime')}
               >
-                View All Overtime
+                {tl('all')}
                 <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
@@ -537,7 +542,7 @@ export default function ManagerDashboardPage() {
         </Card>
 
         {/* Pending Reimbursements */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-emerald-600" />
@@ -563,7 +568,7 @@ export default function ManagerDashboardPage() {
                       {item.employee_name}
                     </span>
                     <Badge variant="success">
-                      {item.amount ? `$${item.amount}` : 'Pending'}
+                      {item.amount ? `$${item.amount}` : tl('pending')}
                     </Badge>
                   </div>
                 ))}
@@ -576,7 +581,7 @@ export default function ManagerDashboardPage() {
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                No pending reimbursements
+                {tl('approvals')}
               </div>
             )}
             <div className="mt-3">
@@ -586,7 +591,7 @@ export default function ManagerDashboardPage() {
                 className="w-full justify-between text-xs"
                 onClick={() => router.push('/manager/reimbursement')}
               >
-                View All Reimbursements
+                {tl('all')}
                 <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
@@ -597,9 +602,9 @@ export default function ManagerDashboardPage() {
       {/* ── Row 4: Quick Actions ────────────────────────────────────────────*/}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Quick Actions</CardTitle>
+          <CardTitle className="text-base">{t('title')}</CardTitle>
           <CardDescription>
-            Navigate to key management areas
+            {t('title')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -610,7 +615,7 @@ export default function ManagerDashboardPage() {
               onClick={() => router.push('/manager/report')}
             >
               <BarChart3 className="h-4 w-4 mr-1.5" />
-              Attendance Report
+              {t('todayStats')}
             </Button>
             <Button
               variant="outline"
@@ -618,7 +623,7 @@ export default function ManagerDashboardPage() {
               onClick={() => router.push('/manager/leaves/pending')}
             >
               <FileText className="h-4 w-4 mr-1.5" />
-              Leaves
+              {tl('all')}
             </Button>
             <Button
               variant="outline"
@@ -631,7 +636,7 @@ export default function ManagerDashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push('/manager/attendance/export')}
+              onClick={() => router.push('/manager/payroll')}
             >
               <DollarSign className="h-4 w-4 mr-1.5" />
               Payroll

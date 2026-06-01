@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { LoadingState } from '@/components/ui/loading-state';
 import { useAuth } from '@/contexts/auth-context';
 import {
   User,
@@ -32,6 +34,8 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations('profile');
+  const tc = useTranslations('common');
   const { user, setUser } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -131,12 +135,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-48 bg-card border border-border rounded-lg" />
-        <div className="h-64 bg-card border border-border rounded-lg" />
-      </div>
-    );
+    return <LoadingState variant="card" rows={2} />;
   }
 
   if (!profile) {
@@ -145,7 +144,7 @@ export default function ProfilePage() {
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
           <p className="text-muted-foreground">Failed to load profile</p>
-          <Button onClick={fetchProfile} variant="outline" className="mt-4">
+          <Button onClick={fetchProfile} variant="outline" className="mt-4 active:scale-95 transition-all duration-200">
             Retry
           </Button>
         </div>
@@ -154,25 +153,25 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold text-foreground text-balance">{t('title')}</h1>
 
       {/* Feedback messages */}
       {error && (
-        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger">
+        <div className="flex items-start gap-2 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger animate-slide-up">
           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800">
+        <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 animate-slide-up">
           <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
       {/* Profile Info Card */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             {/* Avatar */}
@@ -201,7 +200,7 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className="text-xl font-bold text-foreground text-balance">
                 {profile.full_name || profile.email}
               </h2>
               <p className="text-sm text-muted-foreground">{profile.email}</p>
@@ -218,7 +217,7 @@ export default function ProfilePage() {
                 {profile.is_active && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-xs px-3 py-1 font-medium">
                     <CheckCircle2 className="h-3 w-3" />
-                    Active
+                    {tc('active')}
                   </span>
                 )}
               </div>
@@ -228,6 +227,7 @@ export default function ProfilePage() {
             <Button
               variant="outline"
               size="sm"
+              className="active:scale-95 transition-all duration-200"
               onClick={() => {
                 setShowProfileForm(!showProfileForm);
                 setShowPasswordForm(false);
@@ -235,7 +235,7 @@ export default function ProfilePage() {
                 setSuccess('');
               }}
             >
-              {showProfileForm ? 'Cancel' : 'Edit Profile'}
+              {showProfileForm ? tc('cancel') : t('editProfile')}
             </Button>
           </div>
         </CardContent>
@@ -243,18 +243,18 @@ export default function ProfilePage() {
 
       {/* Edit Profile Form */}
       {showProfileForm && (
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <User className="h-5 w-5" />
-              Edit Profile
+            <User className="h-5 w-5" />
+            {t('editProfile')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Full Name
+                  {tc('name')}
                 </label>
                 <input
                   type="text"
@@ -279,7 +279,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving} className="active:scale-95 transition-all duration-200">
                   {saving ? (
                     <span className="flex items-center gap-2">
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -288,13 +288,14 @@ export default function ProfilePage() {
                   ) : (
                     <span className="flex items-center gap-2">
                       <Save className="h-4 w-4" />
-                      Save Changes
+                      {t('update')}
                     </span>
                   )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
+                  className="active:scale-95 transition-all duration-200"
                   onClick={() => setShowProfileForm(false)}
                 >
                   Cancel
@@ -306,11 +307,11 @@ export default function ProfilePage() {
       )}
 
       {/* Account Details Card */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Building2 className="h-5 w-5" />
-            Account Details
+            {t('personalInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -318,14 +319,14 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-3">
               <Mail className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="text-xs text-muted-foreground">{tc('email')}</p>
                 <p className="text-sm font-medium text-foreground">{profile.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-muted px-4 py-3">
               <User className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Full Name</p>
+                <p className="text-xs text-muted-foreground">{tc('name')}</p>
                 <p className="text-sm font-medium text-foreground">
                   {profile.full_name || 'Not set'}
                 </p>
@@ -345,15 +346,16 @@ export default function ProfilePage() {
       </Card>
 
       {/* Change Password Card */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Lock className="h-5 w-5" />
-            Password
+            {t('changePassword')}
           </CardTitle>
           <Button
             variant="outline"
             size="sm"
+            className="active:scale-95 transition-all duration-200"
             onClick={() => {
               setShowPasswordForm(!showPasswordForm);
               setShowProfileForm(false);
@@ -361,7 +363,7 @@ export default function ProfilePage() {
               setSuccess('');
             }}
           >
-            {showPasswordForm ? 'Cancel' : 'Change Password'}
+            {showPasswordForm ? tc('cancel') : t('changePassword')}
           </Button>
         </CardHeader>
         {showPasswordForm && (
@@ -369,7 +371,7 @@ export default function ProfilePage() {
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Current Password
+                  {t('currentPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -396,7 +398,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  New Password
+                  {t('newPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -423,7 +425,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Confirm New Password
+                  {t('confirmPassword')}
                 </label>
                 <input
                   type="password"
@@ -435,7 +437,7 @@ export default function ProfilePage() {
                   minLength={8}
                 />
               </div>
-              <Button type="submit" disabled={changingPassword}>
+              <Button type="submit" disabled={changingPassword} className="active:scale-95 transition-all duration-200">
                 {changingPassword ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -444,7 +446,7 @@ export default function ProfilePage() {
                 ) : (
                   <span className="flex items-center gap-2">
                     <Lock className="h-4 w-4" />
-                    Change Password
+                    {t('changePassword')}
                   </span>
                 )}
               </Button>

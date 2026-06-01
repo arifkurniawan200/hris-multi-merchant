@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Fragment } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useTranslations } from "next-intl";
 import {
   fetchPayrolls,
   fetchPayrollConfig,
@@ -27,6 +28,11 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Pagination } from '@/components/ui/pagination'
+import { FilterDropdown } from '@/components/ui/filter-dropdown'
 
 const fmtIDR = (val: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -57,6 +63,8 @@ const statusColor: Record<string, string> = {
 };
 
 export default function PayrollPage() {
+  const tp = useTranslations('payroll');
+  const tc = useTranslations('common');
   const { user, isLoading: authLoading } = useAuth();
   const tenant = user?.tenant_id || "";
 
@@ -69,6 +77,19 @@ export default function PayrollPage() {
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const filteredPayrolls = statusFilter
+    ? payrolls.filter((r) => r.status === statusFilter)
+    : payrolls;
+  const pagedPayrolls = filteredPayrolls.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(filteredPayrolls.length / perPage);
 
   // Expanded row
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -123,6 +144,10 @@ export default function PayrollPage() {
   useEffect(() => {
     loadPayrolls();
   }, [loadPayrolls]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
   // ── Stats ─────────────────────────────────
   const totalSalary = payrolls.reduce((s, r) => s + r.net_salary, 0);
@@ -211,15 +236,15 @@ export default function PayrollPage() {
     r.late_deduction + r.absent_deduction + r.leave_deduction;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Payroll Management
+          <h1 className="text-balance text-2xl font-bold text-foreground">
+            {tp('title')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage employee payroll for {tenant || "—"}
+            {tp('title')} for {tenant || "—"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +252,8 @@ export default function PayrollPage() {
             variant="outline"
             size="icon"
             onClick={openConfig}
-            title="Payroll Settings"
+            title={tp('title')}
+            className="active:scale-95 transition-all duration-200"
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -235,7 +261,8 @@ export default function PayrollPage() {
             variant="outline"
             size="icon"
             onClick={loadPayrolls}
-            title="Refresh"
+            title={tc('tryAgain')}
+            className="active:scale-95 transition-all duration-200"
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -278,33 +305,33 @@ export default function PayrollPage() {
             ))}
           </select>
         </div>
-        <Button onClick={loadPayrolls} disabled={loading}>
+        <Button onClick={loadPayrolls} disabled={loading} className="active:scale-95 transition-all duration-200">
           {loading ? (
             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
           ) : null}
-          View
+          {tc('filter')}
         </Button>
-        <Button variant="default" onClick={handleGenerate} disabled={generating}>
+        <Button variant="default" onClick={handleGenerate} disabled={generating} className="active:scale-95 transition-all duration-200">
           {generating ? (
             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
           ) : null}
-          Generate Payroll
+          {tp('generate')}
         </Button>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 animate-slide-up">
           {error}
         </div>
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
+        <Card className="card-hover transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Salary
+              {tp('netSalary')}
             </CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -312,10 +339,10 @@ export default function PayrollPage() {
             <p className="text-2xl font-bold">{fmtIDR(totalSalary)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Employees
+              {tp('employee')}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -323,10 +350,10 @@ export default function PayrollPage() {
             <p className="text-2xl font-bold">{totalEmployees}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Draft
+              {tp('status.draft')}
             </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -334,10 +361,10 @@ export default function PayrollPage() {
             <p className="text-2xl font-bold">{draftCount}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Paid
+              {tp('status.paid')}
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -348,57 +375,61 @@ export default function PayrollPage() {
       </div>
 
       {/* Table */}
-      <Card>
+      <Card className="card-hover transition-all duration-200">
         <CardHeader>
-          <CardTitle className="text-base">
-            Payroll Records — {MONTHS.find((m) => m.value === month)?.label}{" "}
-            {year}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              {tp('title')} — {MONTHS.find((m) => m.value === month)?.label} {year}
+            </CardTitle>
+            <FilterDropdown label={tc('status')} options={[
+              {value:'draft',label:tp('status.draft')},{value:'approved',label:tp('status.approved')},{value:'paid',label:tp('status.paid')}
+            ]} value={statusFilter} onChange={setStatusFilter} />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {loading && payrolls.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState variant="inline" />
           ) : payrolls.length === 0 ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">
-              No payroll records for this period. Click &ldquo;Generate
-              Payroll&rdquo; to create them.
-            </div>
+            <EmptyState
+              icon="inbox"
+              title={tp('noPayrolls')}
+              description='No payroll records for this period. Click "Generate Payroll" to create them.'
+            />
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground w-8"></th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      Employee
+                      {tp('employee')}
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                       Department
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                      Base Salary
+                      {tp('baseSalary')}
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">
                       Overtime
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                      Deductions
+                      {tp('deductions')}
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                      Net Salary
+                      {tp('netSalary')}
                     </th>
                     <th className="text-center px-4 py-3 font-medium text-muted-foreground">
-                      Status
+                      {tc('status')}
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                      Actions
+                      {tc('actions')}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payrolls.map((record) => {
+                  {pagedPayrolls.map((record) => {
                     const isExpanded = expandedId === record.id;
                     const isLoading = actionLoading[record.id];
                     return (
@@ -455,11 +486,12 @@ export default function PayrollPage() {
                                   variant="outline"
                                   onClick={() => handleApprove(record.id)}
                                   disabled={isLoading === "approve"}
+                                  className="active:scale-95 transition-all duration-200"
                                 >
                                   {isLoading === "approve" ? (
                                     <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                   ) : null}
-                                  Approve
+                                  {tp('approve')}
                                 </Button>
                               )}
                               {record.status === "approved" && (
@@ -468,16 +500,17 @@ export default function PayrollPage() {
                                   variant="outline"
                                   onClick={() => handleMarkPaid(record.id)}
                                   disabled={isLoading === "paid"}
+                                  className="active:scale-95 transition-all duration-200"
                                 >
                                   {isLoading === "paid" ? (
                                     <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                   ) : null}
-                                  Mark Paid
+                                  {tp('pay')}
                                 </Button>
                               )}
                               {record.status === "paid" && (
                                 <Button size="sm" variant="outline" disabled>
-                                  Paid
+                                  {tp('status.paid')}
                                 </Button>
                               )}
                             </div>
@@ -497,7 +530,7 @@ export default function PayrollPage() {
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground text-xs block">
-                                    Period
+                                    {tp('period')}
                                   </span>
                                   <span className="font-medium">
                                     {
@@ -510,7 +543,7 @@ export default function PayrollPage() {
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground text-xs block">
-                                    Base Salary
+                                    {tp('baseSalary')}
                                   </span>
                                   <span>{fmtIDR(record.base_salary)}</span>
                                 </div>
@@ -552,7 +585,7 @@ export default function PayrollPage() {
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground text-xs block">
-                                    Net Salary
+                                    {tp('netSalary')}
                                   </span>
                                   <span className="font-semibold">
                                     {fmtIDR(record.net_salary)}
@@ -593,7 +626,7 @@ export default function PayrollPage() {
                                 {record.notes && (
                                   <div className="col-span-2">
                                     <span className="text-muted-foreground text-xs block">
-                                      Notes
+                                      {tc('name')}
                                     </span>
                                     <span>{record.notes}</span>
                                   </div>
@@ -608,6 +641,8 @@ export default function PayrollPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-4" />
+            </>
           )}
         </CardContent>
       </Card>
@@ -617,7 +652,7 @@ export default function PayrollPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Payroll Configuration</CardTitle>
+              <CardTitle>{tp('title')} Configuration</CardTitle>
               <button onClick={() => setConfigOpen(false)}>
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
@@ -691,14 +726,15 @@ export default function PayrollPage() {
                 <Button
                   variant="outline"
                   onClick={() => setConfigOpen(false)}
+                  className="active:scale-95 transition-all duration-200"
                 >
-                  Cancel
+                  {tc('cancel')}
                 </Button>
-                <Button onClick={handleSaveConfig} disabled={savingConfig}>
+                <Button onClick={handleSaveConfig} disabled={savingConfig} className="active:scale-95 transition-all duration-200">
                   {savingConfig ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : null}
-                  Save
+                  {tc('save')}
                 </Button>
               </div>
             </CardContent>
