@@ -61,7 +61,7 @@ func scanOvertime(row pgx.Row) (*domain.OvertimeRequest, error) {
 }
 
 func scanOvertimes(rows pgx.Rows) ([]domain.OvertimeRequest, error) {
-	var result []domain.OvertimeRequest
+	result := make([]domain.OvertimeRequest, 0)
 	for rows.Next() {
 		ot, err := scanOvertime(rows)
 		if err != nil {

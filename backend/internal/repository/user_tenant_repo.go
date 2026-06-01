@@ -54,7 +54,7 @@ func (r *UserTenantRepo) GetUserTenants(ctx context.Context, userID string) ([]d
 	}
 	defer rows.Close()
 
-	var uts []domain.UserTenant
+	uts := make([]domain.UserTenant, 0)
 	for rows.Next() {
 		var ut domain.UserTenant
 		var deletedAt *time.Time
@@ -82,7 +82,7 @@ func (r *UserTenantRepo) GetTenantUsers(ctx context.Context, tenantID string, li
 	}
 	defer rows.Close()
 
-	var uts []domain.UserTenant
+	uts := make([]domain.UserTenant, 0)
 	for rows.Next() {
 		var ut domain.UserTenant
 		var deletedAt *time.Time
@@ -126,7 +126,7 @@ func (r *UserTenantRepo) ListAllUsers(ctx context.Context) ([]domain.UserWithTen
 	}
 	defer rows.Close()
 
-	var users []domain.UserWithTenant
+	users := make([]domain.UserWithTenant, 0)
 	for rows.Next() {
 		var u domain.UserWithTenant
 		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.IsActive, &u.CreatedAt, &u.Role, &u.TenantName, &u.TenantSlug); err != nil {

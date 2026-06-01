@@ -94,7 +94,7 @@ func (r *TenantRepo) List(ctx context.Context, limit, offset int) ([]domain.Tena
 	}
 	defer rows.Close()
 
-	var tenants []domain.Tenant
+	tenants := make([]domain.Tenant, 0)
 	for rows.Next() {
 		t, err := scanTenant(rows)
 		if err != nil {
@@ -125,7 +125,7 @@ func (r *TenantRepo) ListWithCounts(ctx context.Context, limit, offset int) ([]d
 	}
 	defer rows.Close()
 
-	var tenants []domain.TenantWithCount
+	tenants := make([]domain.TenantWithCount, 0)
 	for rows.Next() {
 		t, err := scanTenantWithCount(rows)
 		if err != nil {

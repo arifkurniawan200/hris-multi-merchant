@@ -159,7 +159,7 @@ func scanPayrollWithJoin(row pgx.Row) (*domain.Payroll, error) {
 }
 
 func scanPayrolls(rows pgx.Rows) ([]domain.Payroll, error) {
-	var result []domain.Payroll
+	result := make([]domain.Payroll, 0)
 	for rows.Next() {
 		var p domain.Payroll
 		var deletedAt, approvedAt, paidAt *time.Time
