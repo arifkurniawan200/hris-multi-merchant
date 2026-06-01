@@ -526,6 +526,78 @@ type LeaveUseCase interface {
 	UpdateLeaveType(ctx context.Context, req *LeaveType) error
 }
 
+// ── Overtime Request ────────────────────────────
+
+type OvertimeStatus string
+
+const (
+	OvertimePending  OvertimeStatus = "pending"
+	OvertimeApproved OvertimeStatus = "approved"
+	OvertimeRejected OvertimeStatus = "rejected"
+)
+
+type OvertimeRequest struct {
+	ID           uuid.UUID      `json:"id"`
+	TenantID     uuid.UUID      `json:"tenant_id"`
+	EmployeeID   uuid.UUID      `json:"employee_id"`
+	Date         string         `json:"date"`
+	TotalHours   float64        `json:"total_hours"`
+	Reason       string         `json:"reason"`
+	Status       OvertimeStatus `json:"status"`
+	ReviewedBy   *uuid.UUID     `json:"reviewed_by"`
+	RejectReason string         `json:"reject_reason"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    *time.Time     `json:"deleted_at,omitempty"`
+}
+
+// ── Notification ────────────────────────────────
+
+type NotificationType string
+
+const (
+	NotifLeaveSubmitted    NotificationType = "leave_submitted"
+	NotifLeaveApproved     NotificationType = "leave_approved"
+	NotifLeaveRejected     NotificationType = "leave_rejected"
+	NotifOvertimeSubmitted NotificationType = "overtime_submitted"
+	NotifOvertimeApproved  NotificationType = "overtime_approved"
+	NotifOvertimeRejected  NotificationType = "overtime_rejected"
+)
+
+type Notification struct {
+	ID            uuid.UUID        `json:"id"`
+	TenantID      uuid.UUID        `json:"tenant_id"`
+	UserID        uuid.UUID        `json:"user_id"`
+	Type          NotificationType `json:"type"`
+	Title         string           `json:"title"`
+	Message       string           `json:"message"`
+	ReferenceType string           `json:"reference_type"`
+	ReferenceID   *uuid.UUID       `json:"reference_id"`
+	IsRead        bool             `json:"is_read"`
+	CreatedAt     time.Time        `json:"created_at"`
+	DeletedAt     *time.Time       `json:"deleted_at,omitempty"`
+}
+
+type NotificationRepository interface {
+	Create(ctx context.Context, n *Notification) error
+	CreateForEmployee(ctx context.Context, n *Notification, employeeID uuid.UUID) error
+	ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error)
+	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
+	MarkRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	MarkAllRead(ctx context.Context, userID uuid.UUID) error
+}
+
+type NotificationUseCase interface {
+	NotifyLeaveSubmitted(ctx context.Context, leaveReq *LeaveRequest) error
+	NotifyLeaveReviewed(ctx context.Context, leaveReq *LeaveRequest, action string, reviewerName string) error
+	NotifyOvertimeSubmitted(ctx context.Context, otReq *OvertimeRequest) error
+	NotifyOvertimeReviewed(ctx context.Context, otReq *OvertimeRequest, action string, reviewerName string) error
+	ListMyNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error)
+	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
+	MarkRead(ctx context.Context, notifID uuid.UUID, userID uuid.UUID) error
+	MarkAllRead(ctx context.Context, userID uuid.UUID) error
+}
+
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}

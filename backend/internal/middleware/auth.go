@@ -40,7 +40,7 @@ func (a *Auth) Require(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, CtxUserID, claims.UserID)
 		ctx = context.WithValue(ctx, CtxTenantID, claims.TenantID)
-		ctx = context.WithValue(ctx, CtxRole, claims.Role)
+		ctx = context.WithValue(ctx, CtxRole, string(claims.Role))
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

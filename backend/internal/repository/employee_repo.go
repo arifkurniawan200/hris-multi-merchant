@@ -6,10 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/jackc/pgx/v5"
-	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
-
 )
 
 type EmployeeRepo struct {
@@ -34,7 +33,7 @@ var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, e
 	e.employment_status, e.employment_type, e.join_date::text,
 	e.resign_date::text, e.contract_start::text, e.contract_end::text,
 	COALESCE(e.national_id, ''), COALESCE(e.tax_id, ''), COALESCE(e.bpjs_health, ''), COALESCE(e.bpjs_labor, ''),
-	e.base_salary, COALESCE(e.bank_name, ''), COALESCE(e.bank_account, ''),
+	COALESCE(e.base_salary, 0), COALESCE(e.bank_name, ''), COALESCE(e.bank_account, ''),
 	e.custom_fields, COALESCE(e.notes, ''),
 	e.created_at, e.updated_at, e.deleted_at,
 	COALESCE(d.name, ''), COALESCE(p.name, ''), COALESCE(m.first_name || ' ' || m.last_name, '')`
@@ -57,8 +56,8 @@ func scanEmployee(row pgx.Row) (*domain.Employee, error) {
 		&e.DepartmentID, &e.PositionID, &e.ManagerID,
 		&e.EmploymentStatus, &e.EmploymentType, &joinDate,
 		&resignDate, &contractStart, &contractEnd,
-						&e.NationalID, &e.TaxID, &e.BPJSHealth, &e.BPJSLabor,
-						&baseSalary, &e.BankName, &e.BankAccount,
+		&e.NationalID, &e.TaxID, &e.BPJSHealth, &e.BPJSLabor,
+		&baseSalary, &e.BankName, &e.BankAccount,
 		&customFields, &e.Notes,
 		&e.CreatedAt, &e.UpdatedAt, &deletedAt,
 		&e.DepartmentName, &e.PositionName, &e.ManagerName,

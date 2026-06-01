@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/jackc/pgx/v5"
-	"github.com/arifkurniawan200/hris-multi-merchant/internal/adapter"
-
 )
 
 type TenantRepo struct {
@@ -22,7 +21,6 @@ func (r *TenantRepo) dbQuerier(ctx context.Context) adapter.DBTX {
 	}
 	return r.db
 }
-
 
 func NewTenantRepo(db adapter.DBTX) domain.TenantRepository {
 	return &TenantRepo{db: db}
@@ -150,10 +148,11 @@ func scanTenant(scanner pgx.Row) (*domain.Tenant, error) {
 	var t domain.Tenant
 	var expiresAt *time.Time
 	var deletedAt *time.Time
+	var logoURL *string
 	err := scanner.Scan(
 		&t.ID, &t.Name, &t.Slug, &t.Plan, &t.PlanPricePerEmployee,
 		&expiresAt, &t.IsActive, &t.MaxEmployees, &t.Settings,
-		&t.LogoURL, &t.CreatedAt, &deletedAt, &t.UpdatedAt,
+		&logoURL, &t.CreatedAt, &deletedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -162,6 +161,9 @@ func scanTenant(scanner pgx.Row) (*domain.Tenant, error) {
 		return nil, err
 	}
 	t.SubscriptionExpiresAt = expiresAt
+	if logoURL != nil {
+		t.LogoURL = *logoURL
+	}
 	t.DeletedAt = deletedAt
 	return &t, nil
 }
