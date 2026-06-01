@@ -98,6 +98,7 @@ export function Sidebar() {
       items: [
         { href: '/dashboard/leave', labelKey: 'timeOff.leaveRequest', icon: FileText, roles: ['employee', 'manager', 'tenant_admin'] },
         { href: '/dashboard/leave/history', labelKey: 'timeOff.leaveHistory', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/dashboard/leave/calendar', labelKey: 'timeOff.leaveCalendar', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin'] },
         { href: '/manager/leaves/all', labelKey: 'timeOff.allLeaves', icon: List, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves/pending', labelKey: 'timeOff.leaveApprovals', icon: CheckCircle2, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves-types', labelKey: 'timeOff.leaveTypes', icon: FileText, roles: ['manager', 'tenant_admin', 'super_admin'] },
@@ -113,6 +114,8 @@ export function Sidebar() {
         { href: '/dashboard/shifts', labelKey: 'shifts.myShift', icon: Clock, roles: ['employee', 'manager', 'tenant_admin'] },
         { href: '/manager/shifts', labelKey: 'shifts.shiftManagement', icon: ArrowLeftRight, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/shift-assignments', labelKey: 'shifts.shiftAssignments', icon: Link2, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/roster', labelKey: 'roster', icon: CalendarDays, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/analytics', labelKey: 'analytics', icon: BarChart3, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
@@ -131,8 +134,9 @@ export function Sidebar() {
       roles: ['employee', 'manager', 'tenant_admin'],
       items: [
         { href: '/employee/reimbursement', labelKey: 'finance.reimbursement', icon: DollarSign, roles: ['employee', 'manager', 'tenant_admin'] },
-        { href: '/manager/reimbursement', labelKey: 'finance.reimbursement', icon: DollarSign, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/reimbursement', labelKey: 'finance.reimbursementManage', icon: DollarSign, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/payroll', labelKey: 'finance.payroll', icon: Wallet, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/employee/payslip', labelKey: 'finance.payslip', icon: FileText, roles: ['employee', 'manager', 'tenant_admin'] },
       ],
     },
     {
