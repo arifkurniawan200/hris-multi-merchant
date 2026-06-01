@@ -275,6 +275,7 @@ func main() {
 				r.Use(rbManager)
 				r.Get("/api/v1/attendance/report", attendanceH.Report)
 				r.Get("/api/v1/attendance/export", attendanceH.Export)
+				r.Get("/api/v1/attendance/export/preview", attendanceH.ExportPreview)
 
 				// Attendance Correction (manager+)
 				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)

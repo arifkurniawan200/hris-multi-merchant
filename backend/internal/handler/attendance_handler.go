@@ -133,6 +133,34 @@ func (h *AttendanceHandler) Report(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, "Success", report, reqID)
 }
 
+// ExportPreview returns the count of attendance records that would be exported.
+func (h *AttendanceHandler) ExportPreview(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
+	q := r.URL.Query()
+	dateFrom := q.Get("date_from")
+	dateTo := q.Get("date_to")
+
+	if dateFrom == "" || dateTo == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "date_from and date_to are required", reqID)
+		return
+	}
+
+	count, err := h.uc.PreviewExport(r.Context(), tenantID, dateFrom, dateTo)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", map[string]int{"count": count}, reqID)
+}
+
 // Export attendance records as CSV or XLSX file.
 func (h *AttendanceHandler) Export(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())

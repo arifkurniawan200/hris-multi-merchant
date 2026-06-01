@@ -224,6 +224,25 @@ func (uc *AttendanceUC) GetReportExport(ctx context.Context, tenantID, dateFrom,
 	return attendances, nil
 }
 
+// PreviewExport returns the count of attendance records for a date range (no pagination).
+func (uc *AttendanceUC) PreviewExport(ctx context.Context, tenantID, dateFrom, dateTo string) (int, error) {
+	if dateFrom == "" || dateTo == "" {
+		return 0, domain.NewValidation("date_from and date_to are required")
+	}
+
+	count, err := uc.attendanceRepo.CountByTenantDateRange(ctx, tenantID, dateFrom, dateTo)
+	if err != nil {
+		logger.Error(ctx, "get attendance export preview failed",
+			"tenant_id", tenantID,
+			"date_from", dateFrom,
+			"date_to", dateTo,
+			"error", err)
+		return 0, domain.NewInternal("failed to preview export")
+	}
+
+	return count, nil
+}
+
 // ── Helper: detect status ───────────────────────────
 
 // detectStatus determines the attendance status based on clock-in time and shift.

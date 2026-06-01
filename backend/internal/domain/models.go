@@ -352,6 +352,7 @@ type AttendanceRepository interface {
 	ListByTenant(ctx context.Context, tenantID string, clockDate string, limit, offset int) ([]Attendance, error)
 	ListByTenantDateRange(ctx context.Context, tenantID string, dateFrom, dateTo string) ([]Attendance, error)
 	CountByTenant(ctx context.Context, tenantID string, clockDate string) (int, error)
+	CountByTenantDateRange(ctx context.Context, tenantID string, dateFrom, dateTo string) (int, error)
 }
 
 type AttendanceUseCase interface {
@@ -360,6 +361,7 @@ type AttendanceUseCase interface {
 	GetHistory(ctx context.Context, userID string, limit, offset int) ([]Attendance, error)
 	GetReport(ctx context.Context, tenantID string, clockDate string, limit, offset int) (*AttendanceReport, error)
 	GetReportExport(ctx context.Context, tenantID, dateFrom, dateTo string) ([]Attendance, error)
+	PreviewExport(ctx context.Context, tenantID, dateFrom, dateTo string) (int, error)
 }
 
 type AttendanceReport struct {

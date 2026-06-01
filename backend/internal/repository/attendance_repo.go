@@ -245,3 +245,16 @@ func (r *AttendanceRepo) ListByTenantDateRange(ctx context.Context, tenantID str
 	}
 	return attendances, rows.Err()
 }
+
+// CountByTenantDateRange returns the number of attendance records within a date range.
+func (r *AttendanceRepo) CountByTenantDateRange(ctx context.Context, tenantID string, dateFrom, dateTo string) (int, error) {
+	query := `SELECT COUNT(*) FROM attendances a
+		WHERE a.tenant_id=$1 AND a.clock_date >= $2::date AND a.clock_date <= $3::date AND a.deleted_at IS NULL`
+
+	var count int
+	err := r.dbQuerier(ctx).QueryRow(ctx, query, tenantID, dateFrom, dateTo).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
