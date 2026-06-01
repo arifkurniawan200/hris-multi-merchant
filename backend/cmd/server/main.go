@@ -74,6 +74,9 @@ func main() {
 	analyticsRepo := repository.NewAnalyticsRepo(dbpool)
 	rosterRepo := repository.NewRosterRepo(dbpool)
 	announcementRepo := repository.NewAnnouncementRepo(dbpool)
+	assetCatRepo := repository.NewAssetCategoryRepo(dbpool)
+	assetRepo := repository.NewAssetRepo(dbpool)
+	assetAssignRepo := repository.NewAssetAssignmentRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -94,6 +97,8 @@ func main() {
 	analyticsUC := usecase.NewAnalyticsUC(analyticsRepo, empRepo)
 	rosterUC := usecase.NewRosterUC(rosterRepo, empRepo, shiftRepo)
 	announcementUC := usecase.NewAnnouncementUC(announcementRepo, empRepo, notificationRepo)
+	assetCatUC := usecase.NewAssetCategoryUC(assetCatRepo)
+	assetUC := usecase.NewAssetUC(assetRepo, assetAssignRepo, empRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -120,6 +125,7 @@ func main() {
 	analyticsH := handler.NewAnalyticsHandler(analyticsUC)
 	rosterH := handler.NewRosterHandler(rosterUC)
 	announcementH := handler.NewAnnouncementHandler(announcementUC)
+	assetH := handler.NewAssetHandler(assetCatUC, assetUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -287,6 +293,9 @@ func main() {
 
 				// Leave types (employee+ needs to see types when submitting)
 				r.Get("/api/v1/leaves-types", leaveH.ListLeaveTypes)
+
+				// Assets self-service (employee+)
+				r.Get("/api/v1/assets/mine", assetH.MyAssets)
 			})
 
 			// Manager+ — Attendance report, Leave Management, Overtime approvals
@@ -337,6 +346,23 @@ func main() {
 				r.Post("/api/v1/announcements", announcementH.Create)
 				r.Put("/api/v1/announcements/{id}", announcementH.Update)
 				r.Delete("/api/v1/announcements/{id}", announcementH.Delete)
+
+				// Asset Management (manager+)
+				// Categories
+				r.Post("/api/v1/assets/categories", assetH.CreateCategory)
+				r.Get("/api/v1/assets/categories", assetH.ListCategories)
+				r.Put("/api/v1/assets/categories/{id}", assetH.UpdateCategory)
+				r.Delete("/api/v1/assets/categories/{id}", assetH.DeleteCategory)
+				// Assets
+				r.Post("/api/v1/assets", assetH.Create)
+				r.Get("/api/v1/assets", assetH.List)
+				r.Get("/api/v1/assets/{id}", assetH.GetByID)
+				r.Put("/api/v1/assets/{id}", assetH.Update)
+				r.Delete("/api/v1/assets/{id}", assetH.Delete)
+				// Assignments
+				r.Post("/api/v1/assets/{id}/assign", assetH.Assign)
+				r.Put("/api/v1/assets/assignments/{id}/return", assetH.ReturnAsset)
+				r.Get("/api/v1/assets/assignments", assetH.ListAssignments)
 			})
 		})
 

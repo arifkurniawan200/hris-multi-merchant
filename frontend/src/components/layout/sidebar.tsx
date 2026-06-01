@@ -33,11 +33,11 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
-  Settings,
+  Megaphone,
   Briefcase,
   PiggyBank,
   UserCog,
-  Megaphone,
+  Package,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -146,6 +146,15 @@ export function Sidebar() {
       roles: ['employee', 'manager', 'tenant_admin'],
       items: [
         { href: '/manager/announcements', labelKey: 'announcements.announcements', icon: Megaphone, roles: ['manager', 'tenant_admin', 'super_admin'] },
+      ],
+    },
+    {
+      labelKey: 'assets.group',
+      icon: Briefcase,
+      roles: ['employee', 'manager', 'tenant_admin'],
+      items: [
+        { href: '/employee/assets', labelKey: 'assets.myAssets', icon: Briefcase, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/manager/assets', labelKey: 'assets.management', icon: Package, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
