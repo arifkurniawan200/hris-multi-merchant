@@ -86,8 +86,8 @@ func main() {
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
-	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr)
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
+	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr, notificationUC)
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
@@ -270,6 +270,10 @@ func main() {
 				r.Post("/api/v1/attendance/clock-out", attendanceH.ClockOut)
 				r.Get("/api/v1/attendance/history", attendanceH.History)
 
+				// Attendance Correction self-service (employee+)
+				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
+				r.Get("/api/v1/attendance/corrections/mine", attendanceCorrectionH.ListMine)
+
 				// Leave routes (employee+)
 				r.Post("/api/v1/leaves", leaveH.SubmitLeave)
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
@@ -319,8 +323,7 @@ func main() {
 				// Roster view
 				r.Get("/api/v1/roster", rosterH.List)
 
-				// Attendance Correction (manager+)
-				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
+				// Attendance Correction — approvals (manager+)
 				r.Get("/api/v1/attendance/corrections/pending", attendanceCorrectionH.ListPending)
 				r.Put("/api/v1/attendance/corrections/{id}/approve", attendanceCorrectionH.Approve)
 				r.Put("/api/v1/attendance/corrections/{id}/reject", attendanceCorrectionH.Reject)
