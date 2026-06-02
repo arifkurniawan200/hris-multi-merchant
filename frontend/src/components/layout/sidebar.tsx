@@ -39,6 +39,7 @@ import {
   UserCog,
   Package,
   ArrowRightLeft,
+  Percent,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -248,6 +249,7 @@ export function Sidebar() {
         { href: '/dashboard/leave/calendar', labelKey: 'timeOff.leaveCalendar', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves/all', labelKey: 'timeOff.allLeaves', icon: List, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves/pending', labelKey: 'timeOff.leaveApprovals', icon: CheckCircle2, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/leaves/balances', labelKey: 'timeOff.leaveBalances', icon: Percent, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/dashboard/overtime', labelKey: 'timeOff.overtimeRequest', icon: Clock, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/overtime', labelKey: 'timeOff.overtimeApprovals', icon: CheckCircle2, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],

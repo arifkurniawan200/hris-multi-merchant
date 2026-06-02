@@ -63,6 +63,7 @@ func main() {
 	empShiftRepo := repository.NewEmployeeShiftRepo(dbpool)
 	leaveTypeRepo := repository.NewLeaveTypeRepo(dbpool)
 	leaveRequestRepo := repository.NewLeaveRequestRepo(dbpool)
+	leaveBalanceRepo := repository.NewLeaveBalanceRepo(dbpool)
 	notificationRepo := repository.NewNotificationRepo(dbpool)
 	resetTokenRepo := repository.NewPasswordResetTokenRepo(dbpool)
 	overtimeRepo := repository.NewOvertimeRepo(dbpool)
@@ -89,7 +90,7 @@ func main() {
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
 	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr, notificationUC)
-	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
+	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, leaveBalanceRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
 	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo, notificationUC)
@@ -343,6 +344,10 @@ func main() {
 				r.Get("/api/v1/leaves", leaveH.ListAllLeaves)
 				r.Put("/api/v1/leaves/{id}/approve", leaveH.ApproveLeave)
 				r.Put("/api/v1/leaves/{id}/reject", leaveH.RejectLeave)
+
+				// Employee Leave Balance Management (manager+)
+				r.Get("/api/v1/leaves/balances", leaveH.ListBalances)
+				r.Put("/api/v1/leaves/balances/adjust", leaveH.AdjustBalance)
 
 				// Overtime Management (manager+)
 				r.Get("/api/v1/overtime/pending", overtimeH.ListPendingOvertime)

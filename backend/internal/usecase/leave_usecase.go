@@ -13,29 +13,32 @@ import (
 )
 
 type LeaveUC struct {
-	leaveTypeRepo    domain.LeaveTypeRepository
-	leaveRequestRepo domain.LeaveRequestRepository
-	employeeRepo     domain.EmployeeRepository
-	txManager        *adapter.TxManager
-	leaveCfg         *config.LeaveConfig
-	notificationUC   domain.NotificationUseCase
+	leaveTypeRepo     domain.LeaveTypeRepository
+	leaveRequestRepo  domain.LeaveRequestRepository
+	leaveBalanceRepo  domain.LeaveBalanceRepository
+	employeeRepo      domain.EmployeeRepository
+	txManager         *adapter.TxManager
+	leaveCfg          *config.LeaveConfig
+	notificationUC    domain.NotificationUseCase
 }
 
 func NewLeaveUC(
 	leaveTypeRepo domain.LeaveTypeRepository,
 	leaveRequestRepo domain.LeaveRequestRepository,
+	leaveBalanceRepo domain.LeaveBalanceRepository,
 	employeeRepo domain.EmployeeRepository,
 	txManager *adapter.TxManager,
 	leaveCfg *config.LeaveConfig,
 	notificationUC domain.NotificationUseCase,
 ) domain.LeaveUseCase {
 	return &LeaveUC{
-		leaveTypeRepo:    leaveTypeRepo,
-		leaveRequestRepo: leaveRequestRepo,
-		employeeRepo:     employeeRepo,
-		txManager:        txManager,
-		leaveCfg:         leaveCfg,
-		notificationUC:   notificationUC,
+		leaveTypeRepo:     leaveTypeRepo,
+		leaveRequestRepo:  leaveRequestRepo,
+		leaveBalanceRepo:  leaveBalanceRepo,
+		employeeRepo:      employeeRepo,
+		txManager:         txManager,
+		leaveCfg:          leaveCfg,
+		notificationUC:    notificationUC,
 	}
 }
 
@@ -517,7 +520,12 @@ func (uc *LeaveUC) GetBalance(ctx context.Context, userID uuid.UUID, year int) (
 			used = 0
 		}
 
+		// Check if there's a per-employee override in employee_leave_balances
 		allocated := lt.DefaultDaysPerYear
+		if elb, err := uc.leaveBalanceRepo.GetByEmployee(ctx, employeeID, lt.ID, year); err == nil {
+			allocated = elb.AllocatedDays
+		}
+
 		remaining := allocated - used
 		if remaining < 0 && !uc.leaveCfg.AllowNegativeBalance {
 			remaining = 0
@@ -534,4 +542,164 @@ func (uc *LeaveUC) GetBalance(ctx context.Context, userID uuid.UUID, year int) (
 	}
 
 	return balances, nil
+}
+
+// ── ListEmployeeBalances ─────────────────────────
+
+func (uc *LeaveUC) ListEmployeeBalances(ctx context.Context, tenantID uuid.UUID, year int) ([]domain.EmployeeLeaveBalance, error) {
+	if year == 0 {
+		year = time.Now().Year()
+	}
+
+	balances, err := uc.leaveBalanceRepo.ListByTenant(ctx, tenantID, year)
+	if err != nil {
+		logger.Error(ctx, "list employee balances failed",
+			"tenant_id", tenantID,
+			"year", year,
+			"error", err)
+		return nil, domain.NewInternal("failed to list employee balances")
+	}
+
+	// Enrich with used_days and remaining_days
+	result := make([]domain.EmployeeLeaveBalance, 0, len(balances))
+	for _, b := range balances {
+		used, err := uc.leaveRequestRepo.GetUsedDays(ctx, b.EmployeeID, b.LeaveTypeID, year)
+		if err != nil {
+			logger.Error(ctx, "get used days for employee balance failed",
+				"employee_id", b.EmployeeID,
+				"leave_type_id", b.LeaveTypeID,
+				"error", err)
+			used = 0
+		}
+		b.UsedDays = used
+		b.RemainingDays = b.AllocatedDays - used
+		if b.RemainingDays < 0 && !uc.leaveCfg.AllowNegativeBalance {
+			b.RemainingDays = 0
+		}
+		result = append(result, b)
+	}
+
+	return result, nil
+}
+
+// ── AdjustBalance ─────────────────────────────────
+
+func (uc *LeaveUC) AdjustBalance(ctx context.Context, req *domain.AdjustLeaveBalanceRequest) (*domain.EmployeeLeaveBalance, error) {
+	if err := Validate().Struct(req); err != nil {
+		return nil, domain.NewValidation(fmt.Sprintf("validation: %v", err))
+	}
+
+	employeeID := uuid.MustParse(req.EmployeeID)
+	leaveTypeID := uuid.MustParse(req.LeaveTypeID)
+	year := req.Year
+	if year == 0 {
+		year = time.Now().Year()
+	}
+
+	// Verify employee exists
+	emp, err := uc.employeeRepo.GetByID(ctx, employeeID.String())
+	if err != nil {
+		return nil, domain.NewNotFound("employee not found")
+	}
+	tenantID := uuid.MustParse(emp.TenantID)
+
+	// Verify leave type exists
+	lt, err := uc.leaveTypeRepo.GetByID(ctx, leaveTypeID)
+	if err != nil {
+		return nil, domain.NewNotFound("leave type not found")
+	}
+	if lt.TenantID != tenantID {
+		return nil, domain.NewForbidden("leave type does not belong to this tenant")
+	}
+
+	// Check if balance record already exists
+	existing, err := uc.leaveBalanceRepo.GetByEmployee(ctx, employeeID, leaveTypeID, year)
+	var elb *domain.EmployeeLeaveBalance
+	if err == nil && existing != nil {
+		// Update existing
+		existing.AllocatedDays = req.AllocatedDays
+		if err := uc.leaveBalanceRepo.Upsert(ctx, existing); err != nil {
+			logger.Error(ctx, "upsert employee leave balance failed",
+				"employee_id", employeeID,
+				"leave_type_id", leaveTypeID,
+				"error", err)
+			return nil, domain.NewInternal("failed to update leave balance")
+		}
+		elb = existing
+	} else {
+		// Create new
+		elb = &domain.EmployeeLeaveBalance{
+			ID:            uuid.New(),
+			TenantID:      tenantID,
+			EmployeeID:    employeeID,
+			LeaveTypeID:   leaveTypeID,
+			Year:          year,
+			AllocatedDays: req.AllocatedDays,
+		}
+		if err := uc.leaveBalanceRepo.Upsert(ctx, elb); err != nil {
+			logger.Error(ctx, "upsert employee leave balance failed",
+				"employee_id", employeeID,
+				"leave_type_id", leaveTypeID,
+				"error", err)
+			return nil, domain.NewInternal("failed to create leave balance")
+		}
+	}
+
+	// Enrich with names and usage
+	used, _ := uc.leaveRequestRepo.GetUsedDays(ctx, employeeID, leaveTypeID, year)
+	elb.EmployeeName = emp.FirstName + " " + emp.LastName
+	elb.EmployeeCode = emp.EmployeeCode
+	elb.LeaveTypeName = lt.Name
+	elb.LeaveTypeCode = lt.Code
+	elb.UsedDays = used
+	elb.RemainingDays = elb.AllocatedDays - used
+	if elb.RemainingDays < 0 && !uc.leaveCfg.AllowNegativeBalance {
+		elb.RemainingDays = 0
+	}
+
+	logger.Info(ctx, "leave balance adjusted",
+		"employee_id", employeeID,
+		"leave_type_id", leaveTypeID,
+		"year", year,
+		"allocated_days", req.AllocatedDays)
+
+	return elb, nil
+}
+
+// ── GetEmployeeBalances (for a specific employee) ─
+
+func (uc *LeaveUC) GetEmployeeBalances(ctx context.Context, employeeID uuid.UUID, year int) ([]domain.EmployeeLeaveBalance, error) {
+	if year == 0 {
+		year = time.Now().Year()
+	}
+
+	balances, err := uc.leaveBalanceRepo.GetEmployeeBalances(ctx, employeeID, year)
+	if err != nil {
+		logger.Error(ctx, "get employee balances failed",
+			"employee_id", employeeID,
+			"year", year,
+			"error", err)
+		return nil, domain.NewInternal("failed to get employee balances")
+	}
+
+	// Enrich with used_days and remaining_days
+	result := make([]domain.EmployeeLeaveBalance, 0, len(balances))
+	for _, b := range balances {
+		used, err := uc.leaveRequestRepo.GetUsedDays(ctx, b.EmployeeID, b.LeaveTypeID, year)
+		if err != nil {
+			logger.Error(ctx, "get used days for employee balance failed",
+				"employee_id", b.EmployeeID,
+				"leave_type_id", b.LeaveTypeID,
+				"error", err)
+			used = 0
+		}
+		b.UsedDays = used
+		b.RemainingDays = b.AllocatedDays - used
+		if b.RemainingDays < 0 && !uc.leaveCfg.AllowNegativeBalance {
+			b.RemainingDays = 0
+		}
+		result = append(result, b)
+	}
+
+	return result, nil
 }

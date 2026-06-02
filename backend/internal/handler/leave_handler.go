@@ -426,3 +426,50 @@ func (h *LeaveHandler) DeleteLeaveType(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, "Leave type deleted", nil, reqID)
 }
+
+// ── Employee Leave Balance routes (manager+) ──────
+
+// ListBalances handles GET /api/v1/leaves/balances
+func (h *LeaveHandler) ListBalances(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
+	year := time.Now().Year()
+	if y := r.URL.Query().Get("year"); y != "" {
+		if v, err := strconv.Atoi(y); err == nil && v > 0 {
+			year = v
+		}
+	}
+
+	balances, err := h.uc.ListEmployeeBalances(r.Context(), uuid.MustParse(tenantID), year)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", balances, reqID)
+}
+
+// AdjustBalance handles PUT /api/v1/leaves/balances/adjust
+func (h *LeaveHandler) AdjustBalance(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	var req domain.AdjustLeaveBalanceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	balance, err := h.uc.AdjustBalance(r.Context(), &req)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Balance adjusted", balance, reqID)
+}

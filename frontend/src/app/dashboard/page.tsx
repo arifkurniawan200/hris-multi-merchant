@@ -509,13 +509,13 @@ export default function DashboardPage() {
                 <PendingItem
                   label="Corrections"
                   count={pc.corrections}
-                  href="/manager/attendance"
+                  href="/manager/report"
                   icon={<FileText className="h-4 w-4" />}
                 />
                 <PendingItem
                   label="Leave Requests"
                   count={pc.leaves}
-                  href="/manager/leaves"
+                  href="/manager/leaves/pending"
                   icon={<CalendarDays className="h-4 w-4" />}
                 />
                 <PendingItem
@@ -527,7 +527,7 @@ export default function DashboardPage() {
                 <PendingItem
                   label="Reimbursements"
                   count={pc.reimbursements}
-                  href="/manager/reimbursements"
+                  href="/manager/reimbursement"
                   icon={<FileText className="h-4 w-4" />}
                 />
                 <PendingItem
@@ -546,7 +546,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link href="/dashboard/attendance" className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm hover:bg-muted transition-colors">
+              <Link href="/dashboard/history" className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm hover:bg-muted transition-colors">
                 <FileText className="h-4 w-4 text-primary" />
                 View Attendance History
               </Link>
@@ -561,7 +561,7 @@ export default function DashboardPage() {
                 </Link>
               )}
               {isManager && (
-                <Link href="/manager/attendance" className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm hover:bg-muted transition-colors">
+                <Link href="/manager/report" className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm hover:bg-muted transition-colors">
                   <Users className="h-4 w-4 text-amber-500" />
                   Manage Attendance
                 </Link>
