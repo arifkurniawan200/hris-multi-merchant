@@ -25,6 +25,7 @@ export interface UserWithTenant {
   role: string;
   tenant_name: string;
   tenant_slug: string;
+  tenant_id: string;
 }
 
 export interface CreateTenantData {
@@ -68,4 +69,13 @@ export async function deleteTenant(id: string): Promise<void> {
 
 export async function fetchAllUsers(): Promise<UserWithTenant[]> {
   return api.get<UserWithTenant[]>('/api/v1/admin/users');
+}
+
+export interface UpdateRoleData {
+  role: string;
+  tenant_id: string;
+}
+
+export async function updateUserRole(userId: string, data: UpdateRoleData): Promise<void> {
+  return api.put<void>(`/api/v1/admin/users/${userId}/role`, data);
 }

@@ -400,6 +400,7 @@ func main() {
 			r.Put("/api/v1/admin/tenants/{id}/deactivate", adminH.DeactivateTenant)
 			r.Put("/api/v1/admin/tenants/{id}/extend", adminH.ExtendTenant)
 			r.Put("/api/v1/admin/tenants/{id}/plan", adminH.ChangePlan)
+			r.Put("/api/v1/admin/users/{id}/role", adminH.UpdateUserRole)
 			r.Delete("/api/v1/admin/tenants/{id}", adminH.SoftDeleteTenant)
 		})
 	})
