@@ -40,6 +40,7 @@ import {
   Package,
   ArrowRightLeft,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const isManager = (role: string) =>
   role === 'manager' || role === 'tenant_admin' || role === 'super_admin';
@@ -58,16 +59,101 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// ── Badge Hook ──
+
+interface BadgeCounts {
+  unread: number;
+  pendingCorrections: number;
+  pendingLeaves: number;
+  pendingOvertime: number;
+  pendingReimb: number;
+}
+
+function useBadgeCounts(user: any): BadgeCounts {
+  const [counts, setCounts] = React.useState<BadgeCounts>({
+    unread: 0,
+    pendingCorrections: 0,
+    pendingLeaves: 0,
+    pendingOvertime: 0,
+    pendingReimb: 0,
+  });
+
+  React.useEffect(() => {
+    if (!user) return;
+
+    const fetchCounts = async () => {
+      try {
+        // Unread notifications
+        const notifRes = await api.get<{ unread_count: number }>('/api/v1/notifications/unread-count');
+        const unread = notifRes?.unread_count ?? 0;
+
+        let pendingCorrections = 0;
+        let pendingLeaves = 0;
+        let pendingOvertime = 0;
+        let pendingReimb = 0;
+
+        if (isManager(user.role)) {
+          // Pending corrections
+          const corrRes = await api.get<{ data: any[] }>('/api/v1/attendance-corrections/pending');
+          pendingCorrections = corrRes?.data?.length ?? 0;
+
+          // Pending leaves
+          const leaveRes = await api.get<{ data: any[] }>('/api/v1/leaves/pending');
+          pendingLeaves = leaveRes?.data?.length ?? 0;
+
+          // Pending overtime
+          const otRes = await api.get<{ data: any[] }>('/api/v1/overtime/pending');
+          pendingOvertime = otRes?.data?.length ?? 0;
+
+          // Pending reimbursements
+          const reimbRes = await api.get<{ data: any[] }>('/api/v1/reimbursements/pending');
+          pendingReimb = reimbRes?.data?.length ?? 0;
+        }
+
+        setCounts({
+          unread,
+          pendingCorrections,
+          pendingLeaves,
+          pendingOvertime,
+          pendingReimb,
+        });
+      } catch {
+        // Silently fail — badges gracefully hide
+      }
+    };
+
+    fetchCounts();
+    // Poll every 30s
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  return counts;
+}
+
+// ── Badge Component ──
+
+function Badge({ count, color = 'bg-red-500' }: { count: number; color?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white ${color}`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
 // ── Sidebar ──
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const t = useTranslations('nav');
+  const badges = useBadgeCounts(user);
 
   // Collapse state per group
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>(() => {
-    // Start collapsed, expand if a child is active
     return {};
   });
   const [ready, setReady] = React.useState(false);
@@ -181,7 +267,6 @@ export function Sidebar() {
   }
 
   function isActive(href: string) {
-    // Handle redirect /admin → /admin/tenants
     if (href === '/admin' && pathname.startsWith('/admin')) return true;
     return pathname === href;
   }
@@ -190,6 +275,28 @@ export function Sidebar() {
     return group.items.some((item) =>
       isActive(item.href) && user && (!item.roles || item.roles.includes(user.role))
     );
+  }
+
+  // Compute badge for specific nav href
+  function getBadgeForHref(href: string): number {
+    if (!user || !isManager(user.role)) return 0;
+    switch (href) {
+      case '/manager/attendance/corrections': return badges.pendingCorrections;
+      case '/manager/leaves/pending': return badges.pendingLeaves;
+      case '/manager/overtime': return badges.pendingOvertime;
+      case '/manager/reimbursement': return badges.pendingReimb;
+      case '/dashboard/notifications': return badges.unread;
+      default: return 0;
+    }
+  }
+
+  // Color per badge type
+  function getBadgeColor(href: string): string {
+    if (href === '/dashboard/notifications') return 'bg-red-500';
+    if (href === '/manager/overtime') return 'bg-blue-500';
+    if (href === '/manager/leaves/pending') return 'bg-amber-500';
+    if (href === '/manager/reimbursement') return 'bg-purple-500';
+    return 'bg-red-500'; // corrections, default
   }
 
   const visibleGroups = groups.filter(
@@ -236,6 +343,7 @@ export function Sidebar() {
           if (visibleItems.length === 1) {
             const item = visibleItems[0];
             const ItemIcon = item.icon;
+            const itemBadge = getBadgeForHref(item.href);
             return (
               <Link
                 key={item.href}
@@ -250,6 +358,7 @@ export function Sidebar() {
               >
                 <ItemIcon className="h-5 w-5 flex-shrink-0" />
                 <span>{t(item.labelKey)}</span>
+                {itemBadge > 0 && <Badge count={itemBadge} color={getBadgeColor(item.href)} />}
               </Link>
             );
           }
@@ -278,6 +387,7 @@ export function Sidebar() {
                 <div className="ml-3 mt-1 space-y-0.5 border-l border-border pl-3">
                   {visibleItems.map((item) => {
                     const ItemIcon = item.icon;
+                    const itemBadge = getBadgeForHref(item.href);
                     return (
                       <Link
                         key={item.href}
@@ -292,6 +402,7 @@ export function Sidebar() {
                       >
                         <ItemIcon className="h-4 w-4 flex-shrink-0" />
                         <span>{t(item.labelKey)}</span>
+                        {itemBadge > 0 && <Badge count={itemBadge} color={getBadgeColor(item.href)} />}
                       </Link>
                     );
                   })}
