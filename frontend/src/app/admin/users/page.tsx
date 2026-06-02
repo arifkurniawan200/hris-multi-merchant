@@ -2,17 +2,31 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { fetchAllUsers, type UserWithTenant } from "@/lib/api-admin";
+import { fetchAllUsers, updateUserRole, type UserWithTenant } from "@/lib/api-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Users, AlertCircle, Search, X } from "lucide-react";
+import { Select } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Users, AlertCircle, Search, X, Edit3, Check, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { FilterDropdown } from "@/components/ui/filter-dropdown";
+
+const ROLE_OPTIONS = [
+  { value: "super_admin", label: "Super Admin" },
+  { value: "tenant_admin", label: "Tenant Admin" },
+  { value: "manager", label: "Manager" },
+  { value: "employee", label: "Employee" },
+];
+
+interface ConfirmState {
+  user: UserWithTenant;
+  newRole: string;
+}
 
 export default function AdminUsersPage() {
   const t = useTranslations('admin');
@@ -28,6 +42,14 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [tenantFilter, setTenantFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+
+  // Inline editing
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingRole, setEditingRole] = useState<string>("");
+
+  // Confirm dialog
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -83,6 +105,52 @@ export default function AdminUsersPage() {
     tenant_admin: { label: t('tenantAdmin'), variant: "info" },
     manager: { label: "Manager", variant: "success" },
     employee: { label: "Employee", variant: "default" },
+  };
+
+  // ── Inline edit handlers ──────────────────────────────────────────────
+
+  const handleStartEdit = (u: UserWithTenant) => {
+    setEditingUserId(u.id);
+    setEditingRole(u.role);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEditingRole("");
+  };
+
+  const handleRoleSelectChange = (value: string) => {
+    setEditingRole(value);
+  };
+
+  const handleConfirmUpdate = async () => {
+    if (!confirm) return;
+    setUpdating(true);
+    setError("");
+    try {
+      await updateUserRole(confirm.user.id, {
+        role: confirm.newRole,
+        tenant_id: confirm.user.tenant_id,
+      });
+      setConfirm(null);
+      setEditingUserId(null);
+      setEditingRole("");
+      await loadUsers();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update role");
+      setConfirm(null);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSaveClick = (u: UserWithTenant) => {
+    if (editingRole === u.role) {
+      // No change, just cancel editing
+      handleCancelEdit();
+      return;
+    }
+    setConfirm({ user: u, newRole: editingRole });
   };
 
   if (!isSuperAdmin) {
@@ -194,6 +262,7 @@ export default function AdminUsersPage() {
                 </thead>
                 <tbody>
                   {pagedUsers.map((u) => {
+                    const isEditing = editingUserId === u.id;
                     const rc = roleConfig[u.role] || { label: u.role, variant: "default" };
                     return (
                       <tr key={`${u.id}-${u.tenant_slug}`} className="border-b border-border hover:bg-muted/50 transition-all duration-200">
@@ -203,9 +272,43 @@ export default function AdminUsersPage() {
                         <td className="py-3 px-4 text-sm text-muted-foreground">{u.email}</td>
                         <td className="py-3 px-4 text-sm">{u.tenant_name}</td>
                         <td className="py-3 px-4">
-                          <Badge variant={rc.variant as "default" | "success" | "warning" | "danger" | "info"}>
-                            {rc.label}
-                          </Badge>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1.5">
+                              <Select
+                                options={ROLE_OPTIONS}
+                                value={editingRole}
+                                onChange={(e) => handleRoleSelectChange(e.target.value)}
+                                className="h-8 min-w-[130px] text-xs"
+                              />
+                              <button
+                                onClick={() => handleSaveClick(u)}
+                                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-green-600 hover:bg-green-50 active:scale-95 transition-all duration-200"
+                                title="Save"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted active:scale-95 transition-all duration-200"
+                                title="Cancel"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant={rc.variant as "default" | "success" | "warning" | "danger" | "info"}>
+                                {rc.label}
+                              </Badge>
+                              <button
+                                onClick={() => handleStartEdit(u)}
+                                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted active:scale-95 transition-all duration-200"
+                                title="Edit role"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span
@@ -229,6 +332,24 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirm role change dialog */}
+      <ConfirmDialog
+        variant="warning"
+        open={!!confirm}
+        onClose={() => {
+          if (!updating) setConfirm(null);
+        }}
+        onConfirm={handleConfirmUpdate}
+        title="Change User Role"
+        message={
+          confirm
+            ? `Are you sure you want to change ${confirm.user.full_name}'s role from "${roleConfig[confirm.user.role]?.label || confirm.user.role}" to "${ROLE_OPTIONS.find((o) => o.value === confirm.newRole)?.label || confirm.newRole}"?`
+            : ""
+        }
+        confirmLabel={updating ? "Updating..." : "Change Role"}
+        loading={updating}
+      />
     </div>
   );
 }

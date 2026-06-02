@@ -139,6 +139,7 @@ type UserWithTenant struct {
 	Role       UserTenantRole `json:"role"`
 	TenantName string         `json:"tenant_name"`
 	TenantSlug string         `json:"tenant_slug"`
+	TenantID   string         `json:"tenant_id"`
 }
 
 type UserTenantRepository interface {

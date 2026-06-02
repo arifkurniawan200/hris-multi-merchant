@@ -113,7 +113,7 @@ func (r *UserTenantRepo) Remove(ctx context.Context, userID, tenantID string) er
 func (r *UserTenantRepo) ListAllUsers(ctx context.Context) ([]domain.UserWithTenant, error) {
 	query := `
 		SELECT u.id, u.email, u.full_name, u.is_active, u.created_at,
-		       ut.role, t.name as tenant_name, t.slug as tenant_slug
+		       ut.role, t.name as tenant_name, t.slug as tenant_slug, t.id as tenant_id
 		FROM users u
 		JOIN user_tenants ut ON ut.user_id = u.id AND ut.deleted_at IS NULL
 		JOIN tenants t ON t.id = ut.tenant_id
@@ -129,7 +129,7 @@ func (r *UserTenantRepo) ListAllUsers(ctx context.Context) ([]domain.UserWithTen
 	users := make([]domain.UserWithTenant, 0)
 	for rows.Next() {
 		var u domain.UserWithTenant
-		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.IsActive, &u.CreatedAt, &u.Role, &u.TenantName, &u.TenantSlug); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.IsActive, &u.CreatedAt, &u.Role, &u.TenantName, &u.TenantSlug, &u.TenantID); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

@@ -134,7 +134,34 @@ func (h *AdminHandler) ChangePlan(w http.ResponseWriter, r *http.Request) {
 	}, reqID)
 }
 
-// SoftDeleteTenant DELETE /api/v1/admin/tenants/:id (soft delete)
+// UpdateUserRole PUT /api/v1/admin/users/{id}/role
+func (h *AdminHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+	userID := r.PathValue("id")
+
+	var req struct {
+		Role     string `json:"role"`
+		TenantID string `json:"tenant_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrInvalidBody, "Invalid request body", reqID)
+		return
+	}
+
+	// Validate role
+	validRoles := map[string]bool{"super_admin": true, "tenant_admin": true, "manager": true, "employee": true}
+	if !validRoles[req.Role] {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid role. Must be one of: super_admin, tenant_admin, manager, employee", reqID)
+		return
+	}
+
+	if err := h.userTenantRepo.UpdateRole(r.Context(), userID, req.TenantID, domain.UserTenantRole(req.Role)); err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "User role updated", map[string]string{"status": "role_updated"}, reqID)
+}
 func (h *AdminHandler) SoftDeleteTenant(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 	tenantID := r.PathValue("id")
