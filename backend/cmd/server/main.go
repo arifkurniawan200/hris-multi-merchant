@@ -96,7 +96,7 @@ func main() {
 	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo, notificationUC)
 	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
 	reimbUC := usecase.NewReimbursementUC(reimbTypeRepo, reimbRepo, empRepo, txMgr)
-	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
+	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, tenantRepo, txMgr)
 	analyticsUC := usecase.NewAnalyticsUC(analyticsRepo, empRepo)
 	rosterUC := usecase.NewRosterUC(rosterRepo, empRepo, shiftRepo)
 	announcementUC := usecase.NewAnnouncementUC(announcementRepo, empRepo, notificationRepo)
@@ -249,6 +249,7 @@ func main() {
 				r.Get("/api/v1/payroll/{id}", payrollH.GetByID)
 				r.Put("/api/v1/payroll/{id}/approve", payrollH.Approve)
 				r.Put("/api/v1/payroll/{id}/paid", payrollH.MarkPaid)
+				r.Get("/api/v1/payroll/{id}/pdf", payrollH.DownloadPayslipPDF)
 				r.Get("/api/v1/payroll/config", payrollH.GetConfig)
 				r.Put("/api/v1/payroll/config", payrollH.UpdateConfig)
 			})
@@ -291,6 +292,7 @@ func main() {
 
 				// Payslip self-service
 				r.Get("/api/v1/payroll/mine", payrollH.ListMyPayslips)
+				r.Get("/api/v1/payroll/{id}/pdf", payrollH.DownloadPayslipPDF)
 
 				// Reimbursement routes (employee+)
 				r.Post("/api/v1/reimbursements", reimbH.Submit)

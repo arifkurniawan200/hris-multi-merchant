@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
@@ -187,6 +189,12 @@ func (h *PayrollHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 func (h *PayrollHandler) ListMyPayslips(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetReqID(r.Context())
 
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+	if tenantID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No tenant context", reqID)
+		return
+	}
+
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 	if userID == "" {
 		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No user context", reqID)
@@ -200,11 +208,45 @@ func (h *PayrollHandler) ListMyPayslips(w http.ResponseWriter, r *http.Request) 
 		limit = 20
 	}
 
-	payslips, err := h.uc.ListByPeriod(r.Context(), "", 0, 0, limit, offset)
+	// Default to current year/month if not specified
+	now := time.Now()
+	year, _ := strconv.Atoi(q.Get("year"))
+	if year <= 0 {
+		year = now.Year()
+	}
+	month, _ := strconv.Atoi(q.Get("month"))
+	if month <= 0 {
+		month = int(now.Month())
+	}
+
+	payslips, err := h.uc.ListByPeriod(r.Context(), tenantID, year, month, limit, offset)
 	if err != nil {
 		handleDomainErr(w, r, err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, "Success", payslips, reqID)
+}
+
+// DownloadPayslipPDF handles GET /api/v1/payroll/{id}/pdf
+func (h *PayrollHandler) DownloadPayslipPDF(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrMissingParam, "Missing payroll ID", reqID)
+		return
+	}
+
+	pdfBytes, filename, err := h.uc.DownloadPayslipPDF(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(pdfBytes)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(pdfBytes)
 }

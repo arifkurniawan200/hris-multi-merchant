@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useTranslations } from "next-intl";
 import {
   fetchMyPayslips,
+  downloadPayslipPDF,
   type PayrollRecord,
 } from "@/lib/api-payroll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,9 @@ export default function PayslipPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Downloading state
+  const [downloading, setDownloading] = useState<string | null>(null);
+
   // Pagination
   const perPage = 10;
   const [page, setPage] = useState(1);
@@ -87,6 +91,28 @@ export default function PayslipPage() {
   useEffect(() => {
     loadPayslips();
   }, [loadPayslips]);
+
+  // ── Download handler ──
+
+  const handleDownload = async (record: PayrollRecord) => {
+    setDownloading(record.id);
+    setError("");
+    try {
+      const blob = await downloadPayslipPDF(record.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payslip-${record.period_month}-${record.period_year}-${record.employee_name}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e.message || "Failed to download payslip");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   const totalPages = Math.ceil(total / perPage);
 
@@ -305,13 +331,14 @@ export default function PayslipPage() {
                                       variant="outline"
                                       size="sm"
                                       className="active:scale-95 transition-all duration-200"
+                                      disabled={downloading === record.id}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        // Future: download PDF
+                                        handleDownload(record);
                                       }}
                                     >
-                                      <Download className="h-4 w-4 mr-1" />
-                                      {t("download")}
+                                      <Download className={`h-4 w-4 mr-1 ${downloading === record.id ? "animate-bounce" : ""}`} />
+                                      {downloading === record.id ? "Downloading..." : t("download")}
                                     </Button>
                                   )}
                                 </div>

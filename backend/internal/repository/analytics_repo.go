@@ -52,7 +52,7 @@ func (r *AnalyticsRepo) GetEmploymentTypeDistribution(ctx context.Context, tenan
 		SELECT COALESCE(employment_type, 'unknown'), COUNT(*)
 		FROM employees
 		WHERE deleted_at IS NULL AND tenant_id = $1
-		GROUP BY employment_type
+		GROUP BY COALESCE(employment_type, 'unknown')
 	`
 	rows, err := r.dbQuerier(ctx).Query(ctx, query, tenantID)
 	if err != nil {
@@ -66,6 +66,9 @@ func (r *AnalyticsRepo) GetEmploymentTypeDistribution(ctx context.Context, tenan
 		if err := rows.Scan(&item.Type, &item.Count); err != nil {
 			return nil, err
 		}
+		if item.Type == "" {
+			item.Type = "unknown"
+		}
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -76,7 +79,7 @@ func (r *AnalyticsRepo) GetGenderDistribution(ctx context.Context, tenantID stri
 		SELECT COALESCE(gender, 'unknown'), COUNT(*)
 		FROM employees
 		WHERE deleted_at IS NULL AND tenant_id = $1
-		GROUP BY gender
+		GROUP BY COALESCE(gender, 'unknown')
 	`
 	rows, err := r.dbQuerier(ctx).Query(ctx, query, tenantID)
 	if err != nil {
@@ -89,6 +92,9 @@ func (r *AnalyticsRepo) GetGenderDistribution(ctx context.Context, tenantID stri
 		var item domain.GenderDistribution
 		if err := rows.Scan(&item.Gender, &item.Count); err != nil {
 			return nil, err
+		}
+		if item.Gender == "" {
+			item.Gender = "unknown"
 		}
 		items = append(items, item)
 	}

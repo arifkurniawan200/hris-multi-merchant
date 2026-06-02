@@ -561,6 +561,7 @@ type PayrollUseCase interface {
 	GetByID(ctx context.Context, id string) (*Payroll, error)
 	GetConfig(ctx context.Context, tenantID string) (*PayrollConfig, error)
 	UpdateConfig(ctx context.Context, tenantID string, cfg *PayrollConfig) (*PayrollConfig, error)
+	DownloadPayslipPDF(ctx context.Context, id string) ([]byte, string, error)
 }
 
 type PayrollReport struct {

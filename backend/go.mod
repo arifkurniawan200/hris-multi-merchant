@@ -9,7 +9,9 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
+	github.com/jung-kurt/gofpdf/v2 v2.17.3
 	github.com/sirupsen/logrus v1.9.3
+	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/crypto v0.48.0
 )
 
@@ -23,10 +25,8 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
-	github.com/xuri/excelize/v2 v2.10.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect

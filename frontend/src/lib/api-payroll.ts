@@ -105,3 +105,29 @@ export async function approvePayroll(id: string, _tenant?: string): Promise<any>
 export async function markPaid(id: string, _tenant?: string): Promise<any> {
   return api.put(`/api/v1/payroll/${id}/paid`);
 }
+
+// ── Download PDF ────────────────────────────────────────
+
+export async function downloadPayslipPDF(id: string): Promise<Blob> {
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+
+  const res = await fetch(`${API_BASE}/api/v1/payroll/${id}/pdf`, { headers });
+
+  if (!res.ok) {
+    let message = 'Failed to download payslip PDF';
+    try {
+      const data = await res.json();
+      message = data.message || message;
+    } catch {
+      // use default message
+    }
+    throw new Error(message);
+  }
+
+  return res.blob();
+}
