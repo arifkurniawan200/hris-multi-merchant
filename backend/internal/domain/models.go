@@ -276,13 +276,13 @@ type AttendanceCorrection struct {
 }
 
 type AttendanceCorrectionRequest struct {
-	AttendanceID      string     `json:"attendance_id" validate:"required,uuid"`
-	Type              string     `json:"type" validate:"required,oneof=clock_in clock_out both"`
-	RequestedClockIn  *time.Time `json:"requested_clock_in,omitempty"`
-	RequestedClockOut *time.Time `json:"requested_clock_out,omitempty"`
-	Reason            string     `json:"reason" validate:"required,min=5"`
-	TenantID          string     `json:"-"` // set by handler
-	UserID            string     `json:"-"` // set by handler
+	AttendanceID      string  `json:"attendance_id" validate:"required,uuid"`
+	Type              string  `json:"type" validate:"required,oneof=clock_in clock_out both"`
+	RequestedClockIn  *string `json:"requested_clock_in,omitempty"`
+	RequestedClockOut *string `json:"requested_clock_out,omitempty"`
+	Reason            string  `json:"reason" validate:"required,min=5"`
+	TenantID          string  `json:"-"` // set by handler
+	UserID            string  `json:"-"` // set by handler
 }
 
 type AttendanceCorrectionRepository interface {
@@ -300,6 +300,7 @@ type AttendanceCorrectionUseCase interface {
 	Reject(ctx context.Context, id, approvedBy, rejectReason string) (*AttendanceCorrection, error)
 	ListPending(ctx context.Context, tenantID string, limit, offset int) (*AttendanceCorrectionReport, error)
 	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]AttendanceCorrection, error)
+	ListMine(ctx context.Context, userID, tenantID string, limit, offset int) ([]AttendanceCorrection, error)
 	GetByID(ctx context.Context, id string) (*AttendanceCorrection, error)
 }
 
@@ -899,6 +900,9 @@ const (
 	NotifOvertimeSubmitted NotificationType = "overtime_submitted"
 	NotifOvertimeApproved  NotificationType = "overtime_approved"
 	NotifOvertimeRejected  NotificationType = "overtime_rejected"
+	NotifCorrectionSubmitted NotificationType = "correction_submitted"
+	NotifCorrectionApproved  NotificationType = "correction_approved"
+	NotifCorrectionRejected  NotificationType = "correction_rejected"
 )
 
 type Notification struct {
@@ -929,6 +933,8 @@ type NotificationUseCase interface {
 	NotifyLeaveReviewed(ctx context.Context, leaveReq *LeaveRequest, action string, reviewerName string) error
 	NotifyOvertimeSubmitted(ctx context.Context, otReq *OvertimeRequest) error
 	NotifyOvertimeReviewed(ctx context.Context, otReq *OvertimeRequest, action string, reviewerName string) error
+	NotifyCorrectionSubmitted(ctx context.Context, corr *AttendanceCorrection, employeeName string) error
+	NotifyCorrectionReviewed(ctx context.Context, corr *AttendanceCorrection, action string, reviewerName string) error
 	ListMyNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 	MarkRead(ctx context.Context, notifID uuid.UUID, userID uuid.UUID) error
