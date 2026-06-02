@@ -73,10 +73,12 @@ func main() {
 	payrollRepo := repository.NewPayrollRepo(dbpool)
 	analyticsRepo := repository.NewAnalyticsRepo(dbpool)
 	rosterRepo := repository.NewRosterRepo(dbpool)
+	assetRepo := repository.NewAssetRepo(dbpool)
 	announcementRepo := repository.NewAnnouncementRepo(dbpool)
 	assetCatRepo := repository.NewAssetCategoryRepo(dbpool)
-	assetRepo := repository.NewAssetRepo(dbpool)
 	assetAssignRepo := repository.NewAssetAssignmentRepo(dbpool)
+	shiftSwapRepo := repository.NewShiftSwapRepo(dbpool)
+	dashboardRepo := repository.NewDashboardRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -85,12 +87,12 @@ func main() {
 	posUC := usecase.NewPositionUC(posRepo)
 	empUC := usecase.NewEmployeeUC(empRepo, userRepo, deptRepo, posRepo)
 	attendanceUC := usecase.NewAttendanceUC(attendanceRepo, empRepo, empShiftRepo, txMgr, &cfg.Attendance)
-	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr)
 	notificationUC := usecase.NewNotificationUC(notificationRepo, empRepo)
+	attendanceCorrectionUC := usecase.NewAttendanceCorrectionUC(attendanceCorrectionRepo, attendanceRepo, empRepo, txMgr, notificationUC)
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
-	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
+	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo, notificationUC)
 	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
 	reimbUC := usecase.NewReimbursementUC(reimbTypeRepo, reimbRepo, empRepo, txMgr)
 	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
@@ -99,6 +101,8 @@ func main() {
 	announcementUC := usecase.NewAnnouncementUC(announcementRepo, empRepo, notificationRepo)
 	assetCatUC := usecase.NewAssetCategoryUC(assetCatRepo)
 	assetUC := usecase.NewAssetUC(assetRepo, assetAssignRepo, empRepo)
+	shiftSwapUC := usecase.NewShiftSwapUC(shiftSwapRepo, empShiftRepo, empRepo)
+	dashboardUC := usecase.NewDashboardUC(dashboardRepo, empRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -126,6 +130,8 @@ func main() {
 	rosterH := handler.NewRosterHandler(rosterUC)
 	announcementH := handler.NewAnnouncementHandler(announcementUC)
 	assetH := handler.NewAssetHandler(assetCatUC, assetUC)
+	shiftSwapH := handler.NewShiftSwapHandler(shiftSwapUC, empRepo)
+	dashboardH := handler.NewDashboardHandler(dashboardUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -267,6 +273,10 @@ func main() {
 				r.Post("/api/v1/attendance/clock-out", attendanceH.ClockOut)
 				r.Get("/api/v1/attendance/history", attendanceH.History)
 
+				// Attendance Correction self-service (employee+)
+				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
+				r.Get("/api/v1/attendance/corrections/mine", attendanceCorrectionH.ListMine)
+
 				// Leave routes (employee+)
 				r.Post("/api/v1/leaves", leaveH.SubmitLeave)
 				r.Get("/api/v1/leaves/my", leaveH.MyLeaves)
@@ -296,6 +306,14 @@ func main() {
 
 				// Assets self-service (employee+)
 				r.Get("/api/v1/assets/mine", assetH.MyAssets)
+
+				// Dashboard summary (employee+)
+				r.Get("/api/v1/dashboard/summary", dashboardH.Summary)
+
+				// Shift Swap — employee self-service
+				r.Post("/api/v1/shift-swaps", shiftSwapH.RequestSwap)
+				r.Get("/api/v1/shift-swaps/my", shiftSwapH.ListMySwaps)
+				r.Put("/api/v1/shift-swaps/{id}/cancel", shiftSwapH.Cancel)
 			})
 
 			// Manager+ — Attendance report, Leave Management, Overtime approvals
@@ -311,8 +329,7 @@ func main() {
 				// Roster view
 				r.Get("/api/v1/roster", rosterH.List)
 
-				// Attendance Correction (manager+)
-				r.Post("/api/v1/attendance/corrections", attendanceCorrectionH.Request)
+				// Attendance Correction — approvals (manager+)
 				r.Get("/api/v1/attendance/corrections/pending", attendanceCorrectionH.ListPending)
 				r.Put("/api/v1/attendance/corrections/{id}/approve", attendanceCorrectionH.Approve)
 				r.Put("/api/v1/attendance/corrections/{id}/reject", attendanceCorrectionH.Reject)
@@ -363,6 +380,12 @@ func main() {
 				r.Post("/api/v1/assets/{id}/assign", assetH.Assign)
 				r.Put("/api/v1/assets/assignments/{id}/return", assetH.ReturnAsset)
 				r.Get("/api/v1/assets/assignments", assetH.ListAssignments)
+
+				// Shift Swap — manager management
+				r.Get("/api/v1/shift-swaps/pending", shiftSwapH.ListPending)
+				r.Get("/api/v1/shift-swaps", shiftSwapH.ListAll)
+				r.Put("/api/v1/shift-swaps/{id}/approve", shiftSwapH.Approve)
+				r.Put("/api/v1/shift-swaps/{id}/reject", shiftSwapH.Reject)
 			})
 		})
 

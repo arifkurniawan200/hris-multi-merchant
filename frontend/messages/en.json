@@ -1,13 +1,6 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "attendance": {
-      "group": "Attendance",
-      "history": "Attendance History",
-      "corrections": "Corrections",
-      "report": "Report",
-      "export": "Export Report"
-    },
     "timeOff": {
       "group": "Time Off",
       "leaveRequest": "Leave Request",
@@ -15,15 +8,8 @@
       "leaveCalendar": "Leave Calendar",
       "allLeaves": "All Leaves",
       "leaveApprovals": "Leave Approvals",
-      "leaveTypes": "Leave Types",
       "overtimeRequest": "Overtime Request",
       "overtimeApprovals": "Overtime Approvals"
-    },
-    "shifts": {
-      "group": "Shifts",
-      "myShift": "My Shift",
-      "shiftManagement": "Shift Management",
-      "shiftAssignments": "Shift Assignments"
     },
     "employees": {
       "group": "Employees",
@@ -46,12 +32,10 @@
     },
     "settings": {
       "group": "Settings",
-      "tenant": "Tenant Settings"
+      "tenant": "Company Settings"
     },
-    "analytics": "HR Analytics",
-    "roster": "Shift Roster",
     "announcements": {
-      "group": "Communications",
+      "group": "Communication",
       "announcements": "Announcements",
       "create": "Create Announcement",
       "edit": "Edit Announcement",
@@ -78,8 +62,9 @@
     },
     "assets": {
       "group": "Assets",
-      "management": "Asset Management",
       "myAssets": "My Assets",
+      "assetManagement": "Asset Management",
+      "management": "Asset Management",
       "create": "Add Asset",
       "edit": "Edit Asset",
       "categories": "Categories",
@@ -121,23 +106,30 @@
       "returnSuccess": "Asset returned successfully",
       "confirmDelete": "Delete this asset?",
       "confirmReturn": "Return this asset?",
-      "assetManagement": "Asset Management",
       "currentHolder": "Current Holder",
       "assignmentHistory": "Assignment History",
-      "myAssetsDesc": "Assets currently assigned to you",
-      "categoryDescription": "Category Description",
-      "selectCategory": "Select Category",
-      "selectEmployee": "Select Employee",
-      "allStatuses": "All Statuses",
-      "allConditions": "All Conditions",
-      "allCategories": "All Categories"
+      "myAssetsDesc": "Assets currently assigned to you"
     },
     "account": {
       "group": "Account",
       "profile": "Profile",
       "notifications": "Notifications"
     },
-    "logout": "Logout"
+    "logout": "Logout",
+    "attendance": {
+      "group": "Attendance & Shifts",
+      "history": "Attendance History",
+      "corrections": "Corrections",
+      "export": "Export Report",
+      "myShift": "My Shift",
+      "shiftSwap": "Shift Swap",
+      "shiftSwapApprovals": "Shift Swap Approvals",
+      "shiftManagement": "Shift Management",
+      "shiftAssignments": "Shift Assignments",
+      "roster": "Shift Roster",
+      "report": "Attendance Report",
+      "analytics": "HR Analytics"
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -313,6 +305,44 @@
     "noShifts": "No shifts found",
     "noAssignments": "No shift assignments found",
     "noActiveShift": "No active shift assigned"
+  },
+  "shiftSwap": {
+    "title": "Shift Swap",
+    "mySwaps": "My Shift Swaps",
+    "requestSwap": "Request Shift Swap",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cancel": "Cancel",
+    "reason": "Reason",
+    "rejectionReason": "Rejection Reason",
+    "requesterDate": "My Date",
+    "targetDate": "Target Date",
+    "targetEmployee": "Target Employee",
+    "selectEmployee": "Select employee",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "swapDateWith": "Swap {myDate} with {targetDate}",
+    "requester": "Requester",
+    "noSwaps": "No shift swap requests yet",
+    "noPending": "No pending approvals",
+    "swapSuccess": "Shift swap request submitted",
+    "approveSuccess": "Shift swap approved",
+    "rejectSuccess": "Shift swap rejected",
+    "cancelSuccess": "Request cancelled",
+    "pendingApprovals": "Shift Swap Approvals",
+    "allSwaps": "All Shift Swaps",
+    "status": "Status",
+    "selectDate": "Select date",
+    "description": "Request to swap shifts with another employee",
+    "swapInfo": "Your shift on {date} will be swapped with {target} on {targetDate}",
+    "swapDate": "Swap Date",
+    "myShift": "My Shift",
+    "targetShift": "Target Shift",
+    "confirmCancel": "Cancel this shift swap request?",
+    "confirmApprove": "Approve this shift swap?",
+    "confirmReject": "Reject this shift swap?"
   },
   "analytics": {
     "title": "HR Analytics",

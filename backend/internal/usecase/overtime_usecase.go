@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
@@ -10,17 +11,20 @@ import (
 )
 
 type OvertimeUC struct {
-	overtimeRepo domain.OvertimeRepository
-	employeeRepo domain.EmployeeRepository
+	overtimeRepo      domain.OvertimeRepository
+	employeeRepo      domain.EmployeeRepository
+	notificationUC    domain.NotificationUseCase
 }
 
 func NewOvertimeUC(
 	overtimeRepo domain.OvertimeRepository,
 	employeeRepo domain.EmployeeRepository,
+	notificationUC domain.NotificationUseCase,
 ) domain.OvertimeUseCase {
 	return &OvertimeUC{
-		overtimeRepo: overtimeRepo,
-		employeeRepo: employeeRepo,
+		overtimeRepo:      overtimeRepo,
+		employeeRepo:      employeeRepo,
+		notificationUC:    notificationUC,
 	}
 }
 
@@ -62,6 +66,11 @@ func (uc *OvertimeUC) Submit(ctx context.Context, req *domain.SubmitOvertimeRequ
 		"employee_id", emp.ID,
 		"tenant_id", tenantID,
 		"total_hours", ot.TotalHours)
+
+	// Send notification to manager
+	freshCtx := context.Background()
+	_ = uc.notificationUC.NotifyOvertimeSubmitted(freshCtx, ot)
+
 	return ot, nil
 }
 
@@ -109,6 +118,19 @@ func (uc *OvertimeUC) Approve(ctx context.Context, id uuid.UUID, userID uuid.UUI
 	}
 
 	logger.Info(ctx, "overtime approved", "overtime_id", id, "reviewed_by", userID)
+
+	// Resolve reviewer name
+	reviewerName := "Manager"
+	if revEmp, err := uc.employeeRepo.GetByUserID(ctx, ot.TenantID.String(), userID.String()); err == nil {
+		reviewerName = strings.TrimSpace(revEmp.FirstName + " " + revEmp.LastName)
+		if reviewerName == "" {
+			reviewerName = "Manager"
+		}
+	}
+
+	// Send notification to employee
+	freshCtx := context.Background()
+	_ = uc.notificationUC.NotifyOvertimeReviewed(freshCtx, ot, "approved", reviewerName)
 	return nil
 }
 
@@ -129,6 +151,19 @@ func (uc *OvertimeUC) Reject(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	logger.Info(ctx, "overtime rejected", "overtime_id", id, "reviewed_by", userID)
+
+	// Resolve reviewer name
+	reviewerName := "Manager"
+	if revEmp, err := uc.employeeRepo.GetByUserID(ctx, ot.TenantID.String(), userID.String()); err == nil {
+		reviewerName = strings.TrimSpace(revEmp.FirstName + " " + revEmp.LastName)
+		if reviewerName == "" {
+			reviewerName = "Manager"
+		}
+	}
+
+	// Send notification to employee
+	freshCtx := context.Background()
+	_ = uc.notificationUC.NotifyOvertimeReviewed(freshCtx, ot, "rejected", reviewerName)
 	return nil
 }
 

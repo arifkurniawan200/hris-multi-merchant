@@ -276,13 +276,13 @@ type AttendanceCorrection struct {
 }
 
 type AttendanceCorrectionRequest struct {
-	AttendanceID      string     `json:"attendance_id" validate:"required,uuid"`
-	Type              string     `json:"type" validate:"required,oneof=clock_in clock_out both"`
-	RequestedClockIn  *time.Time `json:"requested_clock_in,omitempty"`
-	RequestedClockOut *time.Time `json:"requested_clock_out,omitempty"`
-	Reason            string     `json:"reason" validate:"required,min=5"`
-	TenantID          string     `json:"-"` // set by handler
-	UserID            string     `json:"-"` // set by handler
+	AttendanceID      string  `json:"attendance_id" validate:"required,uuid"`
+	Type              string  `json:"type" validate:"required,oneof=clock_in clock_out both"`
+	RequestedClockIn  *string `json:"requested_clock_in,omitempty"`
+	RequestedClockOut *string `json:"requested_clock_out,omitempty"`
+	Reason            string  `json:"reason" validate:"required,min=5"`
+	TenantID          string  `json:"-"` // set by handler
+	UserID            string  `json:"-"` // set by handler
 }
 
 type AttendanceCorrectionRepository interface {
@@ -300,6 +300,7 @@ type AttendanceCorrectionUseCase interface {
 	Reject(ctx context.Context, id, approvedBy, rejectReason string) (*AttendanceCorrection, error)
 	ListPending(ctx context.Context, tenantID string, limit, offset int) (*AttendanceCorrectionReport, error)
 	ListByEmployee(ctx context.Context, employeeID string, limit, offset int) ([]AttendanceCorrection, error)
+	ListMine(ctx context.Context, userID, tenantID string, limit, offset int) ([]AttendanceCorrection, error)
 	GetByID(ctx context.Context, id string) (*AttendanceCorrection, error)
 }
 
@@ -899,6 +900,9 @@ const (
 	NotifOvertimeSubmitted NotificationType = "overtime_submitted"
 	NotifOvertimeApproved  NotificationType = "overtime_approved"
 	NotifOvertimeRejected  NotificationType = "overtime_rejected"
+	NotifCorrectionSubmitted NotificationType = "correction_submitted"
+	NotifCorrectionApproved  NotificationType = "correction_approved"
+	NotifCorrectionRejected  NotificationType = "correction_rejected"
 )
 
 type Notification struct {
@@ -929,6 +933,8 @@ type NotificationUseCase interface {
 	NotifyLeaveReviewed(ctx context.Context, leaveReq *LeaveRequest, action string, reviewerName string) error
 	NotifyOvertimeSubmitted(ctx context.Context, otReq *OvertimeRequest) error
 	NotifyOvertimeReviewed(ctx context.Context, otReq *OvertimeRequest, action string, reviewerName string) error
+	NotifyCorrectionSubmitted(ctx context.Context, corr *AttendanceCorrection, employeeName string) error
+	NotifyCorrectionReviewed(ctx context.Context, corr *AttendanceCorrection, action string, reviewerName string) error
 	ListMyNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 	MarkRead(ctx context.Context, notifID uuid.UUID, userID uuid.UUID) error
@@ -990,3 +996,57 @@ type EmployeeDocumentUseCase interface {
 // ── JSONB helper ────────────────────────────────
 
 type JSONB map[string]interface{}
+
+// ── Shift Swap (Tukar Shift) ───────────────────
+
+type ShiftSwapStatus string
+
+const (
+	ShiftSwapPending   ShiftSwapStatus = "pending"
+	ShiftSwapApproved  ShiftSwapStatus = "approved"
+	ShiftSwapRejected  ShiftSwapStatus = "rejected"
+	ShiftSwapCancelled ShiftSwapStatus = "cancelled"
+)
+
+type ShiftSwap struct {
+	ID                  string          `json:"id"`
+	TenantID            string          `json:"tenant_id"`
+	RequesterEmployeeID string          `json:"requester_employee_id"`
+	RequesterDate       string          `json:"requester_date"`
+	TargetEmployeeID    string          `json:"target_employee_id"`
+	TargetDate          string          `json:"target_date"`
+	Status              ShiftSwapStatus `json:"status"`
+	Reason              string          `json:"reason,omitempty"`
+	RejectionReason     string          `json:"rejection_reason,omitempty"`
+	ReviewedBy          *string         `json:"reviewed_by,omitempty"`
+	ReviewedAt          *time.Time      `json:"reviewed_at,omitempty"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	DeletedAt           *time.Time      `json:"deleted_at,omitempty"`
+
+	// Joined fields
+	RequesterName string `json:"requester_name,omitempty"`
+	RequesterCode string `json:"requester_code,omitempty"`
+	TargetName    string `json:"target_name,omitempty"`
+	TargetCode    string `json:"target_code,omitempty"`
+}
+
+type ShiftSwapRepository interface {
+	Create(ctx context.Context, s *ShiftSwap) error
+	GetByID(ctx context.Context, id string) (*ShiftSwap, error)
+	ListByTenant(ctx context.Context, tenantID string, status *ShiftSwapStatus) ([]ShiftSwap, error)
+	ListByEmployee(ctx context.Context, employeeID string) ([]ShiftSwap, error)
+	ListPendingForManager(ctx context.Context, tenantID string) ([]ShiftSwap, error)
+	UpdateStatus(ctx context.Context, id string, status ShiftSwapStatus, reviewedBy, rejectionReason *string) error
+	SoftDelete(ctx context.Context, id string) error
+}
+
+type ShiftSwapUseCase interface {
+	RequestSwap(ctx context.Context, req *CreateShiftSwapRequest) (*ShiftSwap, error)
+	Approve(ctx context.Context, id, managerEmployeeID string) (*ShiftSwap, error)
+	Reject(ctx context.Context, id, managerEmployeeID, reason string) (*ShiftSwap, error)
+	Cancel(ctx context.Context, id, requesterEmployeeID string) error
+	ListMyRequests(ctx context.Context, employeeID string) ([]ShiftSwap, error)
+	ListPendingForApproval(ctx context.Context, tenantID string) ([]ShiftSwap, error)
+	ListAll(ctx context.Context, tenantID string, status *ShiftSwapStatus) ([]ShiftSwap, error)
+}

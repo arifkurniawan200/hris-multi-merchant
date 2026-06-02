@@ -1,13 +1,6 @@
 {
   "nav": {
     "dashboard": "Dasbor",
-    "attendance": {
-      "group": "Absensi",
-      "history": "Riwayat Absensi",
-      "corrections": "Koreksi Absensi",
-      "report": "Laporan Absensi",
-      "export": "Ekspor Laporan"
-    },
     "timeOff": {
       "group": "Cuti & Izin",
       "leaveRequest": "Pengajuan Cuti",
@@ -15,15 +8,8 @@
       "leaveCalendar": "Kalender Cuti",
       "allLeaves": "Semua Cuti",
       "leaveApprovals": "Persetujuan Cuti",
-      "leaveTypes": "Jenis Cuti",
-      "overtimeRequest": "Pengajuan Lembur",
+      "overtimeRequest": "Lembur",
       "overtimeApprovals": "Persetujuan Lembur"
-    },
-    "shifts": {
-      "group": "Shift",
-      "myShift": "Shift Saya",
-      "shiftManagement": "Kelola Shift",
-      "shiftAssignments": "Penugasan Shift"
     },
     "employees": {
       "group": "Karyawan",
@@ -46,10 +32,8 @@
     },
     "settings": {
       "group": "Pengaturan",
-      "tenant": "Pengaturan Penyewa"
+      "tenant": "Pengaturan Perusahaan"
     },
-    "analytics": "Analisis SDM",
-    "roster": "Jadwal Shift",
     "announcements": {
       "group": "Komunikasi",
       "announcements": "Pengumuman",
@@ -78,8 +62,9 @@
     },
     "assets": {
       "group": "Aset",
-      "management": "Kelola Aset",
       "myAssets": "Aset Saya",
+      "assetManagement": "Manajemen Aset",
+      "management": "Kelola Aset",
       "create": "Tambah Aset",
       "edit": "Ubah Aset",
       "categories": "Kategori",
@@ -121,23 +106,31 @@
       "returnSuccess": "Aset berhasil dikembalikan",
       "confirmDelete": "Hapus aset ini?",
       "confirmReturn": "Kembalikan aset ini?",
-      "assetManagement": "Manajemen Aset",
+      "assetManagementOverride": "Manajemen Aset",
       "currentHolder": "Pemegang Saat Ini",
       "assignmentHistory": "Riwayat Penugasan",
-      "myAssetsDesc": "Aset yang sedang Anda pegang",
-      "categoryDescription": "Deskripsi Kategori",
-      "selectCategory": "Pilih Kategori",
-      "selectEmployee": "Pilih Karyawan",
-      "allStatuses": "Semua Status",
-      "allConditions": "Semua Kondisi",
-      "allCategories": "Semua Kategori"
+      "myAssetsDesc": "Aset yang sedang Anda pegang"
     },
     "account": {
       "group": "Akun",
       "profile": "Profil",
       "notifications": "Notifikasi"
     },
-    "logout": "Keluar"
+    "logout": "Keluar",
+    "attendance": {
+      "group": "Kehadiran",
+      "history": "Riwayat Absensi",
+      "corrections": "Koreksi Absensi",
+      "export": "Ekspor Laporan",
+      "myShift": "Shift Saya",
+      "shiftSwap": "Tukar Shift",
+      "shiftSwapApprovals": "Persetujuan Tukar Shift",
+      "shiftManagement": "Kelola Shift",
+      "shiftAssignments": "Penugasan Shift",
+      "roster": "Jadwal Shift",
+      "report": "Laporan Absensi",
+      "analytics": "Analisis SDM"
+    }
   },
   "common": {
     "loading": "Memuat...",
@@ -313,6 +306,44 @@
     "noShifts": "Tidak ada shift",
     "noAssignments": "Tidak ada penugasan shift",
     "noActiveShift": "Tidak ada shift aktif"
+  },
+  "shiftSwap": {
+    "title": "Tukar Shift",
+    "mySwaps": "Tukar Shift Saya",
+    "requestSwap": "Request Tukar Shift",
+    "description": "Ajukan tukar shift dengan kolega Anda",
+    "approve": "Setujui",
+    "reject": "Tolak",
+    "cancel": "Batalkan",
+    "reason": "Alasan",
+    "rejectionReason": "Alasan Penolakan",
+    "requesterDate": "Tanggal Saya",
+    "targetDate": "Tanggal Target",
+    "targetEmployee": "Karyawan Target",
+    "selectEmployee": "Pilih karyawan",
+    "pending": "Menunggu",
+    "approved": "Disetujui",
+    "rejected": "Ditolak",
+    "cancelled": "Dibatalkan",
+    "swapDateWith": "Tukar {myDate} dengan {targetDate}",
+    "requester": "Pemohon",
+    "noSwaps": "Belum ada pengajuan tukar shift",
+    "noPending": "Tidak ada pengajuan yang menunggu",
+    "swapSuccess": "Pengajuan tukar shift berhasil",
+    "approveSuccess": "Tukar shift disetujui",
+    "rejectSuccess": "Tukar shift ditolak",
+    "cancelSuccess": "Pengajuan dibatalkan",
+    "pendingApprovals": "Persetujuan Tukar Shift",
+    "allSwaps": "Semua Tukar Shift",
+    "status": "Status",
+    "selectDate": "Pilih tanggal",
+    "swapInfo": "Shift Anda pada {date} akan ditukar dengan shift {target} pada {targetDate}",
+    "swapDate": "Tanggal Tukar",
+    "myShift": "Shift Saya",
+    "targetShift": "Shift Target",
+    "confirmCancel": "Batalkan pengajuan tukar shift?",
+    "confirmApprove": "Setujui tukar shift ini?",
+    "confirmReject": "Tolak tukar shift ini?"
   },
   "analytics": {
     "title": "Analisis SDM",

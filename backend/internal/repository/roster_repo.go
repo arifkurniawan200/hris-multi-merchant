@@ -24,7 +24,7 @@ func (r *RosterRepo) dbQuerier(ctx context.Context) adapter.DBTX {
 
 func (r *RosterRepo) GetEmployees(ctx context.Context, tenantID string) ([]domain.RosterEmployee, error) {
 	query := `
-		SELECT e.id, e.employee_code, e.first_name, e.last_name,
+		SELECT e.id, e.employee_code, e.first_name, COALESCE(e.last_name, ''),
 			COALESCE(d.name, '')
 		FROM employees e
 		LEFT JOIN departments d ON d.id = e.department_id AND d.deleted_at IS NULL

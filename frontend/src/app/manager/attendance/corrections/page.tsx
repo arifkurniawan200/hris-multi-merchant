@@ -117,9 +117,10 @@ export default function AttendanceCorrectionsPage() {
     setLoadingPending(true);
     setPendingError('');
     try {
-      const data = await fetchPendingCorrections(tenant, 50, 0);
-      setAllCorrections(data);
-      setPendingCorrections(data.filter((c) => c.status === 'pending'));
+      const result = await fetchPendingCorrections(tenant, 50, 0);
+      const items = result.data ?? [];
+      setAllCorrections(items);
+      setPendingCorrections(items.filter((c) => c.status === 'pending'));
     } catch (err: unknown) {
       setPendingError(err instanceof Error ? err.message : 'Failed to load pending corrections');
       setAllCorrections([]);
@@ -525,7 +526,7 @@ export default function AttendanceCorrectionsPage() {
                               <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                                 <div>
                                   <span className="text-muted-foreground">Date: </span>
-                                  <span className="font-medium">{correction.date}</span>
+                                  <span className="font-medium">{correction.clock_date}</span>
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Type: </span>
@@ -534,12 +535,12 @@ export default function AttendanceCorrectionsPage() {
                                 <div>
                                   <span className="text-muted-foreground">Original: </span>
                                   <span className="font-medium">
-                                    {correction.original_clock_in
-                                      ? formatTime(correction.original_clock_in)
+                                    {correction.current_clock_in
+                                      ? formatTime(correction.current_clock_in)
                                       : '—'}{' '}
                                     /{' '}
-                                    {correction.original_clock_out
-                                      ? formatTime(correction.original_clock_out)
+                                    {correction.current_clock_out
+                                      ? formatTime(correction.current_clock_out)
                                       : '—'}
                                   </span>
                                 </div>
@@ -562,7 +563,7 @@ export default function AttendanceCorrectionsPage() {
                                 </p>
                               )}
                               <p className="text-xs text-muted-foreground mt-1">
-                                Requested by: {correction.requested_by_name}
+                                Requested by: {correction.employee_name}
                               </p>
                             </div>
                             <div className="flex gap-2 flex-shrink-0">
@@ -624,11 +625,11 @@ export default function AttendanceCorrectionsPage() {
                               </div>
                               <div className="text-xs text-muted-foreground space-y-0.5">
                                 <p>
-                                  {correction.date} — {correction.type.replace('_', ' ')} correction
+                                  {correction.clock_date} — {correction.type.replace('_', ' ')} correction
                                 </p>
                                 <p>
-                                  Original: {formatTime(correction.original_clock_in)} /{' '}
-                                  {formatTime(correction.original_clock_out)} → Requested:{' '}
+                                  Current: {formatTime(correction.current_clock_in)} /{' '}
+                                  {formatTime(correction.current_clock_out)} → Requested:{' '}
                                   {formatTime(correction.requested_clock_in)} /{' '}
                                   {formatTime(correction.requested_clock_out)}
                                 </p>
@@ -638,7 +639,7 @@ export default function AttendanceCorrectionsPage() {
                                   </p>
                                 )}
                                 <p>
-                                  By: {correction.approved_by_name || correction.requested_by_name}
+                                  By: {correction.approved_by || correction.employee_name}
                                 </p>
                               </div>
                             </div>

@@ -259,15 +259,17 @@ export default function AnalyticsPage() {
                 <div className="space-y-4">
                   {analytics.gender_distribution.map((item) => {
                     const pct = Math.round((item.count / totalByGender) * 100);
-                    const isMale = item.gender.toLowerCase() === 'male' || item.gender.toLowerCase() === 'laki-laki';
-                    const dotColor = isMale ? 'bg-blue-500' : 'bg-pink-500';
+                    const genderLower = item.gender.toLowerCase();
+                    const isMale = genderLower === 'male' || genderLower === 'laki-laki';
+                    const isFemale = genderLower === 'female' || genderLower === 'perempuan';
+                    const dotColor = isMale ? 'bg-blue-500' : isFemale ? 'bg-pink-500' : 'bg-gray-400';
                     return (
                       <div key={item.gender} className="flex items-center gap-3">
                         <div className={`h-3 w-3 rounded-full flex-shrink-0 ${dotColor}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-foreground capitalize">
-                              {isMale ? ta('male') : ta('female')}
+                              {isMale ? ta('male') : isFemale ? ta('female') : item.gender}
                             </span>
                             <span className="text-muted-foreground tabular-nums">{item.count}</span>
                           </div>

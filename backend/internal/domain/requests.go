@@ -236,6 +236,26 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"new_password" validate:"required,min=8"`
 }
 
+// ── Shift Swap request DTOs ──────────────────────
+
+type CreateShiftSwapRequest struct {
+	TenantID            string `json:"tenant_id" validate:"required,uuid"`
+	RequesterEmployeeID string `json:"-"` // set by handler from JWT→employee lookup
+	TargetEmployeeID    string `json:"target_employee_id" validate:"required,uuid"`
+	RequesterDate       string `json:"requester_date" validate:"required"`
+	TargetDate          string `json:"target_date" validate:"required"`
+	Reason              string `json:"reason" validate:"required,min=5"`
+}
+
+type ApproveShiftSwapRequest struct {
+	ReviewedBy string `json:"-"` // set by handler
+}
+
+type RejectShiftSwapRequest struct {
+	ReviewedBy      string `json:"-"` // set by handler
+	RejectionReason string `json:"rejection_reason" validate:"required,min=3"`
+}
+
 // ── Employee Document request DTOs ─────────────────
 
 type UploadDocumentRequest struct {

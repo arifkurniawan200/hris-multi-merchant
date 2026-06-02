@@ -46,7 +46,14 @@ func (uc *AnalyticsUC) GetSummary(ctx context.Context, tenantID string) (*domain
 		return nil, domain.NewInternal(fmt.Sprintf("attendance trend: %v", err))
 	}
 
+	total, err := uc.repo.GetTotalEmployees(ctx, tenantID)
+	if err != nil {
+		logger.Error(ctx, "analytics: get total employees failed", "tenant_id", tenantID, "error", err)
+		return nil, domain.NewInternal(fmt.Sprintf("total employees: %v", err))
+	}
+
 	return &domain.AnalyticsSummary{
+		TotalEmployees:              total,
 		DepartmentDistribution:     deptDist,
 		EmploymentTypeDistribution: empTypeDist,
 		GenderDistribution:         genderDist,

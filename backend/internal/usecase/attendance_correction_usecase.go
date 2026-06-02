@@ -16,6 +16,7 @@ type AttendanceCorrectionUC struct {
 	attendanceRepo domain.AttendanceRepository
 	employeeRepo   domain.EmployeeRepository
 	txManager      *adapter.TxManager
+	notificationUC domain.NotificationUseCase
 }
 
 func NewAttendanceCorrectionUC(
@@ -23,12 +24,14 @@ func NewAttendanceCorrectionUC(
 	attendanceRepo domain.AttendanceRepository,
 	employeeRepo domain.EmployeeRepository,
 	txManager *adapter.TxManager,
+	notificationUC domain.NotificationUseCase,
 ) domain.AttendanceCorrectionUseCase {
 	return &AttendanceCorrectionUC{
 		correctionRepo: correctionRepo,
 		attendanceRepo: attendanceRepo,
 		employeeRepo:   employeeRepo,
 		txManager:      txManager,
+		notificationUC: notificationUC,
 	}
 }
 
@@ -90,6 +93,28 @@ func (uc *AttendanceCorrectionUC) Request(ctx context.Context, req *domain.Atten
 
 	now := time.Now()
 
+	// Parse requested times from string
+	var reqClockIn *time.Time
+	if req.RequestedClockIn != nil {
+		if *req.RequestedClockIn != "" {
+			t, err := parseTime(*req.RequestedClockIn)
+			if err != nil {
+				return nil, domain.NewValidation("format requested_clock_in tidak valid, gunakan ISO8601 (HH:MM atau YYYY-MM-DDTHH:MM:SS)")
+			}
+			reqClockIn = &t
+		}
+	}
+	var reqClockOut *time.Time
+	if req.RequestedClockOut != nil {
+		if *req.RequestedClockOut != "" {
+			t, err := parseTime(*req.RequestedClockOut)
+			if err != nil {
+				return nil, domain.NewValidation("format requested_clock_out tidak valid, gunakan ISO8601 (HH:MM atau YYYY-MM-DDTHH:MM:SS)")
+			}
+			reqClockOut = &t
+		}
+	}
+
 	corr := &domain.AttendanceCorrection{
 		ID:                uuid.New().String(),
 		TenantID:          req.TenantID,
@@ -98,9 +123,9 @@ func (uc *AttendanceCorrectionUC) Request(ctx context.Context, req *domain.Atten
 		Type:              corrType,
 		ClockDate:         attendance.ClockDate,
 		CurrentClockIn:    &attendance.ClockIn,
-		RequestedClockIn:  req.RequestedClockIn,
+		RequestedClockIn:  reqClockIn,
 		CurrentClockOut:   attendance.ClockOut,
-		RequestedClockOut: req.RequestedClockOut,
+		RequestedClockOut: reqClockOut,
 		Reason:            req.Reason,
 		Status:            domain.CorrectionPending,
 		CreatedAt:         now,
@@ -120,6 +145,13 @@ func (uc *AttendanceCorrectionUC) Request(ctx context.Context, req *domain.Atten
 		"employee_id", emp.ID,
 		"attendance_id", req.AttendanceID,
 		"type", corr.Type)
+
+	// Fire-and-forget notification to manager
+	go func() {
+		freshCtx := context.Background()
+		empName := emp.FirstName + " " + emp.LastName
+		_ = uc.notificationUC.NotifyCorrectionSubmitted(freshCtx, corr, empName)
+	}()
 
 	return uc.correctionRepo.GetByID(ctx, corr.ID)
 }
@@ -201,6 +233,17 @@ func (uc *AttendanceCorrectionUC) Approve(ctx context.Context, id, approvedBy st
 		"attendance_id", corr.AttendanceID,
 		"approved_by", approvedBy)
 
+	// Fire-and-forget notification to the employee who submitted the correction
+	go func() {
+		freshCtx := context.Background()
+		// Resolve reviewer name from user ID
+		reviewerName := approvedBy
+		if emp, err := uc.employeeRepo.GetByUserID(freshCtx, corr.TenantID, approvedBy); err == nil {
+			reviewerName = emp.FirstName + " " + emp.LastName
+		}
+		_ = uc.notificationUC.NotifyCorrectionReviewed(freshCtx, corr, "approved", reviewerName)
+	}()
+
 	return uc.correctionRepo.GetByID(ctx, id)
 }
 
@@ -230,6 +273,16 @@ func (uc *AttendanceCorrectionUC) Reject(ctx context.Context, id, approvedBy, re
 		"correction_id", id,
 		"attendance_id", corr.AttendanceID,
 		"rejected_by", approvedBy)
+
+	// Fire-and-forget notification to the employee who submitted the correction
+	go func() {
+		freshCtx := context.Background()
+		reviewerName := approvedBy
+		if emp, err := uc.employeeRepo.GetByUserID(freshCtx, corr.TenantID, approvedBy); err == nil {
+			reviewerName = emp.FirstName + " " + emp.LastName
+		}
+		_ = uc.notificationUC.NotifyCorrectionReviewed(freshCtx, corr, "rejected", reviewerName)
+	}()
 
 	return uc.correctionRepo.GetByID(ctx, id)
 }
@@ -279,6 +332,32 @@ func (uc *AttendanceCorrectionUC) ListByEmployee(ctx context.Context, employeeID
 	return corrections, nil
 }
 
+// ListMine returns corrections for the current user (employee self-service).
+func (uc *AttendanceCorrectionUC) ListMine(ctx context.Context, userID, tenantID string, limit, offset int) ([]domain.AttendanceCorrection, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Resolve employee from JWT user_id (same as Request does)
+	emp, err := uc.employeeRepo.GetByUserID(ctx, tenantID, userID)
+	if err != nil {
+		return nil, domain.NewNotFound("employee not found for this user")
+	}
+
+	corrections, err := uc.correctionRepo.ListByEmployee(ctx, emp.ID, limit, offset)
+	if err != nil {
+		logger.Error(ctx, "list my corrections failed",
+			"user_id", userID,
+			"error", err)
+		return nil, domain.NewInternal("failed to load corrections")
+	}
+
+	return corrections, nil
+}
+
 // GetByID returns a single correction by ID.
 func (uc *AttendanceCorrectionUC) GetByID(ctx context.Context, id string) (*domain.AttendanceCorrection, error) {
 	corr, err := uc.correctionRepo.GetByID(ctx, id)
@@ -287,4 +366,28 @@ func (uc *AttendanceCorrectionUC) GetByID(ctx context.Context, id string) (*doma
 	}
 
 	return corr, nil
+}
+
+// parseTime attempts to parse various time formats.
+// Supports: HH:MM, YYYY-MM-DDTHH:MM:SS, RFC3339.
+func parseTime(s string) (time.Time, error) {
+	// Try HH:MM
+	if t, err := time.Parse("15:04", s); err == nil {
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day(),
+			t.Hour(), t.Minute(), 0, 0, now.Location()), nil
+	}
+	// Try YYYY-MM-DDTHH:MM:SS
+	if t, err := time.Parse("2006-01-02T15:04:05", s); err == nil {
+		return t, nil
+	}
+	// Try RFC3339
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	// Try YYYY-MM-DDTHH:MM:SSZ
+	if t, err := time.Parse("2006-01-02T15:04:05Z", s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unable to parse time: %s", s)
 }
