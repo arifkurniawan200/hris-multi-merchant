@@ -133,7 +133,7 @@ func (r *EmployeeShiftRepo) ListByEmployee(ctx context.Context, employeeID strin
 	}
 	defer rows.Close()
 
-	var assignments []domain.EmployeeShift
+	assignments := make([]domain.EmployeeShift, 0)
 	for rows.Next() {
 		var es domain.EmployeeShift
 		var effectiveTo *string
@@ -166,7 +166,7 @@ func (r *EmployeeShiftRepo) ListByShift(ctx context.Context, shiftID string) ([]
 	}
 	defer rows.Close()
 
-	var assignments []domain.EmployeeShift
+	assignments := make([]domain.EmployeeShift, 0)
 	for rows.Next() {
 		var es domain.EmployeeShift
 		var effectiveTo *string
@@ -223,7 +223,7 @@ func (r *EmployeeShiftRepo) ListAllByTenant(ctx context.Context, tenantID string
 	}
 	defer rows.Close()
 
-	var assignments []domain.EmployeeShift
+	assignments := make([]domain.EmployeeShift, 0)
 	for rows.Next() {
 		var es domain.EmployeeShift
 		var effectiveTo *string

@@ -166,7 +166,7 @@ func (r *AttendanceCorrectionRepo) ListByTenant(ctx context.Context, tenantID, s
 	}
 	defer rows.Close()
 
-	var corrections []domain.AttendanceCorrection
+	corrections := make([]domain.AttendanceCorrection, 0)
 	for rows.Next() {
 		c, err := scanCorrectionWithJoin(rows)
 		if err != nil {
@@ -193,7 +193,7 @@ func (r *AttendanceCorrectionRepo) ListByEmployee(ctx context.Context, employeeI
 	}
 	defer rows.Close()
 
-	var corrections []domain.AttendanceCorrection
+	corrections := make([]domain.AttendanceCorrection, 0)
 	for rows.Next() {
 		c, err := scanCorrectionWithJoin(rows)
 		if err != nil {
@@ -241,7 +241,7 @@ func (r *AttendanceCorrectionRepo) GetByAttendanceID(ctx context.Context, attend
 	}
 	defer rows.Close()
 
-	var corrections []domain.AttendanceCorrection
+	corrections := make([]domain.AttendanceCorrection, 0)
 	for rows.Next() {
 		c, err := scanCorrection(rows)
 		if err != nil {

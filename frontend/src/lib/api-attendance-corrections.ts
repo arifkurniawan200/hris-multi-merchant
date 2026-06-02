@@ -16,27 +16,36 @@ export interface AttendanceRecord {
 
 export interface PendingCorrection {
   id: string;
+  tenant_id: string;
+  employee_id: string;
   attendance_id: string;
-  employee_name: string;
-  employee_code: string;
-  date: string;
   type: 'clock_in' | 'clock_out' | 'both';
-  original_clock_in: string | null;
-  original_clock_out: string | null;
+  clock_date: string;
+  current_clock_in: string | null;
   requested_clock_in: string | null;
+  current_clock_out: string | null;
   requested_clock_out: string | null;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
-  requested_by_name: string;
-  approved_by_name: string | null;
-  reject_reason: string | null;
   created_at: string;
   updated_at: string;
+  employee_name: string;
+  employee_code: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  reject_reason: string | null;
 }
 
 interface PaginatedResponse<T> {
   items: T[];
   total: number;
+  limit: number;
+  offset: number;
+}
+
+interface BackendReport<T> {
+  total: number;
+  data: T[];
   limit: number;
   offset: number;
 }
@@ -69,8 +78,8 @@ export async function fetchPendingCorrections(
   tenant: string,
   limit = 50,
   offset = 0
-): Promise<PendingCorrection[]> {
-  return api.get<PendingCorrection[]>(
+): Promise<{ total: number; data: PendingCorrection[]; limit: number; offset: number }> {
+  return api.get<BackendReport<PendingCorrection>>(
     `/api/v1/attendance/corrections/pending?limit=${limit}&offset=${offset}`
   );
 }

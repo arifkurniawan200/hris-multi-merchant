@@ -9,6 +9,7 @@ import (
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/domain"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/middleware"
 	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/logger"
+	"github.com/arifkurniawan200/hris-multi-merchant/internal/pkg/pdf"
 	"github.com/google/uuid"
 )
 
@@ -17,6 +18,7 @@ type PayrollUC struct {
 	payrollConfigRepo domain.PayrollConfigRepository
 	attendanceRepo    domain.AttendanceRepository
 	employeeRepo      domain.EmployeeRepository
+	tenantRepo        domain.TenantRepository
 	txManager         *adapter.TxManager
 }
 
@@ -25,6 +27,7 @@ func NewPayrollUC(
 	payrollConfigRepo domain.PayrollConfigRepository,
 	attendanceRepo domain.AttendanceRepository,
 	employeeRepo domain.EmployeeRepository,
+	tenantRepo domain.TenantRepository,
 	txManager *adapter.TxManager,
 ) domain.PayrollUseCase {
 	return &PayrollUC{
@@ -32,6 +35,7 @@ func NewPayrollUC(
 		payrollConfigRepo: payrollConfigRepo,
 		attendanceRepo:    attendanceRepo,
 		employeeRepo:      employeeRepo,
+		tenantRepo:        tenantRepo,
 		txManager:         txManager,
 	}
 }
@@ -68,7 +72,7 @@ func (uc *PayrollUC) Generate(ctx context.Context, req *domain.GeneratePayrollRe
 	absentPenaltyAmt := cfg.AbsentPenalty
 
 	// Resolve employees
-	var employees []domain.Employee
+	employees := make([]domain.Employee, 0)
 	if len(req.EmployeeIDs) > 0 {
 		for _, eid := range req.EmployeeIDs {
 			emp, err := uc.employeeRepo.GetByID(ctx, eid)
@@ -103,7 +107,7 @@ func (uc *PayrollUC) Generate(ctx context.Context, req *domain.GeneratePayrollRe
 	dateFrom := fmt.Sprintf("%d-%02d-01", periodYear, periodMonth)
 	dateTo := fmt.Sprintf("%d-%02d-%d", periodYear, periodMonth, daysInMonth(periodYear, periodMonth))
 
-	var generated []domain.Payroll
+	generated := make([]domain.Payroll, 0)
 
 	err = uc.txManager.ExecTx(ctx, func(txCtx context.Context) error {
 		// Get a raw querier from the tx
@@ -377,4 +381,54 @@ func (uc *PayrollUC) UpdateConfig(ctx context.Context, tenantID string, cfg *dom
 
 func daysInMonth(year, month int) int {
 	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+// ── DownloadPayslipPDF ─────────────────────
+
+func (uc *PayrollUC) DownloadPayslipPDF(ctx context.Context, id string) ([]byte, string, error) {
+	// 1. Get payroll record (includes joined employee name/code from repo)
+	p, err := uc.payrollRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, "", domain.NewNotFound("payroll not found")
+	}
+
+	// 2. Authorization: if user is employee, verify they own this payslip
+	role, _ := ctx.Value(middleware.CtxRole).(string)
+	if role == "employee" {
+		userID, _ := ctx.Value(middleware.CtxUserID).(string)
+		tenantID, _ := ctx.Value(middleware.CtxTenantID).(string)
+		if userID == "" || tenantID == "" {
+			return nil, "", domain.NewForbidden("unauthorized")
+		}
+		emp, err := uc.employeeRepo.GetByUserID(ctx, tenantID, userID)
+		if err != nil {
+			return nil, "", domain.NewForbidden("employee record not found")
+		}
+		if emp.ID != p.EmployeeID {
+			return nil, "", domain.NewForbidden("you can only download your own payslip")
+		}
+	}
+
+	// 3. Resolve tenant name
+	tenant, err := uc.tenantRepo.GetByID(ctx, p.TenantID)
+	if err != nil {
+		return nil, "", domain.NewInternal("failed to resolve tenant info")
+	}
+
+	// 4. Resolve employee record (for full employee details like bank, dept, position)
+	emp, err := uc.employeeRepo.GetByID(ctx, p.EmployeeID)
+	if err != nil {
+		return nil, "", domain.NewInternal("failed to resolve employee info")
+	}
+
+	// 5. Build PDF
+	pdfBytes, err := pdf.BuildPayslipPDF(p, tenant.Name, emp)
+	if err != nil {
+		return nil, "", domain.NewInternal(fmt.Sprintf("failed to generate PDF: %v", err))
+	}
+
+	// 6. Generate filename
+	filename := fmt.Sprintf("payslip_%s_%d_%02d.pdf", emp.EmployeeCode, p.PeriodYear, p.PeriodMonth)
+
+	return pdfBytes, filename, nil
 }

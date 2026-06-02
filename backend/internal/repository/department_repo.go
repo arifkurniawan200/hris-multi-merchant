@@ -99,7 +99,7 @@ func (r *DepartmentRepo) List(ctx context.Context, tenantID string, parentID *st
 	}
 	defer rows.Close()
 
-	var depts []domain.Department
+	depts := make([]domain.Department, 0)
 	for rows.Next() {
 		var d domain.Department
 		var deletedAt *time.Time

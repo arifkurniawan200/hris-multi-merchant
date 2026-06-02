@@ -27,7 +27,7 @@ func NewEmployeeRepo(db adapter.DBTX) domain.EmployeeRepository {
 	return &EmployeeRepo{db: db}
 }
 
-var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, e.last_name,
+var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, COALESCE(e.last_name, ''),
 	COALESCE(e.gender, ''), e.birth_date::text, COALESCE(e.birth_place, ''), e.email, COALESCE(e.phone, ''), COALESCE(e.address, ''),
 	e.department_id, e.position_id, e.manager_id,
 	e.employment_status, e.employment_type, e.join_date::text,
@@ -196,7 +196,7 @@ func (r *EmployeeRepo) Update(ctx context.Context, e *domain.Employee) error {
 
 func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.EmployeeFilter) ([]domain.Employee, error) {
 	query := `SELECT ` + empColumns + ` FROM employees e ` + empJoins
-	var conditions []string
+	conditions := make([]string, 0)
 	args := []interface{}{tenantID}
 
 	conditions = append(conditions, `e.tenant_id=$1`)
@@ -237,7 +237,7 @@ func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.
 	}
 	defer rows.Close()
 
-	var employees []domain.Employee
+	employees := make([]domain.Employee, 0)
 	for rows.Next() {
 		var e domain.Employee
 		var deletedAt *time.Time
@@ -278,7 +278,7 @@ func (r *EmployeeRepo) List(ctx context.Context, tenantID string, filter domain.
 
 func (r *EmployeeRepo) Count(ctx context.Context, tenantID string, filter domain.EmployeeFilter) (int, error) {
 	query := `SELECT COUNT(*) FROM employees e`
-	var conditions []string
+	conditions := make([]string, 0)
 	args := []interface{}{tenantID}
 
 	conditions = append(conditions, `e.tenant_id=$1`)

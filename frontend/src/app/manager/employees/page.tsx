@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -168,9 +169,22 @@ const STATUS_OPTIONS = [
 
 // ── Page ──
 export default function EmployeeManagementPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const t = useTranslations('employees');
   const tc = useTranslations('common');
+
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -197,11 +211,6 @@ export default function EmployeeManagementPage() {
 
   // Form
   const [form, setForm] = useState<EmployeeFormValues>(EMPTY_FORM);
-
-  const isManager =
-    user?.role === "manager" ||
-    user?.role === "tenant_admin" ||
-    user?.role === "super_admin";
 
   useEffect(() => {
     if (isManager) {
@@ -424,6 +433,7 @@ export default function EmployeeManagementPage() {
   const posOptions = positions.map((p) => ({ value: p.id, label: p.name }));
 
   // ── Access denied ──
+  if (authLoading) return null;
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">

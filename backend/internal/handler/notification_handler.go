@@ -29,7 +29,11 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedUserID := uuid.MustParse(userID)
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in token", reqID)
+		return
+	}
 
 	q := r.URL.Query()
 	limit, _ := strconv.Atoi(q.Get("limit"))
@@ -57,7 +61,11 @@ func (h *NotificationHandler) CountUnread(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	parsedUserID := uuid.MustParse(userID)
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in token", reqID)
+		return
+	}
 
 	count, err := h.uc.CountUnread(r.Context(), parsedUserID)
 	if err != nil {
@@ -78,7 +86,11 @@ func (h *NotificationHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedUserID := uuid.MustParse(userID)
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in token", reqID)
+		return
+	}
 
 	notifID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -104,7 +116,11 @@ func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	parsedUserID := uuid.MustParse(userID)
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, response.ErrValidation, "Invalid user ID in token", reqID)
+		return
+	}
 
 	if err := h.uc.MarkAllRead(r.Context(), parsedUserID); err != nil {
 		response.Err(w, http.StatusInternalServerError, response.ErrInternal, "Failed to mark all as read", reqID)

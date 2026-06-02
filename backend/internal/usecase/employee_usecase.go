@@ -123,7 +123,7 @@ func (uc *EmployeeUC) BulkImport(ctx context.Context, tenantID string, employees
 	// Track seen codes within this batch to detect intra-batch duplicates
 	seenCodes := make(map[string]bool)
 
-	var toInsert []domain.Employee
+	toInsert := make([]domain.Employee, 0)
 
 	for i, req := range employees {
 		rowNum := i + 2 // row 1 is header, data starts at row 2
@@ -182,7 +182,7 @@ func (uc *EmployeeUC) BulkImport(ctx context.Context, tenantID string, employees
 		}
 
 		// Validate required fields
-		var validationErrors []string
+		validationErrors := make([]string, 0)
 		if req.EmployeeCode == "" {
 			validationErrors = append(validationErrors, "employee_code is required")
 		}

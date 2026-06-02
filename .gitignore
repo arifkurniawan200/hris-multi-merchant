@@ -25,3 +25,5 @@ Thumbs.db
 .idea/
 *.swp
 frontend/.hermes/
+*.bak
+backend/migrations/027_employee_leave_balances.up.sql

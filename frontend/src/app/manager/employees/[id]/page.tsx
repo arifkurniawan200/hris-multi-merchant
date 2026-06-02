@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -151,9 +152,22 @@ function getDocumentIcon(type: string) {
 
 // ── Page Component ─────────────────────────
 export default function EmployeeDetailPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const t = useTranslations('employees');
   const params = useParams();
   const id = params.id as string;
+
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -318,6 +332,9 @@ export default function EmployeeDetailPage() {
   }
 
   if (!employee) return null;
+
+  if (authLoading) return null;
+  if (!isManager) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

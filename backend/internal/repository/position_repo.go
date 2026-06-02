@@ -91,7 +91,7 @@ func (r *PositionRepo) List(ctx context.Context, tenantID string) ([]domain.Posi
 	}
 	defer rows.Close()
 
-	var positions []domain.Position
+	positions := make([]domain.Position, 0)
 	for rows.Next() {
 		var p domain.Position
 		var deletedAt *time.Time

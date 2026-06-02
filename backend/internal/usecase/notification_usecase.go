@@ -34,13 +34,6 @@ func (uc *NotificationUC) getEmployeeName(ctx context.Context, employeeID uuid.U
 	return emp.FirstName + " " + emp.LastName
 }
 
-func (uc *NotificationUC) getUserNameByID(ctx context.Context, userID uuid.UUID) string {
-	// Try finding by employee → userID reverse lookup
-	// We don't have GetByUserID without tenantID, but we can get the employee
-	// For reviewer name, we rely on what's passed from the handler
-	return ""
-}
-
 // ── Manager lookup ────────────────────────────────
 
 // notifyManager finds the employee's manager and sends a notification to the manager's user
@@ -159,6 +152,53 @@ func (uc *NotificationUC) NotifyOvertimeReviewed(ctx context.Context, otReq *dom
 	}
 
 	return uc.notifRepo.CreateForEmployee(ctx, n, otReq.EmployeeID)
+}
+
+// ── Attendance Correction Notifications ─────────
+
+func (uc *NotificationUC) NotifyCorrectionSubmitted(ctx context.Context, corr *domain.AttendanceCorrection, employeeName string) error {
+	title := "New Attendance Correction Request"
+	message := fmt.Sprintf("%s submitted an attendance correction for %s",
+		employeeName, corr.ClockDate)
+
+	corrID := uuid.MustParse(corr.ID)
+	n := &domain.Notification{
+		TenantID:      uuid.MustParse(corr.TenantID),
+		Type:          domain.NotifCorrectionSubmitted,
+		Title:         title,
+		Message:       message,
+		ReferenceType: "attendance_correction",
+		ReferenceID:   &corrID,
+	}
+
+	empID := uuid.MustParse(corr.EmployeeID)
+	return uc.notifyManager(ctx, n, empID)
+}
+
+func (uc *NotificationUC) NotifyCorrectionReviewed(ctx context.Context, corr *domain.AttendanceCorrection, action string, reviewerName string) error {
+	actionLabel := "approved"
+	notifType := domain.NotifCorrectionApproved
+	if action == "rejected" {
+		actionLabel = "rejected"
+		notifType = domain.NotifCorrectionRejected
+	}
+
+	title := fmt.Sprintf("Attendance Correction %s", actionLabel)
+	message := fmt.Sprintf("Your attendance correction for %s has been %s by %s",
+		corr.ClockDate, actionLabel, reviewerName)
+
+	corrID := uuid.MustParse(corr.ID)
+	n := &domain.Notification{
+		TenantID:      uuid.MustParse(corr.TenantID),
+		Type:          notifType,
+		Title:         title,
+		Message:       message,
+		ReferenceType: "attendance_correction",
+		ReferenceID:   &corrID,
+	}
+
+	empID := uuid.MustParse(corr.EmployeeID)
+	return uc.notifRepo.CreateForEmployee(ctx, n, empID)
 }
 
 // ── Read operations ──────────────────────────────

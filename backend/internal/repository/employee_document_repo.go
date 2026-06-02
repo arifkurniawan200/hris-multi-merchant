@@ -102,7 +102,7 @@ func (r *EmployeeDocumentRepo) ListByEmployee(ctx context.Context, tenantID, emp
 	}
 	defer rows.Close()
 
-	var docs []domain.EmployeeDocument
+	docs := make([]domain.EmployeeDocument, 0)
 	for rows.Next() {
 		var d domain.EmployeeDocument
 		var deletedAt *time.Time

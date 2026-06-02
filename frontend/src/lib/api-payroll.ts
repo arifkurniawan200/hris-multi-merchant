@@ -1,103 +1,133 @@
+// Payroll API — payslip self-service
 import { api } from '@/lib/api';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface PayrollRecord {
   id: string;
   employee_id: string;
   employee_name: string;
-  employee_code: string;
+  employee_code?: string;
+  position_name?: string;
+  approved_by?: string;
+  approved_at?: string;
+  paid_at?: string;
+  payroll_type?: string;
+  notes?: string;
+  paid_by?: string;
+  generated_by?: string;
   department_name: string;
-  position_name: string;
-  period_year: number;
   period_month: number;
+  period_year: number;
   base_salary: number;
   overtime_pay: number;
   late_deduction: number;
   absent_deduction: number;
   leave_deduction: number;
   reimbursement: number;
+  allowances: number;
+  gross_salary: number;
+  total_deductions: number;
   net_salary: number;
-  status: 'draft' | 'approved' | 'paid';
-  approved_by?: string;
-  approved_at?: string;
-  paid_at?: string;
-  notes?: string;
+  status: string;
   created_at: string;
 }
 
-export interface PayrollConfig {
-  id: string;
-  tenant_id: string;
-  daily_salary_ratio: number;
-  late_penalty_amount: number;
-  absent_penalty_amount: number;
-  overtime_rate: number;
-}
+// ── API Functions ──────────────────────────────────────────────────────────────
 
-interface PaginatedPayroll {
-  items: PayrollRecord[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface GeneratePayrollData {
-  period_year: number;
-  period_month: number;
-  employee_ids?: string[];
-}
-
-export async function generatePayroll(
+export async function fetchMyPayslips(
   _tenant: string,
-  data: GeneratePayrollData
-): Promise<PayrollRecord[]> {
-  return api.post<PayrollRecord[]>('/api/v1/payroll/generate', data);
+  limit: number = 10,
+  offset: number = 0
+): Promise<{ data: PayrollRecord[]; total: number }> {
+  const res = await api.get<{ data: PayrollRecord[]; total: number }>(
+    `/api/v1/payroll/mine?limit=${limit}&offset=${offset}`
+  );
+  return res;
+}
+
+// ── Payroll Config ──────────────────────────────────────
+
+export interface PayrollConfig {
+  ptkp_status?: string;
+  bpjs_kes?: boolean;
+  bpjs_tk?: boolean;
+  pph21_method?: string;
+  [key: string]: any;
+}
+
+export async function fetchPayrollConfig(_tenant?: string): Promise<PayrollConfig> {
+  return api.get<PayrollConfig>('/api/v1/payroll/config');
+}
+
+export async function updatePayrollConfig(config: PayrollConfig, _tenant?: string): Promise<PayrollConfig> {
+  return api.put<PayrollConfig>('/api/v1/payroll/config', config);
+}
+
+// ── Manager Payroll ─────────────────────────────────────
+
+export interface PayrollFilter {
+  year?: number;
+  month?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export async function fetchPayrolls(
   _tenant: string,
-  year?: number,
-  month?: number,
-  limit = 50,
-  offset = 0
-): Promise<PaginatedPayroll> {
+  yearOrFilter?: number | PayrollFilter,
+  month?: number
+): Promise<{ data: PayrollRecord[]; total: number; items?: PayrollRecord[] }> {
+  let filter: PayrollFilter;
+  if (typeof yearOrFilter === 'number') {
+    filter = { year: yearOrFilter, month: month ?? new Date().getMonth() + 1 };
+  } else {
+    filter = yearOrFilter ?? {};
+  }
   const params = new URLSearchParams();
-  if (year) params.set('year', String(year));
-  if (month) params.set('month', String(month));
-  params.set('limit', String(limit));
-  params.set('offset', String(offset));
-  return api.get<PaginatedPayroll>(`/api/v1/payroll?${params.toString()}`);
+  if (filter?.year) params.set('year', String(filter.year));
+  if (filter?.month) params.set('month', String(filter.month));
+  if (filter?.limit) params.set('limit', String(filter.limit));
+  if (filter?.offset) params.set('offset', String(filter.offset));
+  const qs = params.toString();
+  const res = await api.get<{ data: PayrollRecord[]; total: number }>(`/api/v1/payroll${qs ? `?${qs}` : ''}`);
+  return { ...res, items: res.data };
 }
 
-export async function fetchPayrollByID(
-  _tenant: string,
-  id: string
-): Promise<PayrollRecord> {
-  return api.get<PayrollRecord>(`/api/v1/payroll/${id}`);
+export async function generatePayroll(tenant: string, body: { year: number; month: number }): Promise<any> {
+  return api.post('/api/v1/payroll/generate', body);
 }
 
-export async function approvePayroll(
-  _tenant: string,
-  id: string
-): Promise<void> {
+export async function approvePayroll(id: string, _tenant?: string): Promise<any> {
   return api.put(`/api/v1/payroll/${id}/approve`);
 }
 
-export async function markPaid(
-  _tenant: string,
-  id: string
-): Promise<void> {
+export async function markPaid(id: string, _tenant?: string): Promise<any> {
   return api.put(`/api/v1/payroll/${id}/paid`);
 }
 
-export async function fetchPayrollConfig(
-  _tenant: string
-): Promise<PayrollConfig> {
-  return api.get<PayrollConfig>('/api/v1/payroll/config');
-}
+// ── Download PDF ────────────────────────────────────────
 
-export async function updatePayrollConfig(
-  _tenant: string,
-  data: Partial<PayrollConfig>
-): Promise<PayrollConfig> {
-  return api.put<PayrollConfig>('/api/v1/payroll/config', data);
+export async function downloadPayslipPDF(id: string): Promise<Blob> {
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+
+  const res = await fetch(`${API_BASE}/api/v1/payroll/${id}/pdf`, { headers });
+
+  if (!res.ok) {
+    let message = 'Failed to download payslip PDF';
+    try {
+      const data = await res.json();
+      message = data.message || message;
+    } catch {
+      // use default message
+    }
+    throw new Error(message);
+  }
+
+  return res.blob();
 }

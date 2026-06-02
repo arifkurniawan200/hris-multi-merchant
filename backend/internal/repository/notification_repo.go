@@ -46,7 +46,7 @@ func scanNotification(row pgx.Row) (*domain.Notification, error) {
 }
 
 func scanNotifications(rows pgx.Rows) ([]domain.Notification, error) {
-	var items []domain.Notification
+	items := make([]domain.Notification, 0)
 	for rows.Next() {
 		var n domain.Notification
 		var deletedAt *time.Time

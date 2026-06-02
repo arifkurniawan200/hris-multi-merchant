@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Fragment } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useTranslations } from "next-intl";
 import {
@@ -66,7 +67,20 @@ export default function PayrollPage() {
   const tp = useTranslations('payroll');
   const tc = useTranslations('common');
   const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const tenant = user?.tenant_id || "";
+
+  // ⚠️ RBAC guard
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
 
   // Period selector
   const now = new Date();
@@ -162,8 +176,8 @@ export default function PayrollPage() {
     setError("");
     try {
       await generatePayroll(tenant, {
-        period_year: year,
-        period_month: month,
+        year: year,
+        month: month,
       });
       await loadPayrolls();
     } catch (e: any) {
@@ -218,7 +232,7 @@ export default function PayrollPage() {
     if (!tenant) return;
     setSavingConfig(true);
     try {
-      await updatePayrollConfig(tenant, configForm);
+      await updatePayrollConfig(configForm, tenant);
       setConfigOpen(false);
     } catch (e: any) {
       setError(e.message || "Failed to save config");
@@ -234,6 +248,9 @@ export default function PayrollPage() {
   // ── Deductions helper ─────────────────────
   const totalDeductions = (r: PayrollRecord) =>
     r.late_deduction + r.absent_deduction + r.leave_deduction;
+
+  if (authLoading) return null;
+  if (!isManager) return null;
 
   return (
     <div className="space-y-6 p-6 animate-fade-in">
@@ -450,7 +467,7 @@ export default function PayrollPage() {
                               {record.employee_name}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {record.employee_code}
+                              {record.employee_id}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
@@ -519,118 +536,98 @@ export default function PayrollPage() {
                         {isExpanded && (
                           <tr key={`${record.id}-detail`} className="bg-muted/20">
                             <td colSpan={9} className="px-6 py-4">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Position
-                                  </span>
-                                  <span className="font-medium">
-                                    {record.position_name || "—"}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    {tp('period')}
-                                  </span>
-                                  <span className="font-medium">
-                                    {
-                                      MONTHS.find(
-                                        (m) => m.value === record.period_month
-                                      )?.label
-                                    }{" "}
-                                    {record.period_year}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    {tp('baseSalary')}
-                                  </span>
-                                  <span>{fmtIDR(record.base_salary)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Overtime Pay
-                                  </span>
-                                  <span>{fmtIDR(record.overtime_pay)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Late Deduction
-                                  </span>
-                                  <span className="text-red-600">
-                                    -{fmtIDR(record.late_deduction)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Absent Deduction
-                                  </span>
-                                  <span className="text-red-600">
-                                    -{fmtIDR(record.absent_deduction)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Leave Deduction
-                                  </span>
-                                  <span className="text-red-600">
-                                    -{fmtIDR(record.leave_deduction)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    Reimbursement
-                                  </span>
-                                  <span>{fmtIDR(record.reimbursement)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground text-xs block">
-                                    {tp('netSalary')}
-                                  </span>
-                                  <span className="font-semibold">
-                                    {fmtIDR(record.net_salary)}
-                                  </span>
-                                </div>
-                                {record.approved_by && (
+                              <div className="text-sm space-y-4">
+                                {/* Employee Info */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                   <div>
-                                    <span className="text-muted-foreground text-xs block">
-                                      Approved By
-                                    </span>
-                                    <span>{record.approved_by}</span>
+                                    <span className="text-muted-foreground text-xs block">Position</span>
+                                    <span className="font-medium">{record.position_name || "—"}</span>
                                   </div>
-                                )}
-                                {record.approved_at && (
                                   <div>
-                                    <span className="text-muted-foreground text-xs block">
-                                      Approved At
-                                    </span>
-                                    <span>
-                                      {new Date(
-                                        record.approved_at
-                                      ).toLocaleDateString("id-ID")}
-                                    </span>
+                                    <span className="text-muted-foreground text-xs block">{tp('period')}</span>
+                                    <span className="font-medium">{MONTHS.find((m) => m.value === record.period_month)?.label} {record.period_year}</span>
                                   </div>
-                                )}
-                                {record.paid_at && (
                                   <div>
-                                    <span className="text-muted-foreground text-xs block">
-                                      Paid At
-                                    </span>
-                                    <span>
-                                      {new Date(
-                                        record.paid_at
-                                      ).toLocaleDateString("id-ID")}
-                                    </span>
+                                    <span className="text-muted-foreground text-xs block">{tp('baseSalary')}</span>
+                                    <span className="font-medium">{fmtIDR(record.base_salary)}</span>
                                   </div>
-                                )}
-                                {record.notes && (
-                                  <div className="col-span-2">
-                                    <span className="text-muted-foreground text-xs block">
-                                      {tc('name')}
-                                    </span>
-                                    <span>{record.notes}</span>
+                                  <div>
+                                    <span className="text-muted-foreground text-xs block">{tp('netSalary')}</span>
+                                    <span className="font-semibold text-emerald-600">{fmtIDR(record.net_salary)}</span>
                                   </div>
-                                )}
+                                </div>
+
+                                {/* Calculated Breakdown */}
+                                <div className="border-t border-border pt-3">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Income Breakdown</p>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <div className="rounded-lg bg-emerald-50 p-3">
+                                      <p className="text-xs text-emerald-700">Overtime Pay</p>
+                                      <p className="text-sm font-bold text-emerald-700">{fmtIDR(record.overtime_pay)}</p>
+                                      {record.overtime_pay > 0 && (
+                                        <p className="text-xs text-emerald-500 mt-0.5">Approved overtime hours</p>
+                                      )}
+                                    </div>
+                                    <div className="rounded-lg bg-blue-50 p-3">
+                                      <p className="text-xs text-blue-700">Reimbursement</p>
+                                      <p className="text-sm font-bold text-blue-700">{fmtIDR(record.reimbursement)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-indigo-50 p-3">
+                                      <p className="text-xs text-indigo-700">Allowances</p>
+                                      <p className="text-sm font-bold text-indigo-700">{fmtIDR(record.allowances)}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-border pt-3">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Deductions Breakdown</p>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="rounded-lg bg-red-50 p-3">
+                                      <p className="text-xs text-red-700">Late ({fmtIDR(record.late_deduction)})</p>
+                                      <p className="text-sm font-bold text-red-700">-{fmtIDR(record.late_deduction)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-red-50 p-3">
+                                      <p className="text-xs text-red-700">Absent ({fmtIDR(record.absent_deduction)})</p>
+                                      <p className="text-sm font-bold text-red-700">-{fmtIDR(record.absent_deduction)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-red-50 p-3">
+                                      <p className="text-xs text-red-700">Leave ({fmtIDR(record.leave_deduction)})</p>
+                                      <p className="text-sm font-bold text-red-700">-{fmtIDR(record.leave_deduction)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-red-50 p-3">
+                                      <p className="text-xs text-red-700">Total Deductions</p>
+                                      <p className="text-sm font-bold text-red-700">-{fmtIDR(totalDeductions(record))}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Status Timeline */}
+                                <div className="border-t border-border pt-3 flex flex-wrap gap-6 text-xs text-muted-foreground">
+                                  {record.approved_by && (
+                                    <div>
+                                      <span className="block">Approved By</span>
+                                      <span className="font-medium text-foreground">{record.approved_by}</span>
+                                    </div>
+                                  )}
+                                  {record.approved_at && (
+                                    <div>
+                                      <span className="block">Approved At</span>
+                                      <span className="font-medium text-foreground">{new Date(record.approved_at).toLocaleDateString("id-ID")}</span>
+                                    </div>
+                                  )}
+                                  {record.paid_at && (
+                                    <div>
+                                      <span className="block">Paid At</span>
+                                      <span className="font-medium text-foreground">{new Date(record.paid_at).toLocaleDateString("id-ID")}</span>
+                                    </div>
+                                  )}
+                                  {record.notes && (
+                                    <div>
+                                      <span className="block">Notes</span>
+                                      <span className="font-medium text-foreground">{record.notes}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </td>
                           </tr>

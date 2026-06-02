@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,17 @@ interface PendingOvertime {
 export default function OvertimeApprovalsPage() {
   const to = useTranslations('overtime');
   const tc = useTranslations('common');
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const [pending, setPending] = useState<PendingOvertime[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,8 +48,6 @@ export default function OvertimeApprovalsPage() {
   const [rejectModal, setRejectModal] = useState<{ open: boolean; id: string }>({ open: false, id: "" });
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
-
-  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
     if (isManager) loadPending();
@@ -88,6 +97,7 @@ export default function OvertimeApprovalsPage() {
     }
   }
 
+  if (authLoading) return null;
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">

@@ -176,6 +176,13 @@ type CreateLeaveTypeRequest struct {
 type ApproveLeaveRequest struct {
 	ReviewedBy string `json:"-"` // set by handler from JWT → employee ID
 }
+
+type AdjustLeaveBalanceRequest struct {
+	EmployeeID    string `json:"employee_id" validate:"required,uuid"`
+	LeaveTypeID   string `json:"leave_type_id" validate:"required,uuid"`
+	Year          int    `json:"year"`
+	AllocatedDays int    `json:"allocated_days" validate:"required,min=0"`
+}
 type RejectLeaveRequest struct {
 	ReviewedBy string `json:"-"`                             // set by handler
 	Reason     string `json:"reason" validate:"required,min=10"`
@@ -234,6 +241,26 @@ type UpdateProfileRequest struct {
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required,min=8"`
 	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
+
+// ── Shift Swap request DTOs ──────────────────────
+
+type CreateShiftSwapRequest struct {
+	TenantID            string `json:"tenant_id" validate:"required,uuid"`
+	RequesterEmployeeID string `json:"-"` // set by handler from JWT→employee lookup
+	TargetEmployeeID    string `json:"target_employee_id" validate:"required,uuid"`
+	RequesterDate       string `json:"requester_date" validate:"required"`
+	TargetDate          string `json:"target_date" validate:"required"`
+	Reason              string `json:"reason" validate:"required,min=5"`
+}
+
+type ApproveShiftSwapRequest struct {
+	ReviewedBy string `json:"-"` // set by handler
+}
+
+type RejectShiftSwapRequest struct {
+	ReviewedBy      string `json:"-"` // set by handler
+	RejectionReason string `json:"rejection_reason" validate:"required,min=3"`
 }
 
 // ── Employee Document request DTOs ─────────────────

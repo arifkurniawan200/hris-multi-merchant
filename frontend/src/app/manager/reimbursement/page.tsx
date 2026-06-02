@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,20 @@ const statusConfig: Record<string, { label: string; variant: "warning" | "succes
 export default function ManagerReimbursementPage() {
   const tr = useTranslations('reimbursement');
   const tc = useTranslations('common');
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const isManager =
+    user?.role === "manager" ||
+    user?.role === "tenant_admin" ||
+    user?.role === "super_admin";
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const [activeTab, setActiveTab] = useState<"types" | "pending">("types");
 
   // Shared state
@@ -94,11 +108,6 @@ export default function ManagerReimbursementPage() {
 
   // Confirm delete type
   const [deleteTypeConfirm, setDeleteTypeConfirm] = useState<{ id: string; name: string } | null>(null);
-
-  const isManager =
-    user?.role === "manager" ||
-    user?.role === "tenant_admin" ||
-    user?.role === "super_admin";
 
   useEffect(() => {
     if (!isManager) return;
@@ -250,6 +259,7 @@ export default function ManagerReimbursementPage() {
     }
   }
 
+  if (authLoading) return null;
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">
