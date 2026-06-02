@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -36,8 +37,18 @@ const defaultColors = [
 ];
 
 export default function LeaveTypesPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const t = useTranslations('leave');
+
+  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const tc = useTranslations('common');
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,8 +72,6 @@ export default function LeaveTypesPage() {
     color: "#3b82f6",
     description: "",
   });
-
-  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
     if (isManager) loadTypes();
@@ -180,6 +189,7 @@ export default function LeaveTypesPage() {
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
+  if (authLoading) return null;
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">

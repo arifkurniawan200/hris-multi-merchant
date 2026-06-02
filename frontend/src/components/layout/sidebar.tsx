@@ -38,6 +38,7 @@ import {
   PiggyBank,
   UserCog,
   Package,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 const isManager = (role: string) =>
@@ -76,47 +77,44 @@ export function Sidebar() {
     {
       labelKey: 'dashboard',
       icon: Clock,
-      roles: ['employee', 'manager', 'tenant_admin'],
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
       items: [
-        { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
       labelKey: 'attendance.group',
       icon: Clock,
-      roles: ['employee', 'manager', 'tenant_admin'],
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
       items: [
-        { href: '/dashboard/history', labelKey: 'attendance.history', icon: History, roles: ['employee', 'manager', 'tenant_admin'] },
+        // Employee items
+        { href: '/dashboard/history', labelKey: 'attendance.history', icon: History, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/dashboard/shifts', labelKey: 'attendance.myShift', icon: Clock, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/employee/shift-swaps', labelKey: 'attendance.shiftSwap', icon: ArrowRightLeft, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/dashboard/attendance/corrections', labelKey: 'attendance.corrections', icon: PenLine, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/roster', labelKey: 'attendance.roster', icon: CalendarDays, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        // Manager items
         { href: '/manager/attendance/corrections', labelKey: 'attendance.corrections', icon: PenLine, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/manager/report', labelKey: 'attendance.report', icon: BarChart3, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/attendance/export', labelKey: 'attendance.export', icon: Download, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/report', labelKey: 'attendance.report', icon: FileText, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/shifts', labelKey: 'attendance.shiftManagement', icon: ArrowLeftRight, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/shift-assignments', labelKey: 'attendance.shiftAssignments', icon: Link2, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/shift-swaps', labelKey: 'attendance.shiftSwapApprovals', icon: ArrowRightLeft, roles: ['manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/analytics', labelKey: 'attendance.analytics', icon: BarChart3, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
       labelKey: 'timeOff.group',
       icon: CalendarDays,
-      roles: ['employee', 'manager', 'tenant_admin'],
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
       items: [
-        { href: '/dashboard/leave', labelKey: 'timeOff.leaveRequest', icon: FileText, roles: ['employee', 'manager', 'tenant_admin'] },
-        { href: '/dashboard/leave/history', labelKey: 'timeOff.leaveHistory', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin'] },
-        { href: '/dashboard/leave/calendar', labelKey: 'timeOff.leaveCalendar', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/dashboard/leave', labelKey: 'timeOff.leaveRequest', icon: FileText, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/dashboard/leave/history', labelKey: 'timeOff.leaveHistory', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/dashboard/leave/calendar', labelKey: 'timeOff.leaveCalendar', icon: CalendarDays, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves/all', labelKey: 'timeOff.allLeaves', icon: List, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/leaves/pending', labelKey: 'timeOff.leaveApprovals', icon: CheckCircle2, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/manager/leaves-types', labelKey: 'timeOff.leaveTypes', icon: FileText, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/dashboard/overtime', labelKey: 'timeOff.overtimeRequest', icon: Clock, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/dashboard/overtime', labelKey: 'timeOff.overtimeRequest', icon: Clock, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/overtime', labelKey: 'timeOff.overtimeApprovals', icon: CheckCircle2, roles: ['manager', 'tenant_admin', 'super_admin'] },
-      ],
-    },
-    {
-      labelKey: 'shifts.group',
-      icon: ArrowLeftRight,
-      roles: ['employee', 'manager', 'tenant_admin'],
-      items: [
-        { href: '/dashboard/shifts', labelKey: 'shifts.myShift', icon: Clock, roles: ['employee', 'manager', 'tenant_admin'] },
-        { href: '/manager/shifts', labelKey: 'shifts.shiftManagement', icon: ArrowLeftRight, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/manager/shift-assignments', labelKey: 'shifts.shiftAssignments', icon: Link2, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/manager/roster', labelKey: 'roster', icon: CalendarDays, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/manager/analytics', labelKey: 'analytics', icon: BarChart3, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
@@ -132,29 +130,29 @@ export function Sidebar() {
     {
       labelKey: 'finance.group',
       icon: PiggyBank,
-      roles: ['employee', 'manager', 'tenant_admin'],
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
       items: [
-        { href: '/employee/reimbursement', labelKey: 'finance.reimbursement', icon: DollarSign, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/employee/reimbursement', labelKey: 'finance.reimbursement', icon: DollarSign, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/reimbursement', labelKey: 'finance.reimbursementManage', icon: DollarSign, roles: ['manager', 'tenant_admin', 'super_admin'] },
         { href: '/manager/payroll', labelKey: 'finance.payroll', icon: Wallet, roles: ['manager', 'tenant_admin', 'super_admin'] },
-        { href: '/employee/payslip', labelKey: 'finance.payslip', icon: FileText, roles: ['employee', 'manager', 'tenant_admin'] },
+        { href: '/employee/payslip', labelKey: 'finance.payslip', icon: FileText, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+      ],
+    },
+    {
+      labelKey: 'assets.group',
+      icon: Package,
+      roles: ['employee', 'manager', 'tenant_admin', 'super_admin'],
+      items: [
+        { href: '/employee/assets', labelKey: 'assets.myAssets', icon: Briefcase, roles: ['employee', 'manager', 'tenant_admin', 'super_admin'] },
+        { href: '/manager/assets', labelKey: 'assets.assetManagement', icon: Package, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {
       labelKey: 'announcements.group',
       icon: Megaphone,
-      roles: ['employee', 'manager', 'tenant_admin'],
+      roles: ['manager', 'tenant_admin', 'super_admin'],
       items: [
         { href: '/manager/announcements', labelKey: 'announcements.announcements', icon: Megaphone, roles: ['manager', 'tenant_admin', 'super_admin'] },
-      ],
-    },
-    {
-      labelKey: 'assets.group',
-      icon: Briefcase,
-      roles: ['employee', 'manager', 'tenant_admin'],
-      items: [
-        { href: '/employee/assets', labelKey: 'assets.myAssets', icon: Briefcase, roles: ['employee', 'manager', 'tenant_admin'] },
-        { href: '/manager/assets', labelKey: 'assets.management', icon: Package, roles: ['manager', 'tenant_admin', 'super_admin'] },
       ],
     },
     {

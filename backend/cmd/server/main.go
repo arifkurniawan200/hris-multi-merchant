@@ -73,11 +73,12 @@ func main() {
 	payrollRepo := repository.NewPayrollRepo(dbpool)
 	analyticsRepo := repository.NewAnalyticsRepo(dbpool)
 	rosterRepo := repository.NewRosterRepo(dbpool)
+	assetRepo := repository.NewAssetRepo(dbpool)
 	announcementRepo := repository.NewAnnouncementRepo(dbpool)
 	assetCatRepo := repository.NewAssetCategoryRepo(dbpool)
-	assetRepo := repository.NewAssetRepo(dbpool)
 	assetAssignRepo := repository.NewAssetAssignmentRepo(dbpool)
 	shiftSwapRepo := repository.NewShiftSwapRepo(dbpool)
+	dashboardRepo := repository.NewDashboardRepo(dbpool)
 
 	// ── Usecases ────────────────────────────
 	tenantUC := usecase.NewTenantUC(tenantRepo, &cfg.Plans)
@@ -91,7 +92,7 @@ func main() {
 	leaveUC := usecase.NewLeaveUC(leaveTypeRepo, leaveRequestRepo, empRepo, txMgr, &cfg.Leave, notificationUC)
 	shiftUC := usecase.NewShiftUC(shiftRepo)
 	empShiftUC := usecase.NewEmployeeShiftUC(empShiftRepo, shiftRepo)
-	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo)
+	overtimeUC := usecase.NewOvertimeUC(overtimeRepo, empRepo, notificationUC)
 	documentUC := usecase.NewEmployeeDocumentUC(documentRepo, cfg.Storage.UploadDir)
 	reimbUC := usecase.NewReimbursementUC(reimbTypeRepo, reimbRepo, empRepo, txMgr)
 	payrollUC := usecase.NewPayrollUC(payrollRepo, payrollConfigRepo, attendanceRepo, empRepo, txMgr)
@@ -101,6 +102,7 @@ func main() {
 	assetCatUC := usecase.NewAssetCategoryUC(assetCatRepo)
 	assetUC := usecase.NewAssetUC(assetRepo, assetAssignRepo, empRepo)
 	shiftSwapUC := usecase.NewShiftSwapUC(shiftSwapRepo, empShiftRepo, empRepo)
+	dashboardUC := usecase.NewDashboardUC(dashboardRepo, empRepo)
 
 	// ── Refresh token store (Redis) ─────────
 	// TODO: replace with Redis implementation
@@ -129,6 +131,7 @@ func main() {
 	announcementH := handler.NewAnnouncementHandler(announcementUC)
 	assetH := handler.NewAssetHandler(assetCatUC, assetUC)
 	shiftSwapH := handler.NewShiftSwapHandler(shiftSwapUC, empRepo)
+	dashboardH := handler.NewDashboardHandler(dashboardUC)
 
 	// ── Middleware ──────────────────────────
 	authMw := middleware.NewAuth(jwtMgr)
@@ -303,6 +306,9 @@ func main() {
 
 				// Assets self-service (employee+)
 				r.Get("/api/v1/assets/mine", assetH.MyAssets)
+
+				// Dashboard summary (employee+)
+				r.Get("/api/v1/dashboard/summary", dashboardH.Summary)
 
 				// Shift Swap — employee self-service
 				r.Post("/api/v1/shift-swaps", shiftSwapH.RequestSwap)

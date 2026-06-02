@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -84,7 +85,20 @@ const EMPTY_SHIFT_FORM: ShiftFormValues = {
 export default function ShiftManagementPage() {
   const t = useTranslations('shifts');
   const tc = useTranslations('common');
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,11 +126,6 @@ export default function ShiftManagementPage() {
     effective_from: new Date().toISOString().split("T")[0],
     effective_to: "",
   });
-
-  const isManager =
-    user?.role === "manager" ||
-    user?.role === "tenant_admin" ||
-    user?.role === "super_admin";
 
   useEffect(() => {
     if (isManager) {
@@ -303,6 +312,9 @@ export default function ShiftManagementPage() {
   if (loading) {
     return <LoadingState variant="fullscreen" />;
   }
+
+  if (authLoading) return null;
+  if (!isManager) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -38,9 +39,19 @@ const statusConfig: Record<string, { label: string; variant: string }> = {
 };
 
 export default function AllLeavesPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const t = useTranslations('leave');
   const tc = useTranslations('common');
+
+  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
+
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -53,8 +64,6 @@ export default function AllLeavesPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
-
-  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
     if (isManager) loadLeaves();
@@ -93,6 +102,7 @@ export default function AllLeavesPage() {
     setPage(0);
   }
 
+  if (authLoading) return null;
   if (!isManager) {
     return (
       <div className="flex items-center justify-center h-64">

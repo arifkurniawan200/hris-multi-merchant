@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,18 @@ interface Tenant {
 export default function TenantSettingsPage() {
   const t = useTranslations('settings');
   const tc = useTranslations('common');
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isTenantAdmin = user?.role === 'tenant_admin' || user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isTenantAdmin) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isTenantAdmin, router]);
+
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,8 +80,6 @@ export default function TenantSettingsPage() {
   const [showRawJson, setShowRawJson] = useState(false);
   const [rawJson, setRawJson] = useState("{}");
   const [useRawJson, setUseRawJson] = useState(false);
-
-  const isTenantAdmin = user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
     loadTenant();
@@ -150,6 +160,9 @@ export default function TenantSettingsPage() {
       </div>
     );
   }
+
+  if (authLoading) return null;
+  if (!isTenantAdmin) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

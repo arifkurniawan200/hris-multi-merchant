@@ -149,3 +149,28 @@ func (h *AttendanceCorrectionHandler) ListByEmployee(w http.ResponseWriter, r *h
 
 	response.JSON(w, http.StatusOK, "Success", corrections, reqID)
 }
+
+// ListMine handles GET /api/v1/attendance/corrections/mine
+func (h *AttendanceCorrectionHandler) ListMine(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.GetReqID(r.Context())
+
+	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
+	if userID == "" {
+		response.Err(w, http.StatusBadRequest, response.ErrNoTenantContext, "No user context", reqID)
+		return
+	}
+
+	tenantID, _ := r.Context().Value(middleware.CtxTenantID).(string)
+
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	offset, _ := strconv.Atoi(q.Get("offset"))
+
+	corrections, err := h.uc.ListMine(r.Context(), userID, tenantID, limit, offset)
+	if err != nil {
+		handleDomainErr(w, r, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, "Success", corrections, reqID)
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -143,6 +144,19 @@ export default function AssetsPage() {
   const t = useTranslations('nav.assets');
   const tc = useTranslations('common');
   const te = useTranslations('errors');
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [total, setTotal] = useState(0);
@@ -364,6 +378,9 @@ export default function AssetsPage() {
   };
 
   // ── Render ──────────────────────────────────────────
+
+  if (authLoading) return null;
+  if (!isManager) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

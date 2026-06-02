@@ -61,7 +61,7 @@ export default function ShiftDetailPage() {
   const tc = useTranslations('common');
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [shift, setShift] = useState<Shift | null>(null);
   const [assignments, setAssignments] = useState<EmployeeShift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -69,6 +69,18 @@ export default function ShiftDetailPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // ⚠️ RBAC guard
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'tenant_admin' ||
+    user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (!authLoading && !isManager) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isManager, router]);
 
   // Assign modal
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -80,8 +92,6 @@ export default function ShiftDetailPage() {
 
   // Confirm dialog for remove
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; employeeName: string } | null>(null);
-
-  const isManager = user?.role === "manager" || user?.role === "tenant_admin" || user?.role === "super_admin";
 
   useEffect(() => {
     if (params.id && isManager) loadData();
@@ -197,6 +207,9 @@ export default function ShiftDetailPage() {
   }
 
   const assignedIds = assignments.map((a) => a.employee_id);
+
+  if (authLoading) return null;
+  if (!isManager) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

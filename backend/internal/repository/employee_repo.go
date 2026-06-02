@@ -27,7 +27,7 @@ func NewEmployeeRepo(db adapter.DBTX) domain.EmployeeRepository {
 	return &EmployeeRepo{db: db}
 }
 
-var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, e.last_name,
+var empColumns = `e.id, e.tenant_id, e.user_id, e.employee_code, e.first_name, COALESCE(e.last_name, ''),
 	COALESCE(e.gender, ''), e.birth_date::text, COALESCE(e.birth_place, ''), e.email, COALESCE(e.phone, ''), COALESCE(e.address, ''),
 	e.department_id, e.position_id, e.manager_id,
 	e.employment_status, e.employment_type, e.join_date::text,

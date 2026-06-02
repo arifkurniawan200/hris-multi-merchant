@@ -17,6 +17,8 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isManager: boolean;
+  isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -81,6 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         isAuthenticated: !!token && !!user,
+        isManager:
+          user?.role === 'manager' ||
+          user?.role === 'tenant_admin' ||
+          user?.role === 'super_admin',
+        isSuperAdmin: user?.role === 'super_admin',
         login,
         logout,
         setUser,
