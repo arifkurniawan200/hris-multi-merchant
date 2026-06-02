@@ -802,6 +802,24 @@ type LeaveBalance struct {
 	Remaining     int       `json:"remaining"`
 }
 
+type EmployeeLeaveBalance struct {
+	ID            uuid.UUID `json:"id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	EmployeeID    uuid.UUID `json:"employee_id"`
+	LeaveTypeID   uuid.UUID `json:"leave_type_id"`
+	Year          int       `json:"year"`
+	AllocatedDays int       `json:"allocated_days"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	// Joined fields
+	EmployeeName string `json:"employee_name,omitempty"`
+	EmployeeCode string `json:"employee_code,omitempty"`
+	LeaveTypeName string `json:"leave_type_name,omitempty"`
+	LeaveTypeCode string `json:"leave_type_code,omitempty"`
+	UsedDays      int    `json:"used_days,omitempty"`
+	RemainingDays int    `json:"remaining_days,omitempty"`
+}
+
 type LeaveRequestRepository interface {
 	Create(ctx context.Context, lr *LeaveRequest) error
 	GetByID(ctx context.Context, id uuid.UUID) (*LeaveRequest, error)
@@ -814,6 +832,13 @@ type LeaveRequestRepository interface {
 	HasOverlap(ctx context.Context, employeeID uuid.UUID, startDate, endDate string, excludeID *uuid.UUID) (bool, error)
 	GetUsedDays(ctx context.Context, employeeID, leaveTypeID uuid.UUID, year int) (int, error)
 	SoftDelete(ctx context.Context, id uuid.UUID) error
+}
+
+type LeaveBalanceRepository interface {
+	GetByEmployee(ctx context.Context, employeeID, leaveTypeID uuid.UUID, year int) (*EmployeeLeaveBalance, error)
+	Upsert(ctx context.Context, b *EmployeeLeaveBalance) error
+	ListByTenant(ctx context.Context, tenantID uuid.UUID, year int) ([]EmployeeLeaveBalance, error)
+	GetEmployeeBalances(ctx context.Context, employeeID uuid.UUID, year int) ([]EmployeeLeaveBalance, error)
 }
 
 type LeaveFilter struct {
@@ -837,6 +862,9 @@ type LeaveUseCase interface {
 	ListLeaveTypes(ctx context.Context, tenantID uuid.UUID) ([]LeaveType, error)
 	UpdateLeaveType(ctx context.Context, req *LeaveType) error
 	SoftDeleteLeaveType(ctx context.Context, id, tenantID uuid.UUID) error
+	ListEmployeeBalances(ctx context.Context, tenantID uuid.UUID, year int) ([]EmployeeLeaveBalance, error)
+	AdjustBalance(ctx context.Context, req *AdjustLeaveBalanceRequest) (*EmployeeLeaveBalance, error)
+	GetEmployeeBalances(ctx context.Context, employeeID uuid.UUID, year int) ([]EmployeeLeaveBalance, error)
 }
 
 // ── Overtime Request ────────────────────────────

@@ -467,3 +467,134 @@ func (r *LeaveRequestRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		id)
 	return err
 }
+
+// ── LeaveBalanceRepo ─────────────────────────────
+
+type LeaveBalanceRepo struct {
+	db adapter.DBTX
+}
+
+func NewLeaveBalanceRepo(db adapter.DBTX) domain.LeaveBalanceRepository {
+	return &LeaveBalanceRepo{db: db}
+}
+
+func (r *LeaveBalanceRepo) dbQuerier(ctx context.Context) adapter.DBTX {
+	if tx := adapter.GetTxDB(ctx); tx != nil {
+		return tx
+	}
+	return r.db
+}
+
+var elbColumns = `id, tenant_id, employee_id, leave_type_id, year, allocated_days, created_at, updated_at`
+
+func scanEmployeeLeaveBalance(row pgx.Row) (*domain.EmployeeLeaveBalance, error) {
+	var b domain.EmployeeLeaveBalance
+	err := row.Scan(
+		&b.ID, &b.TenantID, &b.EmployeeID, &b.LeaveTypeID,
+		&b.Year, &b.AllocatedDays, &b.CreatedAt, &b.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("employee leave balance not found")
+		}
+		return nil, err
+	}
+	return &b, nil
+}
+
+var elbJoinColumns = `elb.id, elb.tenant_id, elb.employee_id, elb.leave_type_id,
+	elb.year, elb.allocated_days, elb.created_at, elb.updated_at,
+	COALESCE(e.first_name || ' ' || e.last_name, '') AS employee_name,
+	COALESCE(e.employee_code, '') AS employee_code,
+	COALESCE(lt.name, '') AS leave_type_name,
+	COALESCE(lt.code, '') AS leave_type_code`
+
+var elbJoins = `
+	LEFT JOIN employees e ON e.id = elb.employee_id AND e.deleted_at IS NULL
+	LEFT JOIN leave_types lt ON lt.id = elb.leave_type_id AND lt.deleted_at IS NULL`
+
+func scanEmployeeLeaveBalanceWithJoin(row pgx.Row) (*domain.EmployeeLeaveBalance, error) {
+	var b domain.EmployeeLeaveBalance
+	err := row.Scan(
+		&b.ID, &b.TenantID, &b.EmployeeID, &b.LeaveTypeID,
+		&b.Year, &b.AllocatedDays, &b.CreatedAt, &b.UpdatedAt,
+		&b.EmployeeName, &b.EmployeeCode,
+		&b.LeaveTypeName, &b.LeaveTypeCode,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("employee leave balance not found")
+		}
+		return nil, err
+	}
+	return &b, nil
+}
+
+func (r *LeaveBalanceRepo) GetByEmployee(ctx context.Context, employeeID, leaveTypeID uuid.UUID, year int) (*domain.EmployeeLeaveBalance, error) {
+	query := `SELECT ` + elbColumns + ` FROM employee_leave_balances
+		WHERE employee_id=$1 AND leave_type_id=$2 AND year=$3`
+	return scanEmployeeLeaveBalance(r.dbQuerier(ctx).QueryRow(ctx, query, employeeID, leaveTypeID, year))
+}
+
+func (r *LeaveBalanceRepo) Upsert(ctx context.Context, b *domain.EmployeeLeaveBalance) error {
+	query := `
+		INSERT INTO employee_leave_balances (id, tenant_id, employee_id, leave_type_id, year, allocated_days, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		ON CONFLICT (employee_id, leave_type_id, year)
+		DO UPDATE SET allocated_days=$6, updated_at=NOW()`
+	_, err := r.dbQuerier(ctx).Exec(ctx, query,
+		b.ID, b.TenantID, b.EmployeeID, b.LeaveTypeID, b.Year, b.AllocatedDays)
+	return err
+}
+
+func (r *LeaveBalanceRepo) ListByTenant(ctx context.Context, tenantID uuid.UUID, year int) ([]domain.EmployeeLeaveBalance, error) {
+	query := `SELECT ` + elbJoinColumns + ` FROM employee_leave_balances elb` + elbJoins +
+		` WHERE elb.tenant_id=$1 AND elb.year=$2
+		ORDER BY e.first_name ASC, lt.name ASC`
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, tenantID, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	balances := make([]domain.EmployeeLeaveBalance, 0)
+	for rows.Next() {
+		var b domain.EmployeeLeaveBalance
+		if err := rows.Scan(
+			&b.ID, &b.TenantID, &b.EmployeeID, &b.LeaveTypeID,
+			&b.Year, &b.AllocatedDays, &b.CreatedAt, &b.UpdatedAt,
+			&b.EmployeeName, &b.EmployeeCode,
+			&b.LeaveTypeName, &b.LeaveTypeCode,
+		); err != nil {
+			return nil, err
+		}
+		balances = append(balances, b)
+	}
+	return balances, rows.Err()
+}
+
+func (r *LeaveBalanceRepo) GetEmployeeBalances(ctx context.Context, employeeID uuid.UUID, year int) ([]domain.EmployeeLeaveBalance, error) {
+	query := `SELECT ` + elbJoinColumns + ` FROM employee_leave_balances elb` + elbJoins +
+		` WHERE elb.employee_id=$1 AND elb.year=$2
+		ORDER BY lt.name ASC`
+	rows, err := r.dbQuerier(ctx).Query(ctx, query, employeeID, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	balances := make([]domain.EmployeeLeaveBalance, 0)
+	for rows.Next() {
+		var b domain.EmployeeLeaveBalance
+		if err := rows.Scan(
+			&b.ID, &b.TenantID, &b.EmployeeID, &b.LeaveTypeID,
+			&b.Year, &b.AllocatedDays, &b.CreatedAt, &b.UpdatedAt,
+			&b.EmployeeName, &b.EmployeeCode,
+			&b.LeaveTypeName, &b.LeaveTypeCode,
+		); err != nil {
+			return nil, err
+		}
+		balances = append(balances, b)
+	}
+	return balances, rows.Err()
+}
