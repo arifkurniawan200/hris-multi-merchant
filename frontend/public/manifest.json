@@ -1,0 +1,29 @@
+{
+  "name": "SapaHR",
+  "short_name": "SapaHR",
+  "description": "Multi-tenant HRIS & Attendance System — Greeting with Purpose, Growing with Purpose",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "id",
+  "categories": ["business", "productivity", "hr"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
